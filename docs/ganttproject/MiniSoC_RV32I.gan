@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><project name="MiniSoC-RV32I" company="" webLink="" view-date="2025-06-30" view-index="0" gantt-divider-location="519" resource-divider-location="387" version="3.3.3316" locale="en_US">
+    <description/>
+    <view zooming-state="default:2" id="gantt-chart">
+        <field id="tpd3" name="Name" width="330" order="0"/>
+        <field id="tpd4" name="Begin date" width="76" order="1"/>
+        <field id="tpd5" name="End date" width="112" order="2"/>
+        <field id="tpd15" name="Notes" width="20" order="3"/>
+        <option id="filter.completedTasks" value="false"/>
+        <option id="filter.dueTodayTasks" value="false"/>
+        <option id="filter.overdueTasks" value="false"/>
+        <option id="filter.inProgressTodayTasks" value="false"/>
+    </view>
+    <view id="resource-table">
+        <field id="0" name="Name" width="254" order="0"/>
+        <field id="1" name="Default role" width="129" order="1"/>
+    </view>
+    <!-- -->
+    <calendars>
+        <day-types>
+            <day-type id="0"/>
+            <day-type id="1"/>
+            <default-week id="1" name="default" sun="1" mon="0" tue="0" wed="0" thu="0" fri="0" sat="1"/>
+            <only-show-weekends value="false"/>
+            <overriden-day-types/>
+            <days/>
+        </day-types>
+    </calendars>
+    <tasks empty-milestones="true">
+        <taskproperties>
+            <taskproperty id="tpd0" name="type" type="default" valuetype="icon"/>
+            <taskproperty id="tpd1" name="priority" type="default" valuetype="icon"/>
+            <taskproperty id="tpd2" name="info" type="default" valuetype="icon"/>
+            <taskproperty id="tpd3" name="name" type="default" valuetype="text"/>
+            <taskproperty id="tpd4" name="begindate" type="default" valuetype="date"/>
+            <taskproperty id="tpd5" name="enddate" type="default" valuetype="date"/>
+            <taskproperty id="tpd6" name="duration" type="default" valuetype="int"/>
+            <taskproperty id="tpd7" name="completion" type="default" valuetype="int"/>
+            <taskproperty id="tpd8" name="coordinator" type="default" valuetype="text"/>
+            <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
+        </taskproperties>
+        <task id="66" uid="afc2920a79694dfba78c432b70cbde97" name="Define MiniSoC specifications" meeting="false" start="2025-06-30" duration="1" complete="0" expand="true">
+            <depend id="0" type="2" difference="0" hardness="Strong"/>
+        </task>
+        <task id="0" uid="680ba264527b45089767020114e99291" name="Project Setup" meeting="false" start="2025-07-01" duration="2" complete="0" expand="true">
+            <depend id="1" type="2" difference="0" hardness="Strong"/>
+            <task id="12" uid="e578a201109c4579a22550b8bef45e3c" name="Create  Gantt Chart" meeting="false" start="2025-07-01" duration="1" complete="0" expand="true">
+                <depend id="11" type="2" difference="0" hardness="Strong"/>
+            </task>
+            <task id="11" uid="b20044dd651f48e6b4fc01558e1f2938" name="Create project directory structure" meeting="false" start="2025-07-02" duration="1" complete="0" expand="true">
+                <notes><![CDATA[Folders and sub-folders]]></notes>
+            </task>
+            <task id="13" uid="fd8588232d8b46908dfc8ad6588cd528" name="Set up Makefile / environment scripts" meeting="false" start="2025-07-01" duration="1" complete="0" expand="true"/>
+            <task id="14" uid="9d33fb6fa1a9456cab2b0deca2bcd8db" name="Create memory map and documentation" meeting="false" start="2025-07-01" duration="1" complete="0" expand="true"/>
+        </task>
+        <task id="1" uid="428fbb09dba04cd2916830a5242dee82" name="Wishbone Interconnect" meeting="false" start="2025-07-04" duration="1" complete="0" expand="false">
+            <depend id="2" type="2" difference="0" hardness="Strong"/>
+            <task id="15" uid="ba80daa942614107868f2d75440e28f7" name="Define address map" meeting="false" start="2025-07-04" duration="1" complete="0" expand="true"/>
+            <task id="16" uid="564efc7d287044a78473731172408fd8" name="Implement basic Wishbone master insterface in CPU" meeting="false" start="2025-07-04" duration="1" complete="0" expand="true"/>
+            <task id="17" uid="26ff4d2bf64d4cfa9e61a73c4f0ba697" name="Create Wishbone interconnect decoder + mux logic" meeting="false" start="2025-07-04" duration="1" complete="0" expand="true"/>
+            <task id="18" uid="558ce7fd7a294356aafe15ab0421b98d" name="Simulate address decoding to each target" meeting="false" start="2025-07-04" duration="1" complete="0" expand="true"/>
+            <task id="19" uid="db2ac57fbb854a6e92bc563542296fc3" name="Validate Wishbone read/write waveforms" meeting="false" start="2025-07-04" duration="1" complete="0" expand="true"/>
+        </task>
+        <task id="2" uid="df1325f1c2d44c58bb9809ab1da38ad3" name="RISC-V CPU Core" meeting="false" start="2025-07-07" duration="1" complete="0" expand="false">
+            <depend id="3" type="2" difference="0" hardness="Strong"/>
+            <task id="20" uid="c18cfe2453c64915acd936b080ae5800" name="Implement 32 general-purpose registerts" meeting="false" start="2025-07-07" duration="1" complete="0" expand="true"/>
+            <task id="21" uid="f805718b925e488180da7cc970164d3e" name="Implement PC and instruction fetch logic" meeting="false" start="2025-07-07" duration="1" complete="0" expand="true"/>
+            <task id="22" uid="c05248e764514be4873c9364ccf77748" name="Create instruction decoder" meeting="false" start="2025-07-07" duration="1" complete="0" expand="true"/>
+            <task id="23" uid="bb1ec8138ff2456a918fec9e2df511cb" name="Implement ALU" meeting="false" start="2025-07-07" duration="1" complete="0" expand="true">
+                <notes><![CDATA[ADD, SUB, AND, OR, XOR, SLL, SRL, SRA ]]></notes>
+            </task>
+            <task id="24" uid="ab959d8ec8de470b874783ed51d70933" name="Implement load/store unit" meeting="false" start="2025-07-07" duration="1" complete="0" expand="true">
+                <notes><![CDATA[Wishbone-compatible DMEM access]]></notes>
+            </task>
+            <task id="25" uid="735c14e0af6847a8857d53dd7e053ecc" name="Implement branch/jump logic" meeting="false" start="2025-07-07" duration="1" complete="0" expand="true">
+                <notes><![CDATA[BEQ, BNE, JAL, JALR]]></notes>
+            </task>
+            <task id="26" uid="192aacaf0f9d4e38ae4151d1833c1ccd" name="Integrate CPU and verify PC + instruction trace via gtkwave" meeting="false" start="2025-07-07" duration="1" complete="0" expand="true"/>
+        </task>
+        <task id="3" uid="e48d0752ff3e472c9e0f6e7c43e8c3c6" name="Memory Blocks" meeting="false" start="2025-07-08" duration="1" complete="0" expand="false">
+            <depend id="4" type="2" difference="0" hardness="Strong"/>
+            <task id="27" uid="129ca6c5b695406ba2e953b954841947" name="Write IMEM module" meeting="false" start="2025-07-08" duration="1" complete="0" expand="true"/>
+            <task id="28" uid="fa2c121d53a54de982acc41fe4a6c666" name="Write DMEM module" meeting="false" start="2025-07-08" duration="1" complete="0" expand="true"/>
+            <task id="29" uid="65a0a0c72b5241c690d5a8ece66a1e88" name="Write Wishbone wrappers for IMEM/DMEM" meeting="false" start="2025-07-08" duration="1" complete="0" expand="true"/>
+            <task id="30" uid="2bcdee6e22134bf3a0e98305e6855a09" name="Simulate read/write from/to memory via CPU" meeting="false" start="2025-07-08" duration="1" complete="0" expand="true"/>
+            <task id="31" uid="11c0d316b78348569cecfc90046c5fb6" name="Validate memory contents with waveform and dump logs" meeting="false" start="2025-07-08" duration="1" complete="0" expand="true"/>
+        </task>
+        <task id="4" uid="dde215802d52491c8addc78a0c0e5d7c" name="Peripherals" meeting="false" start="2025-07-09" duration="1" complete="0" expand="false">
+            <depend id="5" type="2" difference="0" hardness="Strong"/>
+            <task id="32" uid="69370f9c5b25401495805ff19874d037" name="UART" meeting="false" start="2025-07-09" duration="1" complete="0" expand="false">
+                <task id="35" uid="5dd91e06837a4fc39189ba5a9567be2c" name="Implement baud generator" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="36" uid="95e250b8527649f7b34283459d88550e" name="Implement TX" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="37" uid="61bab82ffe334e308ac526872b278d00" name="Implement RX" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="38" uid="1ff07001b3714bb18708a86991c9196c" name="Add Wishbone interface" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="39" uid="76977eba92864f17bd3544230d9ee53e" name="Create mempry-mapped TX/RX register" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="40" uid="44d9b85b254a4df2b73d3aaf9bf536ed" name="Simulate and validate UART waveform" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+            </task>
+            <task id="33" uid="4829302794994b93bcf22841767ff44f" name="Timer" meeting="false" start="2025-07-09" duration="1" complete="0" expand="false">
+                <task id="41" uid="501993b5ba734c83b4b9e80ecbbca5c7" name="Implement 32-bit counter" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="42" uid="fdcab8361ce742799eb0b678bb4c389f" name="Add Wishbone interface" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="43" uid="bdf286798a954326bfad74bcd0d21be2" name="Create memory-mapped Timer register" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="44" uid="feaef5bae994449d9bbe3c471e9322a3" name="Simulate and validate Timer value change" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+            </task>
+            <task id="34" uid="d15a641d8d8246198b6ae65b284b285a" name="GPIO" meeting="false" start="2025-07-09" duration="1" complete="0" expand="false">
+                <task id="45" uid="9d14cdfa41c740048ff8d5705e18f7fd" name="Implement 8-bit input/output register" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="46" uid="8b4b8f673ff14be8ab42d8e12f68ce25" name="Add Wishbone interface" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+                <task id="47" uid="462b27f5cc4942678759abbd8dfe00a4" name="Simulate and validate GPIO waveform" meeting="false" start="2025-07-09" duration="1" complete="0" expand="true"/>
+            </task>
+        </task>
+        <task id="5" uid="9be0f6968a3e4d39ac496c0bf8ec5c44" name="Top-Level SoC Integration" meeting="false" start="2025-07-10" duration="1" complete="0" expand="false">
+            <depend id="6" type="2" difference="0" hardness="Strong"/>
+            <task id="48" uid="cc42e033f160433683205c9f596f8d65" name="Create top-level SoC wrapper" meeting="false" start="2025-07-10" duration="1" complete="0" expand="true"/>
+            <task id="49" uid="eaa9f13c94884c9dbeee4b871ea64ec1" name="Connect all modules via Wishbone fabric" meeting="false" start="2025-07-10" duration="1" complete="0" expand="true"/>
+            <task id="50" uid="9308317b54be4f2da49ade85afc80627" name="Load compiled program into IMEM" meeting="false" start="2025-07-10" duration="1" complete="0" expand="true"/>
+            <task id="51" uid="8c2e8496920d470b855f62b8dc711be0" name="Simulate peripherals" meeting="false" start="2025-07-10" duration="1" complete="0" expand="true"/>
+            <task id="52" uid="75cbd34033ca4795ac82b9f567e6114f" name="Validate full SoC" meeting="false" start="2025-07-10" duration="1" complete="0" expand="true"/>
+        </task>
+        <task id="6" uid="e33cbb090e8c4488b509eaf63d0bb569" name="Software Development" meeting="false" start="2025-07-11" duration="1" complete="0" expand="false">
+            <depend id="7" type="2" difference="0" hardness="Strong"/>
+            <task id="53" uid="2502acc3b73247ddbafb22e39381c3d4" name="Write minimal RISC-V program" meeting="false" start="2025-07-11" duration="1" complete="0" expand="true"/>
+            <task id="54" uid="6f8e3c22a3124f18bf7bcb4f0c2ba91e" name="Compile program" meeting="false" start="2025-07-11" duration="1" complete="0" expand="true"/>
+            <task id="55" uid="5b7425316cd54b1e9b64ce200b5431e3" name="Generate hex file for IMEM" meeting="false" start="2025-07-11" duration="1" complete="0" expand="true"/>
+            <task id="56" uid="493fca9413cb44ffbfb78f95fabd84c8" name="Write memory-mapped I/O macros in C" meeting="false" start="2025-07-11" duration="1" complete="0" expand="true"/>
+            <task id="57" uid="411426ca220947e88ccaf862d43d13d5" name="Validate software runiing in simulation" meeting="false" start="2025-07-11" duration="1" complete="0" expand="true"/>
+        </task>
+        <task id="7" uid="e6006dceb4e64cd4bcdc03fcb7fe1151" name="Synthesis" meeting="false" start="2025-07-14" duration="1" complete="0" expand="false">
+            <depend id="8" type="2" difference="0" hardness="Strong"/>
+            <task id="58" uid="430087a0ec98443c8f4d93c99da9e295" name="Create yosys synthesis script" meeting="false" start="2025-07-14" duration="1" complete="0" expand="true"/>
+            <task id="59" uid="5e27e359e250426ab7f961ca3d03595d" name="Run synthesis for CPU, RAM, and peripherals" meeting="false" start="2025-07-14" duration="1" complete="0" expand="true"/>
+            <task id="60" uid="1e23943faa074af29a1bd6b9f0f290ad" name="Analyze gate count and synthesized netlist" meeting="false" start="2025-07-14" duration="1" complete="0" expand="true"/>
+        </task>
+        <task id="8" uid="6c70537cd68e46a8b6750e7633eb77a3" name="Documentation" meeting="false" start="2025-07-15" duration="1" complete="0" expand="false">
+            <task id="61" uid="a1c63de015a4445da6b5d35e6c4632b1" name="Document CPU ISA subset and supported operations" meeting="false" start="2025-07-15" duration="1" complete="0" expand="true"/>
+            <task id="62" uid="2c133e43b3e64255b6c4c6d7d7011e78" name="Document memory map and peripheral registers" meeting="false" start="2025-07-15" duration="1" complete="0" expand="true"/>
+            <task id="63" uid="ee27062205104f4f884255166c47d8a8" name="Add signal diagram of Wishbone bus" meeting="false" start="2025-07-15" duration="1" complete="0" expand="true"/>
+            <task id="64" uid="c3b1e03c4e5842b6b7db4c7e14f0bc6d" name="Export waveform screenshots from GTKWave" meeting="false" start="2025-07-15" duration="1" complete="0" expand="true"/>
+            <task id="65" uid="6a8d58f5b0104ad0ac89da8d653179ea" name="Finalize project README with build/run instructions" meeting="false" start="2025-07-15" duration="1" complete="0" expand="true"/>
+        </task>
+    </tasks>
+    <resources>
+        <resource id="0" name="Gaël  BOYA" function="Default:1" contacts="" phone=""/>
+    </resources>
+    <allocations/>
+    <vacations/>
+    <previous/>
+    <roles roleset-name="Default"/>
+</project>
