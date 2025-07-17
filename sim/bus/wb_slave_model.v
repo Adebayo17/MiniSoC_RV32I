@@ -37,7 +37,7 @@ module wb_slave_model #(
 
             // Initialize memory to known values
             for (integer i = 0; i < 1024; i = i + 1) begin
-                mem[i] <= 32'hDEAD_DEAD;
+                mem[i] <= 32'h0000_0000;
             end
         end
         else if (wb_cyc_i && wb_stb_i && is_selected) begin

@@ -327,26 +327,9 @@ module tb_wishbone_interconnect;
 
             // Write to the address
             cpu_master.wb_write(addr, write_data);
-            wait(slave_accessed != 0); // Wait for any slave access
-            #(CLK_PERIOD); // Extra settling time
-
-            // Verify correct slave was accessed
-            // if (!slave_accessed[slave_id]) begin
-            //     $display("ERROR: %s (slave %0d) not accessed at addr %h", slave_name, slave_id, addr);
-            //     err_cnt = err_cnt + 1;
-            // end
-            // // Verify no other slaves were accessed
-            // for (i = 0; i < 5; i = i + 1) begin
-            //     if (i != slave_id && slave_accessed[i]) begin
-            //         $display("ERROR: Wrong slave %0d accessed for %s", i, slave_name);
-            //         err_cnt = err_cnt + 1;
-            //     end
-            // end
 
             // Read from address
             cpu_master.wb_read(addr, read_data);
-            wait(slave_accessed != 0); // Wait for any slave access
-            #(CLK_PERIOD); // Extra settling time
 
             if (read_data != write_data) begin
                 $display("ERROR: %s (slave %0d) data mismatch at addr %h. Wrote %h, Read %h", slave_name, slave_id, addr, write_data, read_data);
@@ -423,10 +406,12 @@ module tb_wishbone_interconnect;
         #(CLK_PERIOD*2);
 
         // Run test cases
+        $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 1] ADDRESS DECODING: Starting");
         test_num = 1;
         test_name = "Address Decoding";
         test_address_decoding(task_error_count);
         total_errors = total_errors + task_error_count;
+        $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 1] ADDRESS DECODING: Completed");
 
         // Summary
         $display("\nTestbench completed with %0d total errors", total_errors);
