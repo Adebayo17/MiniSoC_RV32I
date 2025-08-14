@@ -13,7 +13,7 @@ GTKWAVE ?= gtkwave
 # Include sub-components
 # -------------------------------------------
 include $(SIM_DIR)/bus/include.sim.bus.mk
-
+include $(SIM_DIR)/mem/include.sim.mem.mk
 
 
 # -------------------------------------------
@@ -21,7 +21,7 @@ include $(SIM_DIR)/bus/include.sim.bus.mk
 # -------------------------------------------
 .PHONY: sim.all sim.clean
 
-sim.all: sim.bus # sim.cpu sim.mem sim.top sim.peripheral
+sim.all: sim.bus sim.mem # sim.cpu  sim.top sim.peripheral
 
 sim.clean:
 	@echo "Cleaning simulation files..."

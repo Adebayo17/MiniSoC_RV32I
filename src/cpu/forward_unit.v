@@ -21,7 +21,7 @@ module forwarding_unit (
 );
 
     // Forwarding selection codes
-    localparam [1:0] FROM_REG = 2'b00;
+    localparam [1:0] FROM_REG  = 2'b00;
     localparam [1:0] FROM_EX   = 2'b01;
     localparam [1:0] FROM_MEM  = 2'b10;
     localparam [1:0] FROM_WB   = 2'b11;

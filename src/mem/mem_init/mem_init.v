@@ -14,14 +14,14 @@ module mem_init #(
     output reg                      init_done,
 
     // IMEM Initialization Port
-    input wire                      imem_init_en,
-    input wire [ADDR_WIDTH-1:0]     imem_init_addr,
-    input wire [DATA_WIDTH-1:0]     imem_init_data,
+    output reg                      imem_init_en,
+    output reg [ADDR_WIDTH-1:0]     imem_init_addr,
+    output reg [DATA_WIDTH-1:0]     imem_init_data,
 
     // DMEM Initialization Port
-    input wire                      dmem_init_en,
-    input wire [ADDR_WIDTH-1:0]     dmem_init_addr,
-    input wire [DATA_WIDTH-1:0]     dmem_init_data
+    output reg                      dmem_init_en,
+    output reg [ADDR_WIDTH-1:0]     dmem_init_addr,
+    output reg [DATA_WIDTH-1:0]     dmem_init_data
 );
     // -------------------------------------------
     // Initialization FSM

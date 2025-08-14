@@ -41,7 +41,6 @@ module rv32i_core #(
     wire [REGFILE_ADDR_WIDTH-1:0] regfile_wr_addr     ;
     wire [DATA_WIDTH-1:0]         regfile_wr_data     ;
 
-
     // Fetcher
     wire                    fetcher_flush           ;
     wire [ADDR_WIDTH-1:0]   fetcher_new_pc          ;
@@ -65,15 +64,21 @@ module rv32i_core #(
     wire [6:0]              decoder_opcode_out      ;
     wire [2:0]              decoder_funct3_out      ;
     wire [6:0]              decoder_funct7_out      ;
-    wire                    decoder_reg_write_out   ;
-    wire                    decoder_mem_write_out   ;
-    wire                    decoder_mem_read_out    ;
-    wire                    decoder_branch_out      ;
-    wire                    decoder_alu_src_out     ;
-    wire [3:0]              decoder_alu_op_out      ;
-    wire                    decoder_jump_out        ;
-    wire                    decoder_illegal_instr   ;
     wire                    decoder_valid_out       ;
+
+    // Control Unit
+    wire [6:0]  ctrl_unit_opcode        ;
+    wire [2:0]  ctrl_unit_funct3        ;
+    wire [6:0]  ctrl_unit_funct7        ;
+    wire        ctrl_unit_reg_write     ;
+    wire        ctrl_unit_mem_write     ;
+    wire        ctrl_unit_mem_read      ;
+    wire [1:0]  ctrl_unit_mem_to_reg    ;
+    wire        ctrl_unit_branch        ;
+    wire        ctrl_unit_alu_src       ;
+    wire [3:0]  ctrl_unit_alu_op        ;
+    wire        ctrl_unit_jump          ;
+    wire        ctrl_unit_illegal_instr ;
 
     // Executer
     wire [DATA_WIDTH-1:0] executer_pc_in               ;
@@ -88,6 +93,7 @@ module rv32i_core #(
     wire                  executer_reg_write_in        ;
     wire                  executer_mem_write_in        ;
     wire                  executer_mem_read_in         ;
+    wire [1:0]            executer_mem_to_reg_in       ;
     wire                  executer_branch_in           ;
     wire                  executer_jump_in             ;
     wire                  executer_alu_src_in          ;
@@ -98,6 +104,7 @@ module rv32i_core #(
     wire                  executer_reg_write_out       ;
     wire                  executer_mem_write_out       ;
     wire                  executer_mem_read_out        ;
+    wire [1:0]            executer_mem_to_reg_out      ;
     wire [2:0]            executer_funct3_out          ;
     wire                  executer_valid_out           ;
     wire                  executer_branch_taken_out    ;
@@ -111,12 +118,14 @@ module rv32i_core #(
     wire                  memory_reg_write_in          ;
     wire                  memory_mem_write_in          ;
     wire                  memory_mem_read_in           ;
+    wire [1:0]            memory_mem_to_reg_in         ;
     wire [2:0]            memory_funct3_in             ;
     wire                  memory_valid_in              ;
     wire [DATA_WIDTH-1:0] memory_mem_result_out        ;
     wire [DATA_WIDTH-1:0] memory_alu_result_out        ;
     wire [4:0]            memory_rd_out                ;
     wire                  memory_reg_write_out         ;
+    wire [1:0]            memory_mem_to_reg_out        ;
     wire                  memory_valid_out             ;
     wire                  memory_load_misaligned       ;
     wire                  memory_store_misaligned      ;
@@ -126,6 +135,7 @@ module rv32i_core #(
     wire [DATA_WIDTH-1:0] writebacker_alu_result_in   ;
     wire [4:0]            writebacker_rd_in           ;
     wire                  writebacker_reg_write_in    ;
+    wire [1:0]            writebacker_mem_to_reg_in   ;
     wire                  writebacker_valid_in        ;
     wire                  writebacker_regfile_we      ;
     wire [4:0]            writebacker_regfile_rd_addr ;
@@ -199,15 +209,25 @@ module rv32i_core #(
         .opcode_out      (decoder_opcode_out      ),
         .funct3_out      (decoder_funct3_out      ),
         .funct7_out      (decoder_funct7_out      ),
-        .reg_write_out   (decoder_reg_write_out   ),
-        .mem_write_out   (decoder_mem_write_out   ),
-        .mem_read_out    (decoder_mem_read_out    ),
-        .branch_out      (decoder_branch_out      ),
-        .alu_src_out     (decoder_alu_src_out     ),
-        .alu_op_out      (decoder_alu_op_out      ),
-        .jump_out        (decoder_jump_out        ),
-        .illegal_instr   (decoder_illegal_instr   ),
         .valid_out       (decoder_valid_out       )
+    );
+
+    // -------------------------------------------
+    // Control Unit
+    // -------------------------------------------
+    control_unit ctrl_unit (
+        .opcode        (ctrl_unit_opcode        ),
+        .funct3        (ctrl_unit_funct3        ),
+        .funct7        (ctrl_unit_funct7        ),
+        .reg_write     (ctrl_unit_reg_write     ),
+        .mem_write     (ctrl_unit_mem_write     ),
+        .mem_read      (ctrl_unit_mem_read      ),
+        .mem_to_reg    (ctrl_unit_mem_to_reg    ),
+        .branch        (ctrl_unit_branch        ),
+        .alu_src       (ctrl_unit_alu_src       ),
+        .alu_op        (ctrl_unit_alu_op        ),
+        .jump          (ctrl_unit_jump          ),
+        .illegal_instr (ctrl_unit_illegal_instr )
     );
 
     // -------------------------------------------
@@ -231,6 +251,7 @@ module rv32i_core #(
         .reg_write_in        (executer_reg_write_in        ),
         .mem_write_in        (executer_mem_write_in        ),
         .mem_read_in         (executer_mem_read_in         ),
+        .mem_to_reg_in       (executer_mem_to_reg_in       ),
         .branch_in           (executer_branch_in           ),
         .jump_in             (executer_jump_in             ),
         .alu_src_in          (executer_alu_src_in          ),
@@ -241,6 +262,7 @@ module rv32i_core #(
         .reg_write_out       (executer_reg_write_out       ),
         .mem_write_out       (executer_mem_write_out       ),
         .mem_read_out        (executer_mem_read_out        ),
+        .mem_to_reg_out      (executer_mem_to_reg_out      ),
         .funct3_out          (executer_funct3_out          ),
         .valid_out           (executer_valid_out           ),
         .branch_taken_out    (executer_branch_taken_out    ),
@@ -267,6 +289,7 @@ module rv32i_core #(
         .reg_write_in            (memory_reg_write_in          ),
         .mem_write_in            (memory_mem_write_in          ),
         .mem_read_in             (memory_mem_read_in           ),
+        .mem_to_reg_in           (memory_mem_to_reg_in         ),
         .funct3_in               (memory_funct3_in             ),
         .valid_in                (memory_valid_in              ),
         .wbm_dmem_cyc            (wbm_dmem_cyc                 ),
@@ -281,6 +304,7 @@ module rv32i_core #(
         .alu_result_out          (memory_alu_result_out        ),
         .rd_out                  (memory_rd_out                ),
         .reg_write_out           (memory_reg_write_out         ),
+        .mem_to_reg_out          (memory_mem_to_reg_out        ),
         .valid_out               (memory_valid_out             ),
         .load_misaligned         (memory_load_misaligned       ),
         .store_misaligned        (memory_store_misaligned      )
@@ -298,6 +322,7 @@ module rv32i_core #(
         .alu_result_in   (writebacker_alu_result_in   ),
         .rd_in           (writebacker_rd_in           ),
         .reg_write_in    (writebacker_reg_write_in    ),
+        .mem_to_reg_in   (writebacker_mem_to_reg_in   ),
         .valid_in        (writebacker_valid_in        ),
         .regfile_we      (writebacker_regfile_we      ),
         .regfile_rd_addr (writebacker_regfile_rd_addr ),
@@ -323,16 +348,23 @@ module rv32i_core #(
         .forward_rs2(forward_rs2)
     );
 
+    // -------------------------------------------
+    // HAZARD UNIT INSTANTIATION
+    // -------------------------------------------
+    wire hazard_flush;
+    wire hazard_stall;
+
     hazard_unit hazard_u (
-        .decode_rs1             (decoder_rs1_out),
-        .decode_rs2             (decoder_rs2_out),
-        .decode_mem_read        (decoder_mem_read_out),
-        .execute_rd             (executer_rd_out),
-        .execute_mem_read       (executer_rd_out),
-        .memory_rd              (memory_rd_out),
-        .memory_mem_read        (memory_mem_read_in),
-        .stall                  (decoder_stall),
-        .flush                  (fetcher_flush)
+        .decode_rs1(decoder_rs1_out),
+        .decode_rs2(decoder_rs2_out),
+        .execute_rd(executer_rd_out),
+        .execute_reg_write(executer_reg_write_out),
+        .execute_mem_read(executer_mem_read_out),
+        .memory_rd(memory_rd_out),
+        .memory_reg_write(memory_reg_write_out),
+        .branch_taken(executer_branch_taken_out),
+        .stall(hazard_stall),
+        .flush(hazard_flush)
     );
 
 
@@ -340,81 +372,67 @@ module rv32i_core #(
     // PIPELINE CONNECTIONS
     // -------------------------------------------
 
+    // Fetch stage
+    assign fetcher_stall                = hazard_stall;
+    assign fetcher_flush                = hazard_flush | executer_branch_taken_out;
+    assign fetcher_new_pc               = executer_branch_target_out;
+
     // Fetch -> Decode
-    assign decoder_instr_in = fetcher_instr_out;
-    assign decoder_pc_in    = fetcher_pc_out;
-    assign decoder_valid_in = fetcher_valid_out;
-    assign fetcher_stall    = decoder_stall;  // From hazard unit
+    assign decoder_instr_in             = fetcher_instr_out;
+    assign decoder_pc_in                = fetcher_pc_out;
+    assign decoder_valid_in             = fetcher_valid_out;
+    assign decoder_stall                = hazard_stall;
+    assign decoder_flush                = hazard_flush | executer_branch_taken_out;
 
     // Decode -> Execute
-    assign executer_pc_in           = decoder_pc_out;
-    assign executer_rd_in           = decoder_rd_out;
-    assign executer_rs1_data        = regfile_rs1_data;
-    assign executer_rs2_data        = regfile_rs2_data;
-    assign executer_imm_in          = decoder_imm_out;
-    assign executer_opcode_in       = decoder_opcode_out;
-    assign executer_funct3_in       = decoder_funct3_out;
-    assign executer_funct7_in       = decoder_funct7_out;
-    assign executer_valid_in        = decoder_valid_out;
-    assign executer_reg_write_in    = decoder_reg_write_out;
-    assign executer_mem_write_in    = decoder_mem_write_out;
-    assign executer_mem_read_in     = decoder_mem_read_out;
-    assign executer_branch_in       = decoder_branch_out;
-    assign executer_jump_in         = decoder_jump_out;
-    assign executer_alu_src_in      = decoder_alu_src_out;
-    assign executer_alu_op_in       = decoder_alu_op_out;
+    assign executer_pc_in               = decoder_pc_out;
+    assign executer_rd_in               = decoder_rd_out;
+    assign executer_rs1_data            = regfile_rs1_data;
+    assign executer_rs2_data            = regfile_rs2_data;
+    assign executer_imm_in              = decoder_imm_out;
+    assign executer_opcode_in           = decoder_opcode_out;
+    assign executer_funct3_in           = decoder_funct3_out;
+    assign executer_funct7_in           = decoder_funct7_out;
+    assign executer_valid_in            = decoder_valid_out;
+    assign executer_reg_write_in        = ctrl_unit_reg_write;
+    assign executer_mem_write_in        = ctrl_unit_mem_write;
+    assign executer_mem_read_in         = ctrl_unit_mem_read;
+    assign executer_mem_to_reg_in       = ctrl_unit_mem_to_reg;
+    assign executer_branch_in           = ctrl_unit_branch;
+    assign executer_jump_in             = ctrl_unit_jump;
+    assign executer_alu_src_in          = ctrl_unit_alu_src;
+    assign executer_alu_op_in           = ctrl_unit_alu_op;
+
+    // Decode -> Control Unit
+    assign ctrl_unit_opcode             = decoder_opcode_out;
+    assign ctrl_unit_funct3             = decoder_funct3_out;
+    assign ctrl_unit_funct7             = decoder_funct7_out;
     
     // Register file read addresses
-    assign regfile_rs1_addr = decoder_rs1_out;
-    assign regfile_rs2_addr = decoder_rs2_out;
+    assign regfile_rs1_addr             = decoder_rs1_out;
+    assign regfile_rs2_addr             = decoder_rs2_out;
 
     // Execute -> Memory
-    assign memory_alu_result_in = executer_alu_result_out;
-    assign memory_mem_data_in   = executer_mem_data_out;
-    assign memory_rd_in         = executer_rd_out;
-    assign memory_reg_write_in  = executer_reg_write_out;
-    assign memory_mem_write_in  = executer_mem_write_out;
-    assign memory_mem_read_in   = executer_mem_read_out;
-    assign memory_funct3_in     = executer_funct3_out;
-    assign memory_valid_in      = executer_valid_out;
+    assign memory_alu_result_in         = executer_alu_result_out;
+    assign memory_mem_data_in           = executer_mem_data_out;
+    assign memory_rd_in                 = executer_rd_out;
+    assign memory_reg_write_in          = executer_reg_write_out;
+    assign memory_mem_write_in          = executer_mem_write_out;
+    assign memory_mem_read_in           = executer_mem_read_out;
+    assign memory_mem_to_reg_in         = executer_mem_to_reg_out;
+    assign memory_funct3_in             = executer_funct3_out;
+    assign memory_valid_in              = executer_valid_out;
 
     // Memory -> Writeback
     assign writebacker_mem_result_in    = memory_mem_result_out;
     assign writebacker_alu_result_in    = memory_alu_result_out;
     assign writebacker_rd_in            = memory_rd_out;
     assign writebacker_reg_write_in     = memory_reg_write_out;
+    assign writebacker_mem_to_reg_in    = memory_mem_to_reg_out;
     assign writebacker_valid_in         = memory_valid_out;
 
     // Writeback -> Register File
-    assign regfile_wr_en   = writebacker_regfile_we;
-    assign regfile_wr_addr = writebacker_regfile_rd_addr;
-    assign regfile_wr_data = writebacker_regfile_wr_data;
-
-    // -------------------------------------------
-    // CONTROL SIGNAL PROPAGATION
-    // -------------------------------------------
-
-    // Branch/Jump handling
-    assign fetcher_flush = executer_branch_taken_out;
-    assign fetcher_new_pc = executer_branch_target_out;
-    assign decoder_flush = executer_branch_taken_out;
-
-    // // Hazard detection (simplified)
-    // assign decoder_stall = (memory_mem_read_in && 
-    //                       ((decoder_rs1_out == memory_rd_in) || 
-    //                        (decoder_rs2_out == memory_rd_in)) ||
-    //                       wbm_dmem_cyc);  // Stall if memory operation pending
-
-    // -------------------------------------------
-    // DEBUG SIGNALS
-    // -------------------------------------------
-    // synthesis translate_off
-    always @(posedge clk) begin
-        if (writebacker_valid_out && writebacker_regfile_we) begin
-            $display("x%0d = 0x%h", writebacker_regfile_rd_addr, 
-                     writebacker_regfile_wr_data);
-        end
-    end
-    // synthesis translate_on
-    
+    assign regfile_wr_en                = writebacker_regfile_we;
+    assign regfile_wr_addr              = writebacker_regfile_rd_addr;
+    assign regfile_wr_data              = writebacker_regfile_wr_data;
 endmodule

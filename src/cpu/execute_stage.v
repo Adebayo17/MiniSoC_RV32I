@@ -6,6 +6,8 @@ module execute_stage #(
     input wire                  rst_n,
 
     // Pipeline inputs
+    // - From Decode Stage
+    input wire [DATA_WIDTH-1:0] instr_in,
     input wire [DATA_WIDTH-1:0] pc_in,
     input wire [4:0]            rd_in,
     input wire [DATA_WIDTH-1:0] rs1_data,
@@ -15,11 +17,11 @@ module execute_stage #(
     input wire [2:0]            funct3_in,
     input wire [6:0]            funct7_in,
     input wire                  valid_in,
-    
-    // Control signals from decode
+    // - From Control Unit
     input wire                  reg_write_in,
     input wire                  mem_write_in,
     input wire                  mem_read_in,
+    input wire [1:0]            mem_to_reg_in,
     input wire                  branch_in,
     input wire                  jump_in,
     input wire                  alu_src_in,
@@ -32,11 +34,12 @@ module execute_stage #(
     output reg                  reg_write_out,
     output reg                  mem_write_out,
     output reg                  mem_read_out,
+    output reg [1:0]            mem_to_reg_out,
     output reg [2:0]            funct3_out,
     output reg                  valid_out,
 
     // Branch/jump signals
-    output reg                  branch_taken_out,
+    output reg                  branch_taken_out, // for branch and jump instructions
     output reg [DATA_WIDTH-1:0] branch_target_out,
     output reg [DATA_WIDTH-1:0] pc_plus_4_out,
 
@@ -58,10 +61,10 @@ module execute_stage #(
     wire [DATA_WIDTH-1:0] rs2_data_forwarded;
 
     assign rs1_data_forwarded = 
-        (forward_rs1 == 2'b01) ? alu_result_out :     // EX->EX (for multicycle ops)
+        (forward_rs1 == 2'b01) ? alu_result_out :       // EX->EX (for multicycle ops)
         (forward_rs1 == 2'b10) ? forwarded_mem_result : // MEM->EX
         (forward_rs1 == 2'b11) ? forwarded_wb_result :  // WB->EX
-        rs1_data;                                      // Regfile
+        rs1_data;                                       // Regfile
 
     assign rs2_data_forwarded = 
         (forward_rs2 == 2'b01) ? alu_result_out :
@@ -92,7 +95,7 @@ module execute_stage #(
     // Branch/Jump Logic
     // -------------------------------------------
     always @(*) begin
-        branch_taken_out = 1'b0;
+        branch_taken_out  = 1'b0;
         branch_target_out = pc_in + imm_in;
         
         if (branch_in) begin
@@ -114,21 +117,15 @@ module execute_stage #(
     end
 
     // -------------------------------------------
-    // Memory Interface
-    // -------------------------------------------
-    always @(*) begin
-        mem_data_out = rs2_data;  // Data for store instructions
-        mem_write_out = mem_write_in && valid_in;
-        mem_read_out = mem_read_in && valid_in;
-    end
-
-    // -------------------------------------------
     // Pipeline Registers
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             alu_result_out  <= 0;
             mem_data_out    <= 0;
+            mem_write_out   <= 0;
+            mem_read_out    <= 0
+            mem_to_reg_out  <= 0;
             rd_out          <= 0;
             reg_write_out   <= 0;
             funct3_out      <= 0;
@@ -136,6 +133,10 @@ module execute_stage #(
             pc_plus_4_out   <= 0;
         end else begin
             alu_result_out  <= alu_result;
+            mem_data_out    <= rs2_data;  // Data for store instructions
+            mem_write_out   <= mem_write_in && valid_in;
+            mem_read_out    <= mem_read_in && valid_in;
+            mem_to_reg_out  <= mem_to_reg_in;
             rd_out          <= rd_in;
             reg_write_out   <= reg_write_in && valid_in;
             funct3_out      <= funct3_in;

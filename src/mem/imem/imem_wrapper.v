@@ -25,6 +25,12 @@ module imem_wrapper #(
 );
 
     // -------------------------------------------
+    // Temporary wishbone signal
+    // -------------------------------------------
+    wire                  tmp_wbs_ack;
+    wire [DATA_WIDTH-1:0] tmp_wbs_data_read;
+
+    // -------------------------------------------
     // Address Decoding
     // -------------------------------------------
     wire mem_select = (wbs_addr >= BASE_ADDR) && (wbs_addr < (BASE_ADDR + (SIZE_KB * 1024)));
@@ -49,8 +55,8 @@ module imem_wrapper #(
         .wbs_addr           (imem_wbs_addr        ),  
         .wbs_data_write     (wbs_data_write       ),
         .wbs_sel            (wbs_sel              ),
-        .wbs_data_read      (wbs_data_read        ),
-        .wbs_ack            (wbs_ack              ),
+        .wbs_data_read      (tmp_wbs_data_read    ),
+        .wbs_ack            (tmp_wbs_ack          ),
         .init_en            (init_en              ),
         .init_addr          (imem_init_addr       ),
         .init_data          (init_data            )
@@ -64,6 +70,9 @@ module imem_wrapper #(
             $display("Error: IMEM access out of bounds (%h)", wbs_addr);
             wbs_data_read <= 32'hBAD0_ADD0;  // Magic number for debug
             wbs_ack <= 1;
+        end else begin
+            wbs_data_read <= tmp_wbs_data_read;
+            wbs_ack <= tmp_wbs_ack;
         end
     end
 endmodule

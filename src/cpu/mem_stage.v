@@ -12,6 +12,7 @@ module mem_stage #(
     input wire                  reg_write_in,
     input wire                  mem_write_in,
     input wire                  mem_read_in,
+    input wire [1:0]            mem_to_reg_in,
     input wire [2:0]            funct3_in,    // Size/type info
     input wire                  valid_in,
 
@@ -30,6 +31,7 @@ module mem_stage #(
     output reg [DATA_WIDTH-1:0] alu_result_out,
     output reg [4:0]            rd_out,
     output reg                  reg_write_out,
+    output reg [1:0]            mem_to_reg_out,
     output reg                  valid_out,
 
     // Exception signals
@@ -141,7 +143,7 @@ module mem_stage #(
     // -------------------------------------------
     // Load Data Processing
     // -------------------------------------------
-    reg [DATA_WIDTH-1:0] load_data;
+    reg [DATA_WIDTH-1:0] load_data, tmp_mem_result_out;
 
     always @(*) begin
         case (funct3_in)
@@ -151,30 +153,35 @@ module mem_stage #(
             HALFU: load_data = {16'b0, wbm_dmem_data_read[15:0]};
             default: load_data = wbm_dmem_data_read;
         endcase
+
+        tmp_mem_result_out = (mem_to_reg_in == 2'b01) ? load_data : alu_result_in;
     end
 
     // -------------------------------------------
     // Pipeline Registers
     // -------------------------------------------
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             mem_result_out <= 0;
             alu_result_out <= 0;
-            rd_out <= 0;
-            reg_write_out <= 0;
-            valid_out <= 0;
+            rd_out         <= 0;
+            reg_write_out  <= 0;
+            mem_to_reg_out <= 0;
+            valid_out      <= 0;
         end else begin
             alu_result_out <= alu_result_in;
-            rd_out <= rd_in;
-            reg_write_out <= reg_write_in && valid_in && !load_misaligned;
-            valid_out <= valid_in && (state == DONE || !(mem_read_in || mem_write_in));
+            rd_out         <= rd_in;
+            reg_write_out  <= reg_write_in && valid_in && !load_misaligned;
+            mem_to_reg_out <= mem_to_reg_in;
+            valid_out      <= valid_in && (state == DONE || !(mem_read_in || mem_write_in));
+            mem_result_out <= tmp_mem_result_out;
 
-            if (wbm_dmem_ack && mem_read_in) begin
-                mem_result_out <= load_data;
-            end else begin
-                mem_result_out <= alu_result_in; // For non-load operations
-            end
+            // if (wbm_dmem_ack && mem_read_in) begin
+            //     mem_result_out <= load_data;
+            // end else begin
+            //     mem_result_out <= alu_result_in; // For non-load operations
+            // end
         end
     end
-
 endmodule

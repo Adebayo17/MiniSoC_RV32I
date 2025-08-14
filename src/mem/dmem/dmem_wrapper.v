@@ -24,6 +24,12 @@ module dmem_wrapper #(
     input wire [DATA_WIDTH-1:0]     init_data
 );
 
+    // -------------------------------------------
+    // Temporary wishbone signal
+    // -------------------------------------------
+    wire                  tmp_wbs_ack;
+    wire [DATA_WIDTH-1:0] tmp_wbs_data_read;
+
     // ----------------------------
     // Address Decoding
     // ----------------------------
@@ -49,8 +55,8 @@ module dmem_wrapper #(
         .wbs_addr               (dmem_wbs_addr          ), 
         .wbs_data_write         (wbs_data_write         ),
         .wbs_sel                (wbs_sel                ),
-        .wbs_data_read          (wbs_data_read          ),
-        .wbs_ack                (wbs_ack                ),
+        .wbs_data_read          (tmp_wbs_data_read      ),
+        .wbs_ack                (tmp_wbs_ack            ),
         .init_en                (init_en                ),
         .init_addr              (dmem_init_addr         ),
         .init_data              (init_data              )
@@ -64,6 +70,9 @@ module dmem_wrapper #(
             $display("Error: DMEM access out of bounds (%h)", wbs_addr);
             wbs_data_read <= 32'hDEADBEEF;  // Debug pattern
             wbs_ack <= 1;
+        end else begin
+            wbs_data_read <= tmp_wbs_data_read;
+            wbs_ack <= tmp_wbs_ack;
         end
     end
 endmodule

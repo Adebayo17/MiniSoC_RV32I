@@ -46,7 +46,7 @@ module imem #(
     always @(posedge clk) begin
         wbs_ack <= wbs_cyc && wbs_stb && !wbs_we;
 
-        if (wbs_cyc && wbs_stb !wbs_we) begin
+        if (wbs_cyc && wbs_stb && !wbs_we) begin
             wbs_data_read <= mem[wbs_addr[$clog2(DEPTH)-1:2]];   // Word addressing
         end
     end    

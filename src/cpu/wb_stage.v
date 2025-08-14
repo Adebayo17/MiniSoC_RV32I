@@ -9,6 +9,7 @@ module wb_stage #(
     input wire [DATA_WIDTH-1:0] alu_result_in,
     input wire [4:0]            rd_in,
     input wire                  reg_write_in,
+    input wire [1:0]            mem_to_reg_in,
     input wire                  valid_in,
 
     // Register file interface
@@ -26,13 +27,19 @@ module wb_stage #(
     always @(*) begin
         regfile_we = reg_write_in && valid_in;
         regfile_rd_addr = rd_in;
+
+        case (mem_to_reg_in)
+            2'b00: regfile_wr_data = alu_result_in;  // ALU result
+            2'b01: regfile_wr_data = mem_result_in;  // Memory load
+            2'b10: regfile_wr_data = pc_plus_4_in;   // JAL/JALR
+        endcase
         
-        // Default to ALU result, override with memory load when needed
-        regfile_wr_data = alu_result_in;
+        // // Default to ALU result, override with memory load when needed
+        // regfile_wr_data = alu_result_in;
         
-        if (mem_result_in != alu_result_in) begin
-            regfile_wr_data = mem_result_in; // Load operations
-        end
+        // if (mem_result_in != alu_result_in) begin
+        //     regfile_wr_data = mem_result_in; // Load operations
+        // end
     end
 
     // -------------------------------------------
@@ -45,5 +52,4 @@ module wb_stage #(
             valid_out <= valid_in;
         end
     end
-
 endmodule
