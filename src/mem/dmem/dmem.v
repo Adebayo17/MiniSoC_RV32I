@@ -23,15 +23,33 @@ module dmem #(
     input wire [DATA_WIDTH-1:0]     init_data
 );
 
+    // -------------------------------------------
+    // Internal state
+    // -------------------------------------------
+
     // Memory array (power-of-2 sized)
     localparam DEPTH = SIZE_KB * 1024 / 4;
     reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 
+    wire [$clog2(DEPTH)-1:0] word_addr;
+    wire [$clog2(DEPTH)-1:0] init_word_addr;
+    assign word_addr      = wbs_addr[$clog2(DEPTH)+1:2];
+    assign init_word_addr = init_addr[$clog2(DEPTH)+1:2];
+
+    reg tmp_r_ack = 0;
+    reg tmp_w_ack = 0;
+
     // -------------------------------------------
-    // Read Path (Combinational)
+    // Read Path (Synchronus)
     // -------------------------------------------
-    always @(*) begin
-        wbs_data_read = mem[wbs_addr[$clog2(DEPTH)-1:2]];
+    always @(posedge clk) begin
+        if (wbs_cyc && wbs_stb && !wbs_we) begin
+            wbs_data_read <= mem[word_addr];
+            tmp_r_ack     <= 1;
+        end else begin
+            wbs_data_read <= 0;
+            tmp_r_ack     <= 0;
+        end
     end
 
     // -------------------------------------------
@@ -39,26 +57,29 @@ module dmem #(
     // -------------------------------------------
     always @(posedge clk) begin
         if (init_en) begin
-            mem[init_addr[$clog2(DEPTH)-1:2]] <= init_data;
-        end 
-        else if(wbs_cyc && wbs_stb && wbs_we) begin
+            mem[init_word_addr] <= init_data;
+            $display("[INFO]: DMEM init mem at @ %h with %h", init_word_addr, init_data);
+        end else if(wbs_cyc && wbs_stb && wbs_we) begin
             // Runtime writes with byte select
-            if (wbs_sel[0]) mem[wbs_addr[$clog2(DEPTH)-1:2]][7:0]    <= wbs_data_write[7:0]  ;
-            if (wbs_sel[1]) mem[wbs_addr[$clog2(DEPTH)-1:2]][15:8]   <= wbs_data_write[15:8] ;
-            if (wbs_sel[2]) mem[wbs_addr[$clog2(DEPTH)-1:2]][23:16]  <= wbs_data_write[23:16];
-            if (wbs_sel[3]) mem[wbs_addr[$clog2(DEPTH)-1:2]][31:24]  <= wbs_data_write[31:24];
+            if (wbs_sel[0])   mem[word_addr][7:0]    <= wbs_data_write[7:0]  ;
+            if (wbs_sel[1])   mem[word_addr][15:8]   <= wbs_data_write[15:8] ;
+            if (wbs_sel[2])   mem[word_addr][23:16]  <= wbs_data_write[23:16];
+            if (wbs_sel[3])   mem[word_addr][31:24]  <= wbs_data_write[31:24];
+            tmp_w_ack     <= 1;
+        end else begin
+            tmp_w_ack     <= 0;
         end
     end
 
 
     // -------------------------------------------
-    // Acknowledge Generation
+    // Acknowledge Generation (1-cycle pulse)
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wbs_ack <= 0;
         end else begin
-            wbs_ack <= wbs_cyc && wbs_stb;
+            wbs_ack <= (wbs_cyc && wbs_stb && (tmp_r_ack || tmp_w_ack));
         end
     end 
 endmodule

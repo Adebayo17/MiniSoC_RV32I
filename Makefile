@@ -46,6 +46,7 @@ clean:
 	@find . -name "*.vcd" -delete
 	@find . -name "*.log" -delete
 	@find . -name "*.out" -delete
+	@mkdir -p $(BUILD_DIR)
 
 distclean: clean
 	@rm -rf *.vcd *.log *.out

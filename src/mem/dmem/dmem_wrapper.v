@@ -33,10 +33,11 @@ module dmem_wrapper #(
     // ----------------------------
     // Address Decoding
     // ----------------------------
-    wire mem_select = (wbs_addr >= BASE_ADDR) && (wbs_addr < BASE_ADDR + (SIZE_KB * 1024));
+    wire mem_select  = (wbs_addr >= BASE_ADDR) && (wbs_addr < BASE_ADDR + (SIZE_KB * 1024));
+    wire init_select = (init_addr >= BASE_ADDR) && (init_addr < BASE_ADDR + (SIZE_KB * 1024));
 
     wire [ADDR_WIDTH-1:0] dmem_wbs_addr, dmem_init_addr;
-    assign dmem_wbs_addr = wbs_addr - BASE_ADDR;   // Offset addressing
+    assign dmem_wbs_addr  = wbs_addr  - BASE_ADDR;   // Offset addressing
     assign dmem_init_addr = init_addr - BASE_ADDR;
 
     // ----------------------------
@@ -50,29 +51,32 @@ module dmem_wrapper #(
         .clk                    (clk                    ),
         .rst_n                  (rst_n                  ),
         .wbs_cyc                (wbs_cyc && mem_select  ),
-        .wbs_stb                (wbs_stb                ),
+        .wbs_stb                (wbs_stb && mem_select  ),
         .wbs_we                 (wbs_we                 ),
         .wbs_addr               (dmem_wbs_addr          ), 
         .wbs_data_write         (wbs_data_write         ),
         .wbs_sel                (wbs_sel                ),
         .wbs_data_read          (tmp_wbs_data_read      ),
         .wbs_ack                (tmp_wbs_ack            ),
-        .init_en                (init_en                ),
+        .init_en                (init_en && init_select ),
         .init_addr              (dmem_init_addr         ),
         .init_data              (init_data              )
     );
 
     // ----------------------------
-    // Error Handling
+    // ACK and Data Read Handling
     // ----------------------------
     always @(posedge clk) begin
-        if (wbs_cyc && wbs_stb && !mem_select) begin
-            $display("Error: DMEM access out of bounds (%h)", wbs_addr);
-            wbs_data_read <= 32'hDEADBEEF;  // Debug pattern
-            wbs_ack <= 1;
+        if (!rst_n) begin
+            wbs_data_read <= {DATA_WIDTH{1'b0}};
+            wbs_ack       <= 1'b0;
         end else begin
-            wbs_data_read <= tmp_wbs_data_read;
-            wbs_ack <= tmp_wbs_ack;
+            if (mem_select) begin
+                wbs_data_read <= tmp_wbs_data_read;
+                wbs_ack       <= tmp_wbs_ack;
+            end else begin
+                wbs_ack       <= 1'b0;
+            end
         end
     end
 endmodule
