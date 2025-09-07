@@ -16,7 +16,7 @@ module uart_rx (
     output reg [7:0]                rx_data,
 
     // UART Physical interface
-    input wire                      uart_tx         // Serial Input
+    input wire                      uart_rx         // Serial Input
 );
     
     // -------------------------------------------
@@ -83,7 +83,7 @@ module uart_rx (
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            rx_state       <= TX_IDLE;
+            rx_state       <= RX_IDLE;
             rx_bit_counter <= 3'b0;
             rx_shift_reg   <= 8'b0;
             rx_data        <= 1'b0;
@@ -121,7 +121,7 @@ module uart_rx (
                         rx_shift_reg <= {uart_rx_sync, rx_shift_reg[7:1]}; // Shift in MSB first
 
                         if (rx_bit_counter == 3'd7) begin
-                            rx_state <= rX_STOP;
+                            rx_state <= RX_STOP;
                         end else begin
                             rx_bit_counter <= rx_bit_counter + 1;
                         end

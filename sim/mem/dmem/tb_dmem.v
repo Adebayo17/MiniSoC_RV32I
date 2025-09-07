@@ -13,20 +13,20 @@ module tb_dmem;
     reg rst_n;
 
     // Test Control
-    reg [31:0] test_num;
+    reg [31:0]   test_num;
     reg [8*40:1] test_name;
-    reg [31:0] task_error_count;
-    reg [31:0] total_errors;
+    reg [31:0]   task_error_count;
+    reg [31:0]   total_errors;
 
     // Wishbone Interface
-    reg wbs_cyc;
-    reg wbs_stb;
-    reg wbs_we;
-    reg [ADDR_WIDTH-1:0] wbs_addr;
-    reg [DATA_WIDTH-1:0] wbs_data_write;
-    reg [3:0] wbs_sel;
-    wire [DATA_WIDTH-1:0] wbs_data_read;
-    wire wbs_ack;
+    reg                     wbs_cyc;
+    reg                     wbs_stb;
+    reg                     wbs_we;
+    reg [ADDR_WIDTH-1:0]    wbs_addr;
+    reg [DATA_WIDTH-1:0]    wbs_data_write;
+    reg [3:0]               wbs_sel;
+    wire [DATA_WIDTH-1:0]   wbs_data_read;
+    wire                    wbs_ack;
 
     // Initialization Interface
     reg init_en;
@@ -87,8 +87,10 @@ module tb_dmem;
         $dumpfile("dmem_tb.vcd");
         $dumpvars(0, tb_dmem);
 
-        @(posedge rst_n);
+        wait(rst_n);
         #(CLK_PERIOD*2);
+
+        $display("\n=== DMEM Testbench Started ===");
 
         $display("\n[TEST 1] BASIC READ/WRITE: Starting");
         task_error_count = 0;
@@ -109,7 +111,14 @@ module tb_dmem;
         $display("[TEST 3] Completed\n");
 
 
-        $display("\nTestbench completed with %0d total errors", total_errors);
+        // Summary
+        $display("\n=== DMEM Testbench Completed ===");
+        $display("\nTotal errors: %0d", total_errors);
+        if (total_errors == 0) begin
+            $display("✅ All tests PASSED!");
+        end else begin
+            $display("❌ Some tests FAILED");
+        end
         $finish;
     end
 

@@ -14,6 +14,7 @@ GTKWAVE ?= gtkwave
 # -------------------------------------------
 include $(SIM_DIR)/bus/include.sim.bus.mk
 include $(SIM_DIR)/mem/include.sim.mem.mk
+include $(SIM_DIR)/peripheral/include.sim.peripheral.mk
 
 
 # -------------------------------------------

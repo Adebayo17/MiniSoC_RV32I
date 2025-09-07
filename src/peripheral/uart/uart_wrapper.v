@@ -1,9 +1,9 @@
 module uart_wrapper #(
-    parameter BASE_ADDR  = 32'h2000_0000,
-    parameter SIZE_KB    = 4,
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter CLK_FREQ   = 12_000_000
+    parameter BASE_ADDR     = 32'h2000_0000,
+    parameter SIZE_KB       = 4,
+    parameter ADDR_WIDTH    = 32,
+    parameter DATA_WIDTH    = 32,
+    parameter BAUD_DIV_RST  = 16'd104                // 115200 baud @ 12MHz
 ) (
     // Clock and reset
     input wire                      clk,
@@ -20,9 +20,14 @@ module uart_wrapper #(
     output reg                      wbs_ack,
 
     // UART Physical Interface
-    output reg                      uart_tx,
+    output wire                     uart_tx,
     input wire                      uart_rx
 );
+    // -------------------------------------------
+    // Temporary wishbone signal
+    // -------------------------------------------
+    wire                  tmp_wbs_ack;
+    wire [DATA_WIDTH-1:0] tmp_wbs_data_read;
 
     // ----------------------------
     // Address Decoding
@@ -32,7 +37,11 @@ module uart_wrapper #(
     // ----------------------------
     // UART Instance
     // ----------------------------
-    uart uart_inst (
+    uart #(
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .BAUD_DIV_RST(BAUD_DIV_RST)
+    ) uart_inst (
         .clk                (clk                    ),
         .rst_n              (rst_n                  ),
         .wbs_cyc            (wbs_cyc && uart_select ),
@@ -41,10 +50,27 @@ module uart_wrapper #(
         .wbs_addr           (wbs_addr               ),
         .wbs_data_write     (wbs_data_write         ),
         .wbs_sel            (wbs_sel                ),
-        .wbs_data_read      (wbs_data_read          ),
-        .wbs_ack            (wbs_ack                ),
+        .wbs_data_read      (tmp_wbs_data_read      ),
+        .wbs_ack            (tmp_wbs_ack            ),
         .uart_tx            (uart_tx                ),
         .uart_rx            (uart_rx                )
     );
+
+    // ----------------------------
+    // ACK and Data Read Handling
+    // ----------------------------
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            wbs_data_read <= {DATA_WIDTH{1'b0}};
+            wbs_ack       <= 1'b0;
+        end else begin
+            if (uart_select) begin
+                wbs_data_read <= tmp_wbs_data_read;
+                wbs_ack       <= tmp_wbs_ack;
+            end else begin
+                wbs_ack       <= 1'b0;
+            end
+        end
+    end
     
 endmodule

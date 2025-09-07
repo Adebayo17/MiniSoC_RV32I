@@ -143,3 +143,30 @@ Occurs when new data is received before previous data is read from RX_DATA regis
 - **Latency:** 10-12 bit periods per byte (start + 8 data + stop)
 
 - **Throughput:** ~90% of theoretical maximum (accounting for stop bits)
+
+## Usage example
+```c
+// Initialize UART
+*(volatile uint32_t*)(UART_BASE + 0x08) = 104; // Set baud rate
+*(volatile uint32_t*)(UART_BASE + 0x0C) = 0x03; // Enable TX and RX
+
+// Transmit a character
+*(volatile uint32_t*)(UART_BASE + 0x00) = 'A';
+
+// Receive a character
+while (!(*(volatile uint32_t*)(UART_BASE + 0x10) & 0x04)); // Wait for RX_READY
+char received = *(volatile uint32_t*)(UART_BASE + 0x04);
+```
+
+## Testing
+The module includes comprehensive testbenches verifying:
+
+- Baud rate accuracy
+
+- Bit ordering (LSB first)
+
+- Error conditions
+
+- Wishbone interface compliance
+
+- Metastability protection

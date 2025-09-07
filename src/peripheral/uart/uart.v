@@ -18,7 +18,7 @@ module uart #(
     output reg                      wbs_ack,
 
     // UART Physical Interface
-    output reg                      uart_tx,
+    output wire                     uart_tx,
     input wire                      uart_rx
 );
 
@@ -61,13 +61,14 @@ module uart #(
     // -------------------------------------------
     // Address Decoding
     // -------------------------------------------
-    wire [3:0] reg_offset = wbs_addr[3:0];
+    wire [11:0] reg_offset;
+    assign reg_offset = wbs_addr[11:0];
 
-    wire sel_tx_data    = (reg_offset == 4'h0);
-    wire sel_rx_data    = (reg_offset == 4'h4);
-    wire sel_baud_div   = (reg_offset == 4'h8);
-    wire sel_ctrl       = (reg_offset == 4'hC);
-    wire sel_status     = (reg_offset == 4'h10);
+    wire sel_tx_data    = (reg_offset == 12'h000);
+    wire sel_rx_data    = (reg_offset == 12'h004);
+    wire sel_baud_div   = (reg_offset == 12'h008);
+    wire sel_ctrl       = (reg_offset == 12'h00C);
+    wire sel_status     = (reg_offset == 12'h010);
 
     // -------------------------------------------
     // Wishbone tmp ACK
@@ -85,11 +86,11 @@ module uart #(
             tmp_r_ack = 1'b1;
 
             case (reg_offset)
-                4'h0:    wbs_data_read = {24'b0, tx_data_reg};
-                4'h4:    wbs_data_read = {24'b0, rx_data_reg};
-                4'h8:    wbs_data_read = {16'b0, baud_div_reg};
-                4'hC:    wbs_data_read = {24'b0, ctrl_reg};
-                4'h10:   wbs_data_read = {24'b0, status_reg};
+                12'h000:    wbs_data_read = {24'b0, tx_data_reg};
+                12'h004:    wbs_data_read = {24'b0, rx_data_reg};
+                12'h008:    wbs_data_read = {16'b0, baud_div_reg};
+                12'h00C:    wbs_data_read = {24'b0, ctrl_reg};
+                12'h010:   wbs_data_read = {24'b0, status_reg};
                 default: wbs_data_read = 32'b0;
             endcase
         end else begin
@@ -123,23 +124,23 @@ module uart #(
                 tx_start_pulse <= 1'b0;     // Single pulse
 
                 case (reg_offset)
-                    4'h0: begin
+                    12'h000: begin
                         if (wbs_sel[0]) begin
                             tx_data_reg    <= wbs_data_write[7:0];
                             tx_start_pulse <= 1'b1;  // Start transmission
                         end 
                     end
-                    4'h4: begin
+                    12'h004: begin
                         // Reading RX data register clears RX ready flag
                         if (wbs_sel[0]) begin
                             rx_data_reg <= 8'b0; // Cleared after read
                         end
                     end
-                    4'h8: begin
+                    12'h008: begin
                         if (wbs_sel[0]) baud_div_reg[7:0]  <= wbs_data_write[7:0];
                         if (wbs_sel[1]) baud_div_reg[15:8] <= wbs_data_write[15:8];
                     end
-                    4'hC: if (wbs_sel[0]) ctrl_reg <= wbs_data_write[7:0];
+                    12'h00C: if (wbs_sel[0]) ctrl_reg <= wbs_data_write[7:0];
                 endcase
             end
         end
@@ -194,11 +195,25 @@ module uart #(
         if (!rst_n) begin
             status_reg <= 8'b00000001;
         end else begin
+            // Update TX status from transmitter
             status_reg[STATUS_TX_EMPTY]     <= tx_empty;
             status_reg[STATUS_TX_BUSY]      <= tx_busy;
+
+            // Update RX status from receiver
             status_reg[STATUS_RX_READY]     <= rx_ready;
             status_reg[STATUS_RX_OVERRUN]   <= rx_overrun;
             status_reg[STATUS_RX_FRAME_ERR] <= rx_frame_error;
+
+            // Clear RX_READY when RX data register is read
+            if (wbs_cyc && wbs_stb && !wbs_we && sel_rx_data) begin
+                status_reg[STATUS_RX_READY]     <= 1'b0;
+            end
+
+            // Clear error flags on read
+            if (wbs_cyc && wbs_stb && !wbs_we && sel_status) begin
+                status_reg[STATUS_RX_OVERRUN] <= 1'b0;
+                status_reg[STATUS_RX_FRAME_ERR] <= 1'b0;
+            end
         end 
     end
     
