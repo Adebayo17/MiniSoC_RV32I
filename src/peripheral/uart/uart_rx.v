@@ -5,7 +5,8 @@ module uart_rx (
 
     // Control  Signals
     input wire                      rx_enable,      // Receiver enable
-    input wire [15:0]               baud_div,       // Baud rate divisor
+    input wire                      baud_tick,      // Baud Tick
+    input wire                      rx_clear,       // Clear signal when rx_data is read 
 
     // Status Signal
     output reg                      rx_ready,       // Data available to read
@@ -35,8 +36,6 @@ module uart_rx (
     reg [2:0]   rx_state;
     reg [2:0]   rx_bit_counter;
     reg [7:0]   rx_shift_reg;
-    reg [15:0]  baud_counter;
-    reg         baud_tick;
     reg         uart_rx_sync;
     reg         uart_rx_prev;
 
@@ -56,27 +55,6 @@ module uart_rx (
     // Edge detection for start bit
     wire rx_falling_edge = uart_rx_prev && !uart_rx_sync;
 
-    // -------------------------------------------
-    // Baud Rate Generator
-    // -------------------------------------------
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            baud_counter <= 16'b0;
-            baud_tick    <= 1'b0;
-        end else begin
-            baud_tick    <= 1'b0;
-            if (rx_state != RX_IDLE) begin
-                if (baud_counter == 16'b0) begin
-                    baud_counter <= baud_div;
-                    baud_tick    <= 1'b1;
-                end else begin
-                    baud_counter <= baud_counter - 1;
-                end
-            end else begin
-                baud_counter <= baud_counter >> 1; // Sample at middle of bit
-            end
-        end
-    end 
 
     // -------------------------------------------
     // Receiver State Machine
@@ -86,14 +64,18 @@ module uart_rx (
             rx_state       <= RX_IDLE;
             rx_bit_counter <= 3'b0;
             rx_shift_reg   <= 8'b0;
-            rx_data        <= 1'b0;
-            rx_ready       <= 1'b1;
+            rx_data        <= 8'b0;
+            rx_ready       <= 1'b0;
             rx_overrun     <= 1'b0;
             rx_frame_error <= 1'b0;
         end else begin
-            // Clear single-cycle signal
-            rx_overrun     <= 1'b0;
-            rx_frame_error <= 1'b0;
+
+            // CPU clear of status flags
+            if (rx_clear) begin
+                rx_ready       <= 1'b0;
+                rx_overrun     <= 1'b0;
+                rx_frame_error <= 1'b0;
+            end
 
             case (rx_state)
                 RX_IDLE: begin
@@ -132,9 +114,14 @@ module uart_rx (
                     if (baud_tick) begin
                         // Check stop bit (should be high)
                         if (uart_rx_sync == 1'b1) begin
-                            rx_data <= rx_shift_reg;
-                            rx_ready <= 1'b1;
-                            rx_state <= RX_IDLE;
+                            if (rx_ready && !rx_clear) begin
+                                // Previous data not cleared yet
+                                rx_overrun <= 1'b1; 
+                            end else begin
+                                rx_data  <= rx_shift_reg;
+                                rx_ready <= 1'b1;
+                                rx_state <= RX_IDLE;
+                            end
                         end else begin
                             rx_state <= RX_ERROR;
                         end 

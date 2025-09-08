@@ -27,7 +27,7 @@ module uart #(
     // -------------------------------------------
 
     // Status register bits
-    localparam STATUS_TX_EMPTY      = 0;
+    localparam STATUS_TX_READY      = 0;
     localparam STATUS_TX_BUSY       = 1;
     localparam STATUS_RX_READY      = 2;
     localparam STATUS_RX_OVERRUN    = 3;
@@ -46,17 +46,23 @@ module uart #(
     reg [7:0]  ctrl_reg;
     reg [7:0]  status_reg;
 
+    // Baud generator
+    wire baud_tick;
+
     // Transmitter control signals
     reg  tx_start_pulse;
     wire tx_busy;
-    wire tx_empty;
-    wire tx_done;
+    wire tx_ready;
 
     // Receiver signals
     wire        rx_ready;
     wire        rx_overrun;
     wire        rx_frame_error;
     wire [7:0]  rx_data;
+
+    // Read Detection signals
+    wire status_read  = wbs_cyc && wbs_stb && !wbs_we && sel_status;
+    wire rx_data_read = wbs_cyc && wbs_stb && !wbs_we && sel_rx_data;
 
     // -------------------------------------------
     // Address Decoding
@@ -113,9 +119,10 @@ module uart #(
             tx_start_pulse  <= 1'b0;
         end else begin
             tmp_w_ack       <= 0;
+            tx_start_pulse  <= 1'b0;     // Single pulse
 
             // Capture received data
-            if (rx_ready) begin
+            if (rx_ready && !status_reg[STATUS_RX_READY]) begin
                 rx_data_reg <= rx_data;
             end
 
@@ -158,6 +165,17 @@ module uart #(
     end 
 
     // -------------------------------------------
+    // Baud Generator
+    // -------------------------------------------
+    uart_baudgen uart_baudgen_inst (
+        .clk            (clk                                                    ),
+        .rst_n          (rst_n                                                  ),
+        .enable         (ctrl_reg[CTRL_TX_ENABLE] || ctrl_reg[CTRL_RX_ENABLE]   ),
+        .baud_div       (baud_div_reg                                           ),
+        .baud_tick      (baud_tick                                              )
+    );
+
+    // -------------------------------------------
     // UART Transmitter Logic
     // -------------------------------------------
     uart_tx uart_tx_inst (
@@ -166,10 +184,9 @@ module uart #(
         .tx_enable      (ctrl_reg[CTRL_TX_ENABLE]   ),
         .tx_data        (tx_data_reg                ),
         .tx_start       (tx_start_pulse             ),
-        .baud_div       (baud_div_reg               ),
+        .baud_tick      (baud_tick                  ),
         .tx_busy        (tx_busy                    ),
-        .tx_empty       (tx_empty                   ),
-        .tx_done        (tx_done                    ),
+        .tx_ready       (tx_ready                   ),
         .uart_tx        (uart_tx                    )
     );
 
@@ -180,7 +197,8 @@ module uart #(
         .clk            (clk                        ),
         .rst_n          (rst_n                      ),
         .rx_enable      (ctrl_reg[CTRL_RX_ENABLE]   ),
-        .baud_div       (baud_div_reg               ),
+        .baud_tick      (baud_tick                  ),
+        .rx_clear       (rx_data_read               ),
         .rx_ready       (rx_ready                   ),
         .rx_overrun     (rx_overrun                 ),
         .rx_frame_error (rx_frame_error             ),
@@ -189,31 +207,45 @@ module uart #(
     );
 
     // -------------------------------------------
-    // Status Register Update
+    // Status Register Update (Read-to-Clear Logic)
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             status_reg <= 8'b00000001;
         end else begin
             // Update TX status from transmitter
-            status_reg[STATUS_TX_EMPTY]     <= tx_empty;
+            status_reg[STATUS_TX_READY]     <= tx_ready;
             status_reg[STATUS_TX_BUSY]      <= tx_busy;
 
-            // Update RX status from receiver
-            status_reg[STATUS_RX_READY]     <= rx_ready;
-            status_reg[STATUS_RX_OVERRUN]   <= rx_overrun;
-            status_reg[STATUS_RX_FRAME_ERR] <= rx_frame_error;
-
-            // Clear RX_READY when RX data register is read
-            if (wbs_cyc && wbs_stb && !wbs_we && sel_rx_data) begin
-                status_reg[STATUS_RX_READY]     <= 1'b0;
+            // Capture RX ready state (set when new data arrives)
+            if (rx_ready && !status_reg[STATUS_RX_READY]) begin
+                status_reg[STATUS_RX_READY] <= 1'b1;
             end
 
-            // Clear error flags on read
-            if (wbs_cyc && wbs_stb && !wbs_we && sel_status) begin
+            // Capture error pulses
+            if (rx_overrun) begin
+                status_reg[STATUS_RX_OVERRUN] <= 1'b1;
+            end
+            
+            if (rx_frame_error) begin
+                status_reg[STATUS_RX_FRAME_ERR] <= 1'b1;
+            end
+
+            // Clear RX_READY when RX data register is read
+            if (rx_data_read) begin
+                status_reg[STATUS_RX_READY] <= 1'b0;
+            end
+
+            // Clear error flags when status register is read
+            if (status_read) begin
                 status_reg[STATUS_RX_OVERRUN] <= 1'b0;
                 status_reg[STATUS_RX_FRAME_ERR] <= 1'b0;
             end
+
+            // Update RX status from receiver
+            // status_reg[STATUS_RX_READY]     <= rx_ready;
+            // status_reg[STATUS_RX_OVERRUN]   <= rx_overrun;
+            // status_reg[STATUS_RX_FRAME_ERR] <= rx_frame_error;
         end 
     end
     

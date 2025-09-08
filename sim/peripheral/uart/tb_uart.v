@@ -12,6 +12,17 @@ module tb_uart;
     parameter SIZE_KB       = 4;
     parameter BAUD_DIV_RST  = 16'd104;
 
+    // Status register bits
+    localparam STATUS_TX_READY      = 0;
+    localparam STATUS_TX_BUSY       = 1;
+    localparam STATUS_RX_READY      = 2;
+    localparam STATUS_RX_OVERRUN    = 3;
+    localparam STATUS_RX_FRAME_ERR  = 4;
+
+    // Control register bits
+    localparam CTRL_TX_ENABLE       = 0;
+    localparam CTRL_RX_ENABLE       = 1;
+
     // Clock and reset
     reg clk;
     reg rst_n;
@@ -32,9 +43,21 @@ module tb_uart;
     wire [DATA_WIDTH-1:0]   wbs_data_read;
     wire                    wbs_ack;
 
+    reg                     wbs_cyc2;
+    reg                     wbs_stb2;
+    reg                     wbs_we2;
+    reg [ADDR_WIDTH-1:0]    wbs_addr2;
+    reg [DATA_WIDTH-1:0]    wbs_data_write2;
+    reg [3:0]               wbs_sel2;
+    wire [DATA_WIDTH-1:0]   wbs_data_read2;
+    wire                    wbs_ack2;
+
     // UART Physical Interface
     wire uart_tx;
     reg  uart_rx;
+
+    wire uart_tx2;
+    reg  uart_rx2;
 
     // Testbench Signals
     reg [7:0] tx_data;
@@ -61,6 +84,27 @@ module tb_uart;
         .wbs_ack        (wbs_ack        ),
         .uart_tx        (uart_tx        ),
         .uart_rx        (uart_rx        )
+    );
+
+    uart_wrapper #(
+        .BASE_ADDR(BASE_ADDR),
+        .SIZE_KB(SIZE_KB),
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .BAUD_DIV_RST(BAUD_DIV_RST)
+    ) dut2 (
+        .clk            (clk            ),
+        .rst_n          (rst_n          ),
+        .wbs_cyc        (wbs_cyc2       ),
+        .wbs_stb        (wbs_stb2       ),
+        .wbs_we         (wbs_we2        ),
+        .wbs_addr       (wbs_addr2      ),
+        .wbs_data_write (wbs_data_write2),
+        .wbs_sel        (wbs_sel2       ),
+        .wbs_data_read  (wbs_data_read2 ),
+        .wbs_ack        (wbs_ack2       ),
+        .uart_tx        (uart_tx2       ),
+        .uart_rx        (uart_rx2       )
     );
 
     // Clock Generation
@@ -124,12 +168,12 @@ module tb_uart;
         $display("[TEST %0d] UART Receiver Test: Completed\n", test_num);
 
         // Test 4: Loopback (TX -> RX)
-        // test_num = 3;
-        // $display("\n[TEST %0d] UART Loopback Test: Starting", test_num);
-        // task_error_count = 0;
-        // test_loopback(task_error_count);
-        // total_errors += task_error_count;
-        // $display("[TEST %0d] UART Loopback Test: Completed\n", test_num);
+        test_num = 3;
+        $display("\n[TEST %0d] UART Loopback Test: Starting", test_num);
+        task_error_count = 0;
+        test_loopback(task_error_count);
+        total_errors += task_error_count;
+        $display("[TEST %0d] UART Loopback Test: Completed\n", test_num);
 
         // Summary
         $display("\n=== UART Testbench Completed ===");
@@ -187,30 +231,36 @@ module tb_uart;
             bit_time = (CLK_PERIOD * BAUD_DIV);
             test_data = 8'hA5;
 
-            // Check initial status - should be TX_EMPTY
+            // Check initial status - should be TX_READY=1 TX_BUSY=0
             wb_read(32'h2000_0010, read_data);
-            if (read_data[0] !== 1'b1) begin
-                $display("ERROR: TX_EMPTY not set initially");
+            if (read_data[STATUS_TX_READY] !== 1'b1) begin
+                $display("ERROR: TX_READY not set initially");
+                error_count = error_count + 1;
+            end
+            if (read_data[STATUS_TX_BUSY] !== 1'b0) begin
+                $display("ERROR: TX_BUSY set initially");
                 error_count = error_count + 1;
             end
 
             // Send data 
             wb_write(32'h2000_0000, test_data, 4'b0001);
 
-            // Check status immediately after write - should be TX_BUSY
-            #10; // Small delay to allow status update
+            // Check status immediately after write - should be TX_BUSY=1 TX_READY=0
+            // Small delay to allow status update
+            #(CLK_PERIOD*2); 
             wb_read(32'h2000_0010, read_data);
-            if (read_data[1] !== 1'b1) begin // TX_BUSY should be set
+            if (read_data[STATUS_TX_BUSY] !== 1'b1) begin
                 $display("ERROR: TX_BUSY not set after transmission start");
                 error_count = error_count + 1;
             end
-            if (read_data[0] !== 1'b0) begin // TX_EMPTY should be clear
-                $display("ERROR: TX_EMPTY not cleared after transmission start");
+            if (read_data[STATUS_TX_READY] !== 1'b0) begin 
+                $display("ERROR: TX_READY not cleared after transmission start");
                 error_count = error_count + 1;
             end
 
             // Wait for transmission to start 
             #(bit_time * 0.5);
+
 
             // Verify start bit (should be low)
             if (uart_tx !== 0 ) begin
@@ -234,22 +284,20 @@ module tb_uart;
                 error_count = error_count + 1;
             end 
 
-            // // Wait for transmission to complete
-            // #(bit_time * 10); // Wait for full transmission (start + 8 data + stop)
             
-            Check status after transmission - should be TX_EMPTY
+            // Check status after transmission - should be TX_READY
             wb_read(32'h2000_0010, read_data);
-            if (read_data[0] !== 1'b1) begin // TX_EMPTY should be set
-                $display("ERROR: TX_EMPTY status not set after transmission");
+            if (read_data[STATUS_TX_READY] !== 1'b1) begin // TX_READY should be set
+                $display("ERROR: TX_READY status not set after transmission");
                 $display("  Expected: 1, Got: %b", read_data[0]);
                 error_count = error_count + 1;
             end
-            if (read_data[1] !== 1'b0) begin // TX_BUSY should be clear
+            if (read_data[STATUS_TX_BUSY] !== 1'b0) begin // TX_BUSY should be clear
                 $display("ERROR: TX_BUSY status not cleared after transmission");
                 error_count = error_count + 1;
             end
 
-            $display("Transmitter test completed");
+            $display("Transmitter test completed with %0d errors", error_count);
         end
     endtask
 
@@ -306,43 +354,123 @@ module tb_uart;
                 error_count = error_count + 1;
             end
             
-            $display("Receiver test completed");
+            $display("Receiver test completed with %0d errors", error_count);
         end
     endtask
-    
+
+    always @(*) begin
+        if (test_num == 3) begin
+            uart_rx2 = uart_tx;
+            uart_rx  = uart_tx2;
+        end
+    end
+
     task test_loopback;
         output [31:0] error_count;
         reg [DATA_WIDTH-1:0] read_data;
         reg [7:0] test_data;
+        integer bit_time;
         begin
             error_count = 0;
             read_data = 0;
-
-            test_data = 8'hAA;
+            bit_time = (CLK_PERIOD * BAUD_DIV);
+            test_data = 8'hBB;
             
-            // Send data
-            wb_write(32'h2000_0000, test_data, 4'b0001);
+            $display("\n=== Dual UART Loopback Test ===");
+            $display("Using DUT2 for transmission, DUT1 for reception");
             
-            // Wait for transmission to complete
-            #(CLK_PERIOD * BAUD_DIV * 12); // 12 bit times (start + 8 data + stop + margin)
+            // Configure both UARTs with same settings
+            // Configure DUT1 (receiver)
+            wb_write(32'h2000_0008, BAUD_DIV, 4'b1111);
+            wb_write(32'h2000_000C, 32'h0000_0003, 4'b1111); // Enable TX and RX
             
-            // Feed TX output back to RX input (loopback)
-            uart_rx = uart_tx;
+            // Configure DUT2 (transmitter) - use different base address if needed
+            // Note: You may need to adjust the address for DUT2 if it has different base
+            wb_write2(32'h2000_0008, BAUD_DIV, 4'b1111);
+            wb_write2(32'h2000_000C, 32'h0000_0003, 4'b1111); // Enable TX and RX
             
-            // Wait for reception
-            #(CLK_PERIOD * BAUD_DIV * 12);
+            // Connect DUT2 TX to DUT1 RX
+            // uart_rx = uart_tx2;
+            $display("Connected DUT2_TX -> DUT1_RX");
             
-            // Read received data
+            // Send data using DUT2
+            $display("Sending data via DUT2: %h", test_data);
+            wb_write2(32'h2000_0000, test_data, 4'b0001);
+            
+            // Wait for transmission to complete (check DUT2 status)
+            $display("Waiting for DUT2 transmission to complete...");
+            #(bit_time * 12); // Wait for full transmission
+            
+            // Check DUT2 status to confirm transmission completed
+            wb_read2(32'h2000_0010, read_data);
+            if (read_data[STATUS_TX_READY] !== 1'b1) begin
+                $display("ERROR: DUT2 TX_READY not set after transmission");
+                error_count = error_count + 1;
+            end
+            
+            // Wait a bit for reception by DUT1
+            #(bit_time * 2);
+            
+            // Check if data was received by DUT1
+            wb_read(32'h2000_0010, read_data);
+            $display("DUT1 Status: TX_READY=%b, TX_BUSY=%b, RX_READY=%b, RX_OVERRUN=%b, RX_FRAME_ERR=%b",
+                    read_data[STATUS_TX_READY], read_data[STATUS_TX_BUSY], 
+                    read_data[STATUS_RX_READY], read_data[STATUS_RX_OVERRUN], 
+                    read_data[STATUS_RX_FRAME_ERR]);
+            
+            if (read_data[STATUS_RX_READY] !== 1'b1) begin
+                $display("ERROR: DUT1 RX_READY not set");
+                if (read_data[STATUS_RX_FRAME_ERR]) begin
+                    $display("Frame error detected - check stop bits");
+                end
+                error_count = error_count + 1;
+            end
+            
+            // Read received data from DUT1
             wb_read(32'h2000_0004, read_data);
+            $display("DUT1 Received data: %h", read_data[7:0]);
+            
             if (read_data[7:0] !== test_data) begin
-                $display("ERROR: Loopback test failed: expected %h, got %h",
+                $display("ERROR: Data mismatch: expected %h, got %h", 
                         test_data, read_data[7:0]);
                 error_count = error_count + 1;
             end else begin
-                $display("Loopback test successful: TX -> RX works correctly");
+                $display("SUCCESS: Data correctly received by DUT1");
+            end
+            
+            // Test multiple bytes
+            $display("\nTesting multiple bytes...");
+            for (integer j = 0; j < 3; j = j + 1) begin
+                test_data = 8'hA0 + j;
+                
+                // Send from DUT2
+                wb_write2(32'h2000_0000, test_data, 4'b0001);
+                
+                // Wait for transmission and reception
+                #(bit_time * 14);
+                
+                // Read from DUT1
+                wb_read(32'h2000_0004, read_data);
+                if (read_data[7:0] !== test_data) begin
+                    $display("ERROR: Byte %0d mismatch: expected %h, got %h", 
+                            j, test_data, read_data[7:0]);
+                    error_count = error_count + 1;
+                end else begin
+                    $display("Byte %0d: %h -> %h ✓", j, test_data, read_data[7:0]);
+                end
+            end
+            
+            // Disconnect
+            uart_rx = 1'b1;
+            
+            if (error_count == 0) begin
+                $display("Dual UART loopback test PASSED");
+            end else begin
+                $display("Dual UART loopback test FAILED with %0d errors", error_count);
             end
         end
     endtask
+    
 
 
     // -------------------------------------------
@@ -388,6 +516,50 @@ module tb_uart;
             
             wbs_cyc = 0;
             wbs_stb = 0;
+            @(posedge clk);
+        end
+    endtask
+
+    // Wishbone tasks for DUT2
+    task wb_write2;
+        input [ADDR_WIDTH-1:0] addr;
+        input [DATA_WIDTH-1:0] data;
+        input [3:0] sel;
+        begin
+            @(posedge clk);
+            wbs_cyc2 = 1;
+            wbs_stb2 = 1;
+            wbs_we2 = 1;
+            wbs_addr2 = addr;
+            wbs_data_write2 = data;
+            wbs_sel2 = sel;
+            
+            @(posedge clk);
+            while (!wbs_ack2) @(posedge clk);
+            
+            wbs_cyc2 = 0;
+            wbs_stb2 = 0;
+            wbs_we2 = 0;
+            @(posedge clk);
+        end
+    endtask
+
+    task wb_read2;
+        input [ADDR_WIDTH-1:0] addr;
+        output [DATA_WIDTH-1:0] data;
+        begin
+            @(posedge clk);
+            wbs_cyc2 = 1;
+            wbs_stb2 = 1;
+            wbs_we2 = 0;
+            wbs_addr2 = addr;
+            
+            @(posedge clk);
+            while (!wbs_ack2) @(posedge clk);
+            data = wbs_data_read2;
+            
+            wbs_cyc2 = 0;
+            wbs_stb2 = 0;
             @(posedge clk);
         end
     endtask

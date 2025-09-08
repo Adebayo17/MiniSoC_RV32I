@@ -18,6 +18,7 @@ TIMER_BUILD_DIR := $(MEM_SIM_BUILD_DIR)/timer
 .PHONY: run.uart wave.uart
 # Source Files
 UART_SOURCES := \
+	$(PERIPHERAL_SRC_DIR)/uart/uart_baudgen.v \
 	$(PERIPHERAL_SRC_DIR)/uart/uart_rx.v \
 	$(PERIPHERAL_SRC_DIR)/uart/uart_tx.v \
 	$(PERIPHERAL_SRC_DIR)/uart/uart.v \

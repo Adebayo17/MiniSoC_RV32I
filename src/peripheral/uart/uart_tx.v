@@ -7,12 +7,11 @@ module uart_tx (
     input wire                      tx_enable,      // Transmitter enable
     input wire [7:0]                tx_data,        // Data to transmit
     input wire                      tx_start,       // Start transmission pulse
-    input wire [15:0]               baud_div,       // Baud rate divisor
+    input wire                      baud_tick,      // Baud Tick
 
     // Status Signal
     output reg                      tx_busy,        // Transmission in progress
-    output reg                      tx_empty,       // Transmitter ready for new data
-    output reg                      tx_done,        // Transmission completed (one pulse)
+    output reg                      tx_ready,       // Transmitter ready for new data
 
     // UART Physical interface
     output reg                      uart_tx         // Serial Output
@@ -33,53 +32,33 @@ module uart_tx (
     reg [1:0]   tx_state;
     reg [2:0]   tx_bit_counter;
     reg [7:0]   tx_shift_reg;
-    reg [15:0]  baud_counter;
-    reg         baud_tick;
+    reg [7:0]   tx_holding_reg;
+    reg         tx_holding_valid;
 
-    // -------------------------------------------
-    // Baud Rate Generator
-    // -------------------------------------------
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            baud_counter <= 16'b0;
-            baud_tick    <= 1'b0;
-        end else begin
-            baud_tick    <= 1'b0;
-            if (baud_counter == 16'b0) begin
-                baud_counter <= baud_div;
-                baud_tick    <= 1'b1;
-            end else begin
-                baud_counter <= baud_counter - 1;
-            end
-        end
-    end 
 
     // -------------------------------------------
     // Transmitter State Machine
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            tx_state       <= TX_IDLE;
-            uart_tx        <= 1'b1;
-            tx_bit_counter <= 3'b0;
-            tx_shift_reg   <= 8'b0;
-            tx_busy        <= 1'b0;
-            tx_empty       <= 1'b1;
-            tx_done        <= 1'b0;
+            tx_state         <= TX_IDLE;
+            uart_tx          <= 1'b1;
+            tx_bit_counter   <= 3'b0;
+            tx_shift_reg     <= 8'b0;
+            tx_busy          <= 1'b0;
+            tx_ready         <= 1'b1;
         end else begin
-            tx_done        <= 1'b0;  // Single pulse signal
 
             case (tx_state)
                 TX_IDLE: begin
                     uart_tx        <= 1'b1;
                     tx_busy        <= 1'b0;
-                    tx_empty       <= 1'b1;
 
                     if (tx_enable && tx_start) begin
                         tx_state     <= TX_START;
                         tx_shift_reg <= tx_data;
                         tx_busy      <= 1'b1;
-                        tx_empty     <= 1'b0;
+                        tx_ready     <= 1'b0;
                     end
                 end
 
@@ -109,8 +88,7 @@ module uart_tx (
                         uart_tx        <= 1'b1;
                         tx_state       <= TX_IDLE;
                         tx_busy        <= 1'b0;
-                        tx_empty       <= 1'b1;
-                        tx_done        <= 1'b1;  // Pulse for one cycle
+                        tx_ready       <= 1'b1;
                     end
                 end 
             endcase
