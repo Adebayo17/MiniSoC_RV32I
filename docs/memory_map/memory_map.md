@@ -68,5 +68,34 @@ This document defines the memory layout of the MiniSoC-RV32I system. All address
 *To be defined*
 
 ### GPIO Peripheral (0x4000_0000)  
-*To be defined*
+
+#### Register Map
+
+| Offset | Name       | Width | Access | Description                     |
+|--------|-----------|-------|--------|---------------------------------|
+| `0x00` | GPIO_DATA  | 8     | R/W    | Data Register                   |
+| `0x04` | GPIO_DIR   | 8     | R/W    | Direction Register              |
+| `0x08` | GPIO_SET   | 8     | W      | Set Bits Register               |
+| `0x0C` | GPIO_CLEAR | 8     | W      | Clear Bits Register             |
+| `0x10` | GPIO_TOGGLE| 8     | W      | Toggle Bits Register            |
+
+#### GPIO_DATA Register (0x00)
+- **Read**: Returns current pin states (both input and output)
+- **Write**: Sets output pin values (for pins configured as outputs)
+
+#### GPIO_DIR Register (0x04)
+- **Bit values**: `1` = Output, `0` = Input
+- **Default**: `0x00` (all inputs)
+
+#### GPIO_SET Register (0x08) - Write-only
+- Writing `1` to any bit sets the corresponding output pin
+- Writing `0` has no effect
+
+#### GPIO_CLEAR Register (0x0C) - Write-only  
+- Writing `1` to any bit clears the corresponding output pin
+- Writing `0` has no effect
+
+#### GPIO_TOGGLE Register (0x10) - Write-only
+- Writing `1` to any bit toggles the corresponding output pin
+- Writing `0` has no effect
 

@@ -25,6 +25,12 @@ module uart #(
     // -------------------------------------------
     // Parameter Definitions
     // -------------------------------------------
+    // Register Address
+    localparam [11:0] REG_UART_TX_DATA     = 12'h000;
+    localparam [11:0] REG_UART_RX_DATA     = 12'h004;
+    localparam [11:0] REG_UART_BAUD_DIV    = 12'h008;
+    localparam [11:0] REG_UART_CTRL        = 12'h00C;
+    localparam [11:0] REG_UART_STATUS      = 12'h010;
 
     // Status register bits
     localparam STATUS_TX_READY      = 0;
@@ -70,11 +76,11 @@ module uart #(
     wire [11:0] reg_offset;
     assign reg_offset = wbs_addr[11:0];
 
-    wire sel_tx_data    = (reg_offset == 12'h000);
-    wire sel_rx_data    = (reg_offset == 12'h004);
-    wire sel_baud_div   = (reg_offset == 12'h008);
-    wire sel_ctrl       = (reg_offset == 12'h00C);
-    wire sel_status     = (reg_offset == 12'h010);
+    wire sel_tx_data    = (reg_offset == REG_UART_TX_DATA   );
+    wire sel_rx_data    = (reg_offset == REG_UART_RX_DATA   );
+    wire sel_baud_div   = (reg_offset == REG_UART_BAUD_DIV  );
+    wire sel_ctrl       = (reg_offset == REG_UART_CTRL      );
+    wire sel_status     = (reg_offset == REG_UART_STATUS    );
 
     // -------------------------------------------
     // Wishbone tmp ACK
@@ -92,12 +98,12 @@ module uart #(
             tmp_r_ack = 1'b1;
 
             case (reg_offset)
-                12'h000:    wbs_data_read = {24'b0, tx_data_reg};
-                12'h004:    wbs_data_read = {24'b0, rx_data_reg};
-                12'h008:    wbs_data_read = {16'b0, baud_div_reg};
-                12'h00C:    wbs_data_read = {24'b0, ctrl_reg};
-                12'h010:   wbs_data_read = {24'b0, status_reg};
-                default: wbs_data_read = 32'b0;
+                REG_UART_TX_DATA:   wbs_data_read = {24'b0, tx_data_reg};
+                REG_UART_RX_DATA:   wbs_data_read = {24'b0, rx_data_reg};
+                REG_UART_BAUD_DIV:  wbs_data_read = {16'b0, baud_div_reg};
+                REG_UART_CTRL:      wbs_data_read = {24'b0, ctrl_reg};
+                REG_UART_STATUS:    wbs_data_read = {24'b0, status_reg};
+                default:            wbs_data_read = 32'b0;
             endcase
         end else begin
             wbs_data_read = 32'b0;
@@ -131,23 +137,23 @@ module uart #(
                 tx_start_pulse <= 1'b0;     // Single pulse
 
                 case (reg_offset)
-                    12'h000: begin
+                    REG_UART_TX_DATA: begin
                         if (wbs_sel[0]) begin
                             tx_data_reg    <= wbs_data_write[7:0];
                             tx_start_pulse <= 1'b1;  // Start transmission
                         end 
                     end
-                    12'h004: begin
+                    REG_UART_RX_DATA: begin
                         // Reading RX data register clears RX ready flag
                         if (wbs_sel[0]) begin
                             rx_data_reg <= 8'b0; // Cleared after read
                         end
                     end
-                    12'h008: begin
+                    REG_UART_BAUD_DIV: begin
                         if (wbs_sel[0]) baud_div_reg[7:0]  <= wbs_data_write[7:0];
                         if (wbs_sel[1]) baud_div_reg[15:8] <= wbs_data_write[15:8];
                     end
-                    12'h00C: if (wbs_sel[0]) ctrl_reg <= wbs_data_write[7:0];
+                    REG_UART_CTRL: if (wbs_sel[0]) ctrl_reg <= wbs_data_write[7:0];
                 endcase
             end
         end

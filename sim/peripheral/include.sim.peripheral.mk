@@ -13,9 +13,10 @@ GPIO_BUILD_DIR 	:= $(MEM_SIM_BUILD_DIR)/gpio
 TIMER_BUILD_DIR := $(MEM_SIM_BUILD_DIR)/timer
 
 # -------------------------------------------
-# UART Simulation
+# UART Simulation 32'h2000_0000
 # -------------------------------------------
 .PHONY: run.uart wave.uart
+
 # Source Files
 UART_SOURCES := \
 	$(PERIPHERAL_SRC_DIR)/uart/uart_baudgen.v \
@@ -45,14 +46,49 @@ wave.uart:
 
 
 # -------------------------------------------
-# GPIO Simulation
+# TIMER Simulation 32'h3000_0000
 # -------------------------------------------
 
 
+# Sources Files
+
+# Testbench File
+
+# Build target
+
+# Run targer
+
+# Waveform Target
+
 
 # -------------------------------------------
-# TIMER Simulation
+# GPIO Simulation 32'h4000_0000
 # -------------------------------------------
+.PHONY: run.gpio wave.gpio
+
+# Sources Files
+GPIO_SOURCES := \
+	$(PERIPHERAL_SRC_DIR)/gpio/gpio.v \
+	$(PERIPHERAL_SRC_DIR)/gpio/gpio_wrapper.v \
+
+# Testbench File
+GPIO_TB := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio.v 
+
+# Build target
+$(GPIO_BUILD_DIR)/gpio_tb.out: $(GPIO_SOURCES) $(GPIO_TB)
+	@mkdir -p $(GPIO_BUILD_DIR)
+	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
+	@echo "[GPIO] Testbench built: $@"
+
+# Run targer
+run.gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
+	@echo "\n[GPIO] Running tests..."
+	@cd $(GPIO_BUILD_DIR) && $(VVP) gpio_tb.out -l gpio.log
+	@echo "[GPIO] Test completed - see $(GPIO_BUILD_DIR)/gpio.log"
+
+# Waveform Target
+wave.gpio:
+	$(GTKWAVE) $(GPIO_BUILD_DIR)/gpio_tb.vcd &
 
 
 # -------------------------------------------
@@ -73,12 +109,15 @@ sim.peripheral.clean:
 
 # Build shortcuts
 uart: $(UART_BUILD_DIR)/uart_tb.out
+gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
 
 # Run shortcuts
 uart-run: run.uart
+gpio-run: run.gpio
 
 # Wave shortcuts
 uart-wave: wave.uart
+gpio-wave: wave.gpio
 
 # Clean shortcut
 peripheral-clean: sim.peripheral.clean
