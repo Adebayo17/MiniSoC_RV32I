@@ -7,10 +7,10 @@ The UART (Universal Asynchronous Receiver/Transmitter) module provides serial co
 
 ```text
 src/peripheral/uart/
-├── uart.v # Main top-level module
-├── uart_tx.v # Transmitter submodule
-├── uart_rx.v # Receiver submodule
-├── uart_wrapper.v # Wishbone bus wrapper
+├── uart.v          # Main top-level module
+├── uart_tx.v       # Transmitter submodule
+├── uart_rx.v       # Receiver submodule
+├── uart_wrapper.v  # Wishbone bus wrapper
 ```
 
 

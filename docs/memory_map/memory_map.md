@@ -65,7 +65,35 @@ This document defines the memory layout of the MiniSoC-RV32I system. All address
 ---
 
 ### TIMER Peripheral (0x3000_0000)
-*To be defined*
+
+#### Register Map
+
+| Offset | Name         | Width | Access | Description                     |
+|--------|-------------|-------|--------|---------------------------------|
+| `0x00` | TIMER_COUNT | 32    | R      | Current timer value             |
+| `0x04` | TIMER_CMP   | 32    | R/W    | Compare value                   |
+| `0x08` | TIMER_CTRL  | 4     | R/W    | Control register                |
+| `0x0C` | TIMER_STAT  | 2     | R/W    | Status register                 |
+
+#### TIMER_CTRL Register (0x08)
+| Bit | Name        | Description                     |
+|-----|------------|---------------------------------|
+| 0   | ENABLE      | Timer enable (1 = enabled)      |
+| 1   | ONESHOT     | One-shot mode (1 = one-shot)    |
+| 2-3 | PRESCALE    | Clock prescaler selection       |
+
+#### Prescaler Values:
+- `00`: Clock / 1
+- `01`: Clock / 8  
+- `10`: Clock / 64
+- `11`: Clock / 1024
+
+#### TIMER_STAT Register (0x0C)
+| Bit | Name        | Description                     |
+|-----|------------|---------------------------------|
+| 0   | MATCH       | Compare match occurred          |
+| 1   | OVERFLOW    | Counter overflow occurred       |
+
 
 ### GPIO Peripheral (0x4000_0000)  
 

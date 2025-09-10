@@ -8,9 +8,9 @@ PERIPHERAL_SRC_DIR 			:= $(TOP_DIR)/src/peripheral
 PERIPHERAL_SIM_BUILD_DIR 	:= $(SIM_BUILD_DIR)/peripheral
 
 # Build directories
-UART_BUILD_DIR 	:= $(MEM_SIM_BUILD_DIR)/uart
-GPIO_BUILD_DIR 	:= $(MEM_SIM_BUILD_DIR)/gpio
-TIMER_BUILD_DIR := $(MEM_SIM_BUILD_DIR)/timer
+UART_BUILD_DIR 	:= $(PERIPHERAL_SIM_BUILD_DIR)/uart
+GPIO_BUILD_DIR 	:= $(PERIPHERAL_SIM_BUILD_DIR)/gpio
+TIMER_BUILD_DIR := $(PERIPHERAL_SIM_BUILD_DIR)/timer
 
 # -------------------------------------------
 # UART Simulation 32'h2000_0000
@@ -48,18 +48,31 @@ wave.uart:
 # -------------------------------------------
 # TIMER Simulation 32'h3000_0000
 # -------------------------------------------
-
+.PHONY: run.timer wave.timer
 
 # Sources Files
+TIMER_SOURCES := \
+	$(PERIPHERAL_SRC_DIR)/timer/timer.v \
+	$(PERIPHERAL_SRC_DIR)/timer/timer_wrapper.v \
 
 # Testbench File
+TIMER_TB := $(PERIPHERAL_SIM_DIR)/timer/tb_timer.v 
 
 # Build target
+$(TIMER_BUILD_DIR)/timer_tb.out: $(TIMER_SOURCES) $(TIMER_TB)
+	@mkdir -p $(TIMER_BUILD_DIR)
+	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
+	@echo "[TIMER] Testbench built: $@"
 
-# Run targer
+# Run target
+run.timer: $(TIMER_BUILD_DIR)/timer_tb.out
+	@echo "\n[TIMER] Running tests..."
+	@cd $(TIMER_BUILD_DIR) && $(VVP) timer_tb.out -l timer.log
+	@echo "[TIMER] Test completed - see $(TIMER_BUILD_DIR)/timer.log"
 
 # Waveform Target
-
+wave.timer:
+	$(GTKWAVE) $(TIMER_BUILD_DIR)/timer_tb.vcd &
 
 # -------------------------------------------
 # GPIO Simulation 32'h4000_0000
@@ -110,14 +123,17 @@ sim.peripheral.clean:
 # Build shortcuts
 uart: $(UART_BUILD_DIR)/uart_tb.out
 gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
+timer: $(TIMER_BUILD_DIR)/timer_tb.out
 
 # Run shortcuts
 uart-run: run.uart
 gpio-run: run.gpio
+timer-run: run.timer
 
 # Wave shortcuts
 uart-wave: wave.uart
 gpio-wave: wave.gpio
+timer-wave: wave.timer
 
 # Clean shortcut
 peripheral-clean: sim.peripheral.clean

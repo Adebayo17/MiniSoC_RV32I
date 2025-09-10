@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module tb_uart;
+module tb_gpio;
     // Parameters
     parameter CLK_PERIOD    = 10; // 100MHz
     parameter CLK_FREQ      = 100_000_000;
@@ -48,7 +48,7 @@ module tb_uart;
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH),
         .N_GPIO(N_GPIO)
-    ) gpio_inst (
+    ) dut (
         .clk                (clk            ),
         .rst_n              (rst_n          ),
         .wbs_cyc            (wbs_cyc        ),
@@ -93,7 +93,7 @@ module tb_uart;
     // Main Test Sequence
     initial begin
         $dumpfile("gpio_tb.vcd");
-        $dumpvars(0, tb_uart);
+        $dumpvars(0, tb_gpio);
 
         wait(rst_n);
         #(CLK_PERIOD*2);
@@ -328,9 +328,6 @@ module tb_uart;
             $display("Mixed I/O test completed with %0d errors", error_count);
         end
     endtask
-
-    
-    
 
 
     // -------------------------------------------
