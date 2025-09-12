@@ -77,10 +77,11 @@ This document defines the memory layout of the MiniSoC-RV32I system. All address
 
 #### TIMER_CTRL Register (0x08)
 | Bit | Name        | Description                     |
-|-----|------------|---------------------------------|
+|-----|-------------|---------------------------------|
 | 0   | ENABLE      | Timer enable (1 = enabled)      |
-| 1   | ONESHOT     | One-shot mode (1 = one-shot)    |
-| 2-3 | PRESCALE    | Clock prescaler selection       |
+| 1   | RESET       | Reset Counter Reg (1 = reset)   |
+| 2   | ONESHOT     | One-shot mode (1 = one-shot)    |
+| 3-4 | PRESCALE    | Clock prescaler selection       |
 
 #### Prescaler Values:
 - `00`: Clock / 1
@@ -90,7 +91,7 @@ This document defines the memory layout of the MiniSoC-RV32I system. All address
 
 #### TIMER_STAT Register (0x0C)
 | Bit | Name        | Description                     |
-|-----|------------|---------------------------------|
+|-----|------------|----------------------------------|
 | 0   | MATCH       | Compare match occurred          |
 | 1   | OVERFLOW    | Counter overflow occurred       |
 
