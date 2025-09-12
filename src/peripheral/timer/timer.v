@@ -27,9 +27,10 @@ module timer #(
 
     // Control register bits
     localparam CTRL_ENABLE     = 0;  // Timer enable
-    localparam CTRL_ONESHOT    = 1;  // One-shot mode (0=free-running)
-    localparam CTRL_PRESCALE0  = 2;  // Prescaler bits [2:3]
-    localparam CTRL_PRESCALE1  = 3;  // Prescaler bits [2:3]
+    localparam CTRL_RESET      = 1;  // Reset Counter Register
+    localparam CTRL_ONESHOT    = 2;  // One-shot mode (0=free-running)
+    localparam CTRL_PRESCALE0  = 3;  // Prescaler bits [2:3]
+    localparam CTRL_PRESCALE1  = 4;  // Prescaler bits [2:3]
 
     // Status register bits
     localparam STATUS_MATCH      = 0;  // Compare match occurred
@@ -41,12 +42,15 @@ module timer #(
     localparam [1:0] PRESCALE_64   = 2'b10;  // Clock / 64
     localparam [1:0] PRESCALE_1024 = 2'b11;  // Clock / 1024
 
+    // Overflow value
+    localparam [DATA_WIDTH-1:0] OVERFLOW_VALUE = 32'h0000_1000;
+
     // -------------------------------------------
     // Internal Registers
     // -------------------------------------------
     reg [31:0] count_reg;
     reg [31:0] cmp_reg;
-    reg [3:0]  ctrl_reg;
+    reg [4:0]  ctrl_reg;
     reg [1:0]  status_reg;
 
     // Internal signals
@@ -59,8 +63,6 @@ module timer #(
     reg status_read_match;
     reg status_read_overflow;
     
-    // Write Detection Signals
-    reg cmp_reg_write;
 
     // -------------------------------------------
     // Address Decode
@@ -78,9 +80,9 @@ module timer #(
     // -------------------------------------------
     wire [1:0] prescale_sel = ctrl_reg[CTRL_PRESCALE1:CTRL_PRESCALE0];
     wire [31:0] prescale_max = (prescale_sel == PRESCALE_1)    ? 32'd1 :
-                              (prescale_sel == PRESCALE_8)    ? 32'd8 :
-                              (prescale_sel == PRESCALE_64)   ? 32'd64 :
-                              (prescale_sel == PRESCALE_1024) ? 32'd1024 : 32'd1;
+                               (prescale_sel == PRESCALE_8)    ? 32'd8 :
+                               (prescale_sel == PRESCALE_64)   ? 32'd64 :
+                               (prescale_sel == PRESCALE_1024) ? 32'd1024 : 32'd1;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -108,6 +110,10 @@ module timer #(
             count_reg <= 32'b0;
             match_flag <= 1'b0;
             overflow_flag <= 1'b0;
+        end else if (ctrl_reg[CTRL_RESET]) begin
+            count_reg <= 32'b0;
+            match_flag <= 1'b0;
+            overflow_flag <= 1'b0;
         end else if (ctrl_reg[CTRL_ENABLE] && prescaler_tick) begin
             // Check for compare match
             if (count_reg == cmp_reg) begin
@@ -124,8 +130,10 @@ module timer #(
             end
             
             // Check for overflow
-            if (count_reg == 32'hFFFF_FFFF) begin
+            if (count_reg == OVERFLOW_VALUE) begin
                 overflow_flag <= 1'b1;
+            end else begin
+                overflow_flag <= 1'b0;
             end
         end else begin
             match_flag <= 1'b0;
@@ -169,7 +177,7 @@ module timer #(
             case (reg_offset)
                 REG_TIMER_COUNT:   wbs_data_read = count_reg;
                 REG_TIMER_CMP:     wbs_data_read = cmp_reg;
-                REG_TIMER_CTRL:    wbs_data_read = {28'b0, ctrl_reg}; 
+                REG_TIMER_CTRL:    wbs_data_read = {27'b0, ctrl_reg}; 
                 REG_TIMER_STATUS:  wbs_data_read = {30'b0, status_reg}; 
                 default:           wbs_data_read = {DATA_WIDTH{1'b0}};
             endcase
@@ -183,14 +191,19 @@ module timer #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             cmp_reg                 <= 32'b0;
-            ctrl_reg                <= 4'b0000;  // Disabled, free-running, prescale=1
-            status_reg              <= 2'b00;
+            ctrl_reg                <= 5'b00000;  // Disabled, free-running, prescale=1
             status_read_match       <= 1'b0;
             status_read_overflow    <= 1'b0;
-            cmp_reg_write           <= 1'b0;
             tmp_w_ack               <= 1'b0;
         end else begin
             tmp_w_ack <= 1'b0;
+
+            // default deassert 
+            status_read_match    <= 1'b0;
+            status_read_overflow <= 1'b0;
+
+            // Self-clear ctrl reset bit
+            if (ctrl_reg[CTRL_RESET]) ctrl_reg[CTRL_RESET] <= 1'b0;
             
             if (wbs_cyc && wbs_stb && wbs_we) begin
                 tmp_w_ack <= 1'b1;
@@ -201,11 +214,10 @@ module timer #(
                         if (wbs_sel[1]) cmp_reg[15:8]  <= wbs_data_write[15:8];
                         if (wbs_sel[2]) cmp_reg[23:16] <= wbs_data_write[23:16];
                         if (wbs_sel[3]) cmp_reg[31:24] <= wbs_data_write[31:24];
-                        cmp_reg_write <= 1'b1;
                     end
                     
                     REG_TIMER_CTRL: begin
-                        if (wbs_sel[0]) ctrl_reg <= wbs_data_write[3:0];
+                        if (wbs_sel[0]) ctrl_reg <= wbs_data_write[4:0];
                     end
                     
                     REG_TIMER_STATUS: begin

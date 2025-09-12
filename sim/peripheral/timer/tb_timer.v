@@ -171,8 +171,8 @@ module tb_timer;
             end
 
             wb_read(BASE_ADDR + 12'h008, read_data); // CTRL
-            if (read_data[3:0] !== 4'b0000) begin
-                $display("ERROR: CTRL not zero after reset: %b", read_data[3:0]);
+            if (read_data[4:0] !== 5'b00000) begin
+                $display("ERROR: CTRL not zero after reset: %b", read_data[4:0]);
                 error_count++;
             end
 
@@ -231,7 +231,8 @@ module tb_timer;
 
             // Configure timer
             wb_write(BASE_ADDR + 12'h004, 32'h0000_000A, 4'b1111); // CMP = 10
-            wb_write(BASE_ADDR + 12'h008, 32'h0000_0001, 4'b0001); // CTRL = 0x01
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_0002, 4'b0001); // CTRL = 0x02 : reset counter reg
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_0001, 4'b0001); // CTRL = 0x01 : enable timer
 
             // Wait for match
             #(CLK_PERIOD * 15);
@@ -263,7 +264,8 @@ module tb_timer;
 
             // Configure one-shot mode
             wb_write(BASE_ADDR + 12'h004, 32'h0000_0005, 4'b1111); // CMP = 5
-            wb_write(BASE_ADDR + 12'h008, 32'h0000_0003, 4'b0001); // CTRL = 0x03 (enable + one-shot)
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_0002, 4'b0001); // CTRL = 0x02 (reset counter_reg)
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_0005, 4'b0001); // CTRL = 0x05 (enable + one-shot)
 
             // Wait for match
             #(CLK_PERIOD * 10);
@@ -281,6 +283,7 @@ module tb_timer;
                 $display("ERROR: Match flag not set in one-shot: %b", read_data[0]);
                 error_count++;
             end
+            wb_write(BASE_ADDR + 12'h00C, 32'h0000_0001, 4'b0001); // Clear match flag
 
             $display("One-shot test completed with %0d errors", error_count);
         end
@@ -289,11 +292,17 @@ module tb_timer;
     task test_prescaler;
         output [31:0] error_count;
         reg [31:0] read_data1, read_data2;
+        integer expected_ticks;
         begin
             error_count = 0;
+            read_data1 = 0;
+            read_data2 = 0;
+
+            expected_ticks = 40 / 8; // cycles / prescale_max
 
             // Test prescale=8
-            wb_write(BASE_ADDR + 12'h008, 32'h0000_0005, 4'b0001); // CTRL = 0x05 (enable + prescale=8)
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_000B, 4'b0001); // CTRL = 0x0B (rst count_reg + enable + prescale=8)
+            #(CLK_PERIOD*8);
             
             // Read counter after some time
             wb_read(BASE_ADDR + 12'h000, read_data1);
@@ -301,7 +310,7 @@ module tb_timer;
             wb_read(BASE_ADDR + 12'h000, read_data2);
 
             // Should have advanced by approximately 4
-            if ((read_data2 - read_data1) < 3 || (read_data2 - read_data1) > 5) begin
+            if ((read_data2 - read_data1) < (expected_ticks -1) || (read_data2 - read_data1) > (expected_ticks + 1)) begin
                 $display("ERROR: Prescaler not working: advanced by %d (expected ~4)", read_data2 - read_data1);
                 error_count++;
             end
@@ -314,14 +323,17 @@ module tb_timer;
         output [31:0] error_count;
         reg [31:0] read_data;
         begin
+            $display("To do this test, lower overflow value to take less time");
             error_count = 0;
 
             // Test overflow detection
-            wb_write(BASE_ADDR + 12'h008, 32'h0000_0001, 4'b0001); // CTRL = 0x01
-            wb_write(BASE_ADDR + 12'h004, 32'hFFFF_FFFC, 4'b1111); // CMP = almost max
+            wb_write(BASE_ADDR + 12'h004, 32'h0000_0FFC, 4'b1111); // CMP = almost max
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_0002, 4'b0001); // CTRL = 0x02 : reset
+            #(CLK_PERIOD);
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_0001, 4'b0001); // CTRL = 0x01 : enable + free-running + prescale=1
 
             // Wait for overflow
-            #(CLK_PERIOD * 10);
+            #(CLK_PERIOD * 100000);
 
             wb_read(BASE_ADDR + 12'h00C, read_data);
             if (read_data[1] !== 1'b1) begin
@@ -329,8 +341,11 @@ module tb_timer;
                 error_count++;
             end
 
+            wb_write(BASE_ADDR + 12'h008, 32'h0000_0010, 4'b0001); // CTRL = 0x00 : reset + desable
+
             // Clear both flags
             wb_write(BASE_ADDR + 12'h00C, 32'h0000_0003, 4'b0001); // Clear both flags
+            #(CLK_PERIOD);
             wb_read(BASE_ADDR + 12'h00C, read_data);
             if (read_data[1:0] !== 2'b00) begin
                 $display("ERROR: Flags not cleared: %b", read_data[1:0]);
