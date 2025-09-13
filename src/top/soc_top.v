@@ -1,18 +1,36 @@
-module moduleName #(
+module soc_top #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
-    parameter SIZE_KB    = 4
+    parameter SIZE_KB    = 4,
+    parameter N_GPIO     = 8
 ) (
     // Clock and reset
     input wire                      clk,
     input wire                      rst_n
+
+    // UART Physical Interface
+    input wire                      uart_rx,
+    output wire                     uart_tx,
+
+    // GPIO Physical Interface
+    inout wire                      gpio0_io,   // Physical pad 0
+    inout wire                      gpio1_io,   // Physical pad 1
+    inout wire                      gpio2_io,   // Physical pad 2
+    inout wire                      gpio3_io,   // Physical pad 3
+    inout wire                      gpio4_io,   // Physical pad 4
+    inout wire                      gpio5_io,   // Physical pad 5
+    inout wire                      gpio6_io,   // Physical pad 6
+    inout wire                      gpio7_io    // Physical pad 7
 );
     
     // ----------------------------
     // Parameters
     // ----------------------------
-    localparam [31:0] IMEM_BASE_ADDR = 32'h0000_0000;
-    localparam [31:0] DMEM_BASE_ADDR = 32'h1000_0000;
+    localparam [31:0] IMEM_BASE_ADDR  = 32'h0000_0000;
+    localparam [31:0] DMEM_BASE_ADDR  = 32'h1000_0000;
+    localparam [31:0] UART_BASE_ADDR  = 32'h2000_0000;
+    localparam [31:0] TIMER_BASE_ADDR = 32'h3000_0000;
+    localparam [31:0] GPIO_BASE_ADDR  = 32'h4000_0000;
 
     // ----------------------------
     // Wires and Reg
@@ -47,8 +65,111 @@ module moduleName #(
     wire [DATA_WIDTH-1:0]     wbs_dmem_data_read ;
     wire                      wbs_dmem_ack       ;
 
+    // UART
+    wire                      wbs_uart_cyc       ;
+    wire                      wbs_uart_stb       ;
+    wire                      wbs_uart_we        ;
+    wire [ADDR_WIDTH-1:0]     wbs_uart_addr      ;
+    wire [DATA_WIDTH-1:0]     wbs_uart_data_write;
+    wire [3:0]                wbs_uart_sel       ;
+    wire [DATA_WIDTH-1:0]     wbs_uart_data_read ;
+    wire                      wbs_uart_ack       ;
+
+
+    // TIMER
+    wire                      wbs_timer_cyc       ;
+    wire                      wbs_timer_stb       ;
+    wire                      wbs_timer_we        ;
+    wire [ADDR_WIDTH-1:0]     wbs_timer_addr      ;
+    wire [DATA_WIDTH-1:0]     wbs_timer_data_write;
+    wire [3:0]                wbs_timer_sel       ;
+    wire [DATA_WIDTH-1:0]     wbs_timer_data_read ;
+    wire                      wbs_timer_ack       ;
+
+
+    // GPIO
+    wire                      wbs_gpio_cyc       ;
+    wire                      wbs_gpio_stb       ;
+    wire                      wbs_gpio_we        ;
+    wire [ADDR_WIDTH-1:0]     wbs_gpio_addr      ;
+    wire [DATA_WIDTH-1:0]     wbs_gpio_data_write;
+    wire [3:0]                wbs_gpio_sel       ;
+    wire [DATA_WIDTH-1:0]     wbs_gpio_data_read ;
+    wire                      wbs_gpio_ack       ;
+    wire [N_GPIO-1:0]         gpio_in            ; 
+    wire [N_GPIO-1:0]         gpio_out           ;
+    wire [N_GPIO-1:0]         gpio_oe            ;
+
+
 
     // CPU Instance
+
+    // ----------------------------
+    // CPU Instance
+    // ----------------------------
+    reg cpu_rst_n;
+    always @(posedge clk) begin
+        cpu_rst_n <= rst_n && init_done;
+    end
+
+    // ---------------------------------------------------------------------------------------------
+    // Interconnect
+    // ---------------------------------------------------------------------------------------------
+
+    // ----------------------------
+    // WISHBONE INTERCONNECT Instance
+    // ----------------------------
+    wishbone_interconnect #(
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) wishbone_interconnect_inst (
+        .clk                    (clk                     ),
+        .rst_n                  (rst_n                   ),
+        .wbm_cpu_cyc            (wb_m_cpu_cyc            ),
+        .wbm_cpu_stb            (wb_m_cpu_stb            ),
+        .wbm_cpu_we             (wb_m_cpu_we             ),
+        .wbm_cpu_addr           (wb_m_cpu_addr           ),
+        .wbm_cpu_data_write     (wb_m_cpu_data_write     ),
+        .wbm_cpu_sel            (wb_m_cpu_sel            ),
+        .wbm_cpu_data_read      (wb_m_cpu_data_read      ),
+        .wbm_cpu_ack            (wb_m_cpu_ack            ),
+        .wbs_dmem_cyc           (wbs_dmem_cyc            ),
+        .wbs_dmem_stb           (wbs_dmem_stb            ),
+        .wbs_dmem_we            (wbs_dmem_we             ),
+        .wbs_dmem_addr          (wbs_dmem_addr           ),
+        .wbs_dmem_data_write    (wbs_dmem_data_write     ),
+        .wbs_dmem_sel           (wbs_dmem_sel            ),
+        .wbs_dmem_data_read     (wbs_dmem_data_read      ),
+        .wbs_dmem_ack           (wbs_dmem_ack            ),
+        .wbs_uart_cyc           (wbs_uart_cyc            ),
+        .wbs_uart_stb           (wbs_uart_stb            ),
+        .wbs_uart_we            (wbs_uart_we             ),
+        .wbs_uart_addr          (wbs_uart_addr           ),
+        .wbs_uart_data_write    (wbs_uart_data_write     ),
+        .wbs_uart_sel           (wbs_uart_sel            ),
+        .wbs_uart_data_read     (wbs_uart_data_read      ),
+        .wbs_uart_ack           (wbs_uart_ack            ),
+        .wbs_timer_cyc          (wbs_timer_cyc           ),
+        .wbs_timer_stb          (wbs_timer_stb           ),
+        .wbs_timer_we           (wbs_timer_we            ),
+        .wbs_timer_addr         (wbs_timer_addr          ),
+        .wbs_timer_data_write   (wbs_timer_data_write    ),
+        .wbs_timer_sel          (wbs_timer_sel           ),
+        .wbs_timer_data_read    (wbs_timer_data_read     ),
+        .wbs_timer_ack          (wbs_timer_ack           ),
+        .wbs_gpio_cyc           (wbs_gpio_cyc            ),
+        .wbs_gpio_stb           (wbs_gpio_stb            ),
+        .wbs_gpio_we            (wbs_gpio_we             ),
+        .wbs_gpio_addr          (wbs_gpio_addr           ),
+        .wbs_gpio_data_write    (wbs_gpio_data_write     ),
+        .wbs_gpio_sel           (wbs_gpio_sel            ),
+        .wbs_gpio_data_read     (wbs_gpio_data_read      ),
+        .wbs_gpio_ack           (wbs_gpio_ack            )
+    );
+
+    // ---------------------------------------------------------------------------------------------
+    // MEMORIES
+    // ---------------------------------------------------------------------------------------------
 
     // ----------------------------
     // MEM_INIT Instance
@@ -115,12 +236,167 @@ module moduleName #(
         .init_data          (dmem_init_data       )
     );
 
+
+
+    // ---------------------------------------------------------------------------------------------
+    // PERIPHERALS
+    // ---------------------------------------------------------------------------------------------
+
     // ----------------------------
-    // CPU Instance
+    // UART Instance
     // ----------------------------
-    reg cpu_rst_n;
-    always @(posedge clk) begin
-        cpu_rst_n <= rst_n && init_done;
-    end
+    uart_wrapper #(
+        .BASE_ADDR      (UART_BASE_ADDR     ),
+        .SIZE_KB        (SIZE_KB            ),
+        .ADDR_WIDTH     (ADDR_WIDTH         ),
+        .DATA_WIDTH     (DATA_WIDTH         ),
+        .BAUD_DIV_RST   (BAUD_DIV_RST       )
+    ) uart_inst (
+        .clk            (clk                ),
+        .rst_n          (rst_n              ),
+        .wbs_cyc        (wbs_uart_cyc       ),
+        .wbs_stb        (wbs_uart_stb       ),
+        .wbs_we         (wbs_uart_we        ),
+        .wbs_addr       (wbs_uart_addr      ),
+        .wbs_data_write (wbs_uart_data_write),
+        .wbs_sel        (wbs_uart_sel       ),
+        .wbs_data_read  (wbs_uart_data_read ),
+        .wbs_ack        (wbs_uart_ack       ),
+        .uart_tx        (uart_tx            ),
+        .uart_rx        (uart_rx            )
+    );
+
+
+    // ----------------------------
+    // TIMER Instance
+    // ----------------------------
+    timer_wrapper #(
+        .BASE_ADDR  (TIMER_BASE_ADDR    ),
+        .SIZE_KB    (SIZE_KB            ),
+        .ADDR_WIDTH (ADDR_WIDTH         ),
+        .DATA_WIDTH (DATA_WIDTH         )
+    ) timer_inst (
+        .clk                (clk                 ),
+        .rst_n              (rst_n               ),
+        .wbs_cyc            (wbs_timer_cyc       ),
+        .wbs_stb            (wbs_timer_stb       ),
+        .wbs_we             (wbs_timer_we        ),
+        .wbs_addr           (wbs_timer_addr      ),
+        .wbs_data_write     (wbs_timer_data_write),
+        .wbs_sel            (wbs_timer_sel       ),
+        .wbs_data_read      (wbs_timer_data_read ),
+        .wbs_ack            (wbs_timer_ack       )
+    );
+
+
+    // ----------------------------
+    // GPIO Instance
+    // ----------------------------
+    gpio_wrapper #(
+        .BASE_ADDR  (GPIO_BASE_ADDR     ),
+        .SIZE_KB    (SIZE_KB            ),
+        .ADDR_WIDTH (ADDR_WIDTH         ),
+        .DATA_WIDTH (DATA_WIDTH         ),
+        .N_GPIO     (N_GPIO             )
+    ) dut (
+        .clk                (clk                ),
+        .rst_n              (rst_n              ),
+        .wbs_cyc            (wbs_gpio_cyc       ),
+        .wbs_stb            (wbs_gpio_stb       ),
+        .wbs_we             (wbs_gpio_we        ),
+        .wbs_addr           (wbs_gpio_addr      ),
+        .wbs_data_write     (wbs_gpio_data_write),
+        .wbs_sel            (wbs_gpio_sel       ),
+        .wbs_data_read      (wbs_gpio_data_read ),
+        .wbs_ack            (wbs_gpio_ack       ),
+        .gpio_in            (gpio_in            ),
+        .gpio_out           (gpio_out           ),
+        .gpio_oe            (gpio_oe            )
+    );
+
+    // ---------------------------------------------------------------------------------------------
+    // PAD I/O
+    // ---------------------------------------------------------------------------------------------
+    
+    // ----------------------------
+    // GPIO 0 Pad
+    // ----------------------------
+    io_pad gpio_pad_0 (
+        .pad_in(gpio_in[0]),
+        .pad_out(gpio_out[0]),
+        .pad_oe(gpio_oe[0]),
+        .pad_io(gpio0_io)
+    );
+
+    // ----------------------------
+    // GPIO 1 Pad
+    // ----------------------------
+    io_pad gpio_pad_1 (
+        .pad_in(gpio_in[1]),
+        .pad_out(gpio_out[1]),
+        .pad_oe(gpio_oe[1]),
+        .pad_io(gpio1_io)
+    );
+
+    // ----------------------------
+    // GPIO 2 Pad
+    // ----------------------------
+    io_pad gpio_pad_2 (
+        .pad_in(gpio_in[2]),
+        .pad_out(gpio_out[2]),
+        .pad_oe(gpio_oe[2]),
+        .pad_io(gpio2_io)
+    );
+
+    // ----------------------------
+    // GPIO 3 Pad
+    // ----------------------------
+    io_pad gpio_pad_3 (
+        .pad_in(gpio_in[3]),
+        .pad_out(gpio_out[3]),
+        .pad_oe(gpio_oe[3]),
+        .pad_io(gpio3_io)
+    );
+
+    // ----------------------------
+    // GPIO 4 Pad
+    // ----------------------------
+    io_pad gpio_pad_4 (
+        .pad_in(gpio_in[4]),
+        .pad_out(gpio_out[4]),
+        .pad_oe(gpio_oe[4]),
+        .pad_io(gpio4_io)
+    );
+
+    // ----------------------------
+    // GPIO 5 Pad
+    // ----------------------------
+    io_pad gpio_pad_5 (
+        .pad_in(gpio_in[5]),
+        .pad_out(gpio_out[5]),
+        .pad_oe(gpio_oe[5]),
+        .pad_io(gpio5_io)
+    );
+
+    // ----------------------------
+    // GPIO 6 Pad
+    // ----------------------------
+    io_pad gpio_pad_6 (
+        .pad_in(gpio_in[6]),
+        .pad_out(gpio_out[6]),
+        .pad_oe(gpio_oe[6]),
+        .pad_io(gpio6_io)
+    );
+
+    // ----------------------------
+    // GPIO 7 Pad
+    // ----------------------------
+    io_pad gpio_pad_7 (
+        .pad_in(gpio_in[7]),
+        .pad_out(gpio_out[7]),
+        .pad_oe(gpio_oe[7]),
+        .pad_io(gpio7_io)
+    );
+
 
 endmodule

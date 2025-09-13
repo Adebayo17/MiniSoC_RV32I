@@ -77,7 +77,7 @@ wave.timer:
 # -------------------------------------------
 # GPIO Simulation 32'h4000_0000
 # -------------------------------------------
-.PHONY: run.gpio wave.gpio
+.PHONY: run.gpio run.gpio.latency wave.gpio wave.gpio.latency
 
 # Sources Files
 GPIO_SOURCES := \
@@ -85,7 +85,8 @@ GPIO_SOURCES := \
 	$(PERIPHERAL_SRC_DIR)/gpio/gpio_wrapper.v \
 
 # Testbench File
-GPIO_TB := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio.v 
+GPIO_TB         := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio.v 
+GPIO_TB_LATENCY := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio_latency.v 
 
 # Build target
 $(GPIO_BUILD_DIR)/gpio_tb.out: $(GPIO_SOURCES) $(GPIO_TB)
@@ -93,16 +94,28 @@ $(GPIO_BUILD_DIR)/gpio_tb.out: $(GPIO_SOURCES) $(GPIO_TB)
 	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
 	@echo "[GPIO] Testbench built: $@"
 
+$(GPIO_BUILD_DIR)/gpio_latency_tb.out: $(GPIO_SOURCES) $(GPIO_TB_LATENCY)
+	@mkdir -p $(GPIO_BUILD_DIR)
+	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
+	@echo "[GPIO] Testbench Latency built: $@"
+
 # Run targer
 run.gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
 	@echo "\n[GPIO] Running tests..."
 	@cd $(GPIO_BUILD_DIR) && $(VVP) gpio_tb.out -l gpio.log
 	@echo "[GPIO] Test completed - see $(GPIO_BUILD_DIR)/gpio.log"
 
+run.gpio.latency: $(GPIO_BUILD_DIR)/gpio_latency_tb.out
+	@echo "\n[GPIO] Running Latency tests..."
+	@cd $(GPIO_BUILD_DIR) && $(VVP) gpio_latency_tb.out -l gpio_latency.log
+	@echo "[GPIO] Test Latency completed - see $(GPIO_BUILD_DIR)/gpio_latency.log"
+
 # Waveform Target
 wave.gpio:
 	$(GTKWAVE) $(GPIO_BUILD_DIR)/gpio_tb.vcd &
 
+wave.gpio.latency:
+	$(GTKWAVE) $(GPIO_BUILD_DIR)/gpio_latency_tb.vcd &
 
 # -------------------------------------------
 # Clean Targets
@@ -125,15 +138,21 @@ uart: $(UART_BUILD_DIR)/uart_tb.out
 gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
 timer: $(TIMER_BUILD_DIR)/timer_tb.out
 
+gpio-latency: $(GPIO_BUILD_DIR)/gpio_latency_tb.out
+
 # Run shortcuts
 uart-run: run.uart
 gpio-run: run.gpio
 timer-run: run.timer
 
+gpio-latency-run: run.gpio.latency
+
 # Wave shortcuts
 uart-wave: wave.uart
 gpio-wave: wave.gpio
 timer-wave: wave.timer
+
+gpio-latency-wave: wave.gpio.latency
 
 # Clean shortcut
 peripheral-clean: sim.peripheral.clean
