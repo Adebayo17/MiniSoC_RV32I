@@ -10,8 +10,7 @@ module control_unit (
     output reg        branch,
     output reg        alu_src,
     output reg [3:0]  alu_op,
-    output reg        jump,
-    output reg        illegal_instr
+    output reg        jump
 );
     // -------------------------------------------
     // Instruction opcodes (RV32I)
@@ -35,20 +34,42 @@ module control_unit (
         alu_src         = 0;
         alu_op          = 4'b0000;
         jump            = 0;
-        illegal_instr   = 0;
 
         case (opcode)
             OP_R: begin // R-type
                 reg_write = 1;
                 mem_to_reg = 2'b00;
-                alu_op    = {funct7[5], funct3};
+                // ALU Control Logic 
+                case ({funct7[5], funct3})
+                    4'b0000: alu_op = 4'b0000; // ADD
+                    4'b1000: alu_op = 4'b0001; // SUB
+                    4'b0111: alu_op = 4'b0010; // AND
+                    4'b0110: alu_op = 4'b0011; // OR
+                    4'b0100: alu_op = 4'b0100; // XOR
+                    4'b0001: alu_op = 4'b0101; // SLL
+                    4'b0101: alu_op = 4'b0110; // SRL
+                    4'b1101: alu_op = 4'b0111; // SRA
+                    4'b0010: alu_op = 4'b1000; // SLT
+                    4'b0011: alu_op = 4'b1001; // SLTU
+                endcase
             end
             
             OP_IMM: begin // I-type
-                reg_write = 1;
-                alu_src   = 1;
+                reg_write  = 1;
+                alu_src    = 1;
                 mem_to_reg = 2'b00;
-                alu_op    = {funct7[5] & (funct3 == 3'b101), funct3};
+                // ALU Control Logic 
+                case ({funct7[5] & (funct3 == 3'b101), funct3})
+                    4'b0000: alu_op = 4'b0000; // ADDI
+                    4'b0111: alu_op = 4'b0010; // ANDI
+                    4'b0110: alu_op = 4'b0011; // ORI
+                    4'b0100: alu_op = 4'b0100; // XORI
+                    4'b0001: alu_op = 4'b0101; // SLLI
+                    4'b0101: alu_op = 4'b0110; // SRLI
+                    4'b1101: alu_op = 4'b0111; // SRAI
+                    4'b0010: alu_op = 4'b1000; // SLTI
+                    4'b0011: alu_op = 4'b1001; // SLTIU
+                endcase
             end
             
             OP_LOAD: begin
@@ -87,7 +108,6 @@ module control_unit (
             
             default: begin
                 mem_to_reg    = 2'b00;
-                illegal_instr = 1;
             end
         endcase
     end

@@ -18,7 +18,7 @@ module regfile #(
 );
 
     // Register storage
-    reg [DATA_WIDTH-1:0] registers [0:(1<<ADDR_WIDTH)-1];
+    reg [DATA_WIDTH-1:0] registers [0:(1<<ADDR_WIDTH)-1];   // 32 Registers (x0...x31)
 
     // -------------------------------------------
     // Read Logic (combinational)
