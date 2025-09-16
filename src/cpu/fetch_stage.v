@@ -10,8 +10,11 @@ module fetch_stage #(
     // Instruction Memory Interface (NEW)
     output reg                      wbm_imem_cyc,
     output reg                      wbm_imem_stb,
-    output reg [ADDR_WIDTH-1:0]     wbm_imem_addr,
-    input wire [DATA_WIDTH-1:0]     wbm_imem_data_read,
+    output wire                     wbm_imem_we,
+    output wire [ADDR_WIDTH-1:0]    wbm_imem_addr,
+    output wire [DATA_WIDTH-1:0]    wbm_imem_data_write,
+    output wire [3:0]               wbm_imem_sel,
+    input wire  [DATA_WIDTH-1:0]    wbm_imem_data_read,
     input wire                      wbm_imem_ack,
 
     // Pipeline input
@@ -29,44 +32,42 @@ module fetch_stage #(
     // -------------------------------------------
     reg [ADDR_WIDTH-1:0] pc;
     reg [ADDR_WIDTH-1:0] next_pc;
-    reg                  pending_fetch;
+    reg                  pending_request;
 
     // -------------------------------------------
     // PC Update logic
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pc <= RESET_PC;
-            pending_fetch <= 1'b0;
+            pc              <= RESET_PC;
+            pending_request <= 1'b0;
         end else begin
             if (flush) begin
-                pc <= new_pc;               // Redirect on branch/jump
-                pending_fetch <= 1'b1;
-            end else if(wbm_imem_ack && !stall) begin
-                pc <= next_pc;              // Normal sequential flow
-                pending_fetch <= 1'b1;
-            end 
-
-            // Clear pending flag when request is made
-            if (wbm_imem_stb) begin
-                pending_fetch <= 1'b0;
+                pc              <= new_pc;      // Redirect on branch/jump
+                pending_request <= 1'b1;        // Need to fetch new instruction
+            end else if (wbm_imem_ack && !stall) begin
+                pc              <= next_pc;     // Advance to next instruction
+                pending_request <= 1'b1;        // Need to fetch next instruction
+            end
+            
+            // Clear pending request when we start a new fetch
+            if (wbm_imem_stb && wbm_imem_cyc) begin
+                pending_request <= 1'b0;
             end
         end
     end
 
     // -------------------------------------------
-    // Next PC Update ; TODO: Add branch/jump handling
+    // Next PC Computation
     // -------------------------------------------   
-    always @(*) begin
+    always @(posedge clk) begin
         if (!rst_n) begin
             next_pc = 0;
         end else begin
             if (flush) begin
                 next_pc = new_pc;
-            end else if (wbm_imem_ack) begin
-                next_pc = pc + 4;
             end else begin
-                next_pc = pc;
+                next_pc = pc + 4;
             end
         end
     end
@@ -79,11 +80,8 @@ module fetch_stage #(
             wbm_imem_cyc <= 1'b0;
             wbm_imem_stb <= 1'b0;
         end else begin
-            // Start new transaction when:
-            // 1. We have a pending fetch, and
-            // 2. Not stalling, and
-            // 3. No outstanding request
-            if (pending_fetch && !stall && !(wbm_imem_cyc && !wbm_imem_ack)) begin
+            // Start new transaction when we have a pending fetch and not stalling
+            if (pending_request && !stall && !(wbm_imem_cyc && !wbm_imem_ack)) begin
                 wbm_imem_cyc <= 1'b1;
                 wbm_imem_stb <= 1'b1;
             end
@@ -97,27 +95,34 @@ module fetch_stage #(
             if (wbm_imem_ack) begin
                 wbm_imem_cyc <= 1'b0;
             end
+
+            // If stalling, maintain current state
+            if (stall) begin
+                wbm_imem_stb <= 1'b0;
+            end
         end
     end
 
     // Continuous address assignment
     assign wbm_imem_addr = pc;
+    assign wbm_imem_we   = 1'b0;
+    assign wbm_imem_sel  = 4'b1111;
 
     // -------------------------------------------
     // Pipeline Register
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            instr_out <= 32'h00000013; // NOP
-            pc_out <= RESET_PC;
-            valid_out <= 1'b0;
+            instr_out   <= 32'h00000013; // NOP
+            pc_out      <= RESET_PC;
+            valid_out   <= 1'b0;
         end else if (!stall) begin
             if (wbm_imem_ack) begin
-                instr_out <= wbm_imem_data_read;
-                pc_out <= pc;
-                valid_out <= 1'b1;
+                instr_out   <= wbm_imem_data_read;
+                pc_out      <= pc;
+                valid_out   <= 1'b1;
             end else begin
-                valid_out <= 1'b0;
+                valid_out   <= 1'b0;
             end
         end
     end

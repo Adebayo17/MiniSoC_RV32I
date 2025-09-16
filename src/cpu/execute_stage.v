@@ -124,7 +124,7 @@ module execute_stage #(
             alu_result_out  <= 0;
             mem_data_out    <= 0;
             mem_write_out   <= 0;
-            mem_read_out    <= 0
+            mem_read_out    <= 0;
             mem_to_reg_out  <= 0;
             rd_out          <= 0;
             reg_write_out   <= 0;

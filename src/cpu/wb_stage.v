@@ -5,6 +5,7 @@ module wb_stage #(
     input wire                  rst_n,
 
     // Pipeline inputs from memory stage
+    input wire [DATA_WIDTH-1:0] pc_plus_4_in,
     input wire [DATA_WIDTH-1:0] mem_result_in,
     input wire [DATA_WIDTH-1:0] alu_result_in,
     input wire [4:0]            rd_in,
@@ -29,9 +30,10 @@ module wb_stage #(
         regfile_rd_addr = rd_in;
 
         case (mem_to_reg_in)
-            2'b00: regfile_wr_data = alu_result_in;  // ALU result
-            2'b01: regfile_wr_data = mem_result_in;  // Memory load
-            2'b10: regfile_wr_data = pc_plus_4_in;   // JAL/JALR
+            2'b00:   regfile_wr_data = alu_result_in;  // ALU result
+            2'b01:   regfile_wr_data = mem_result_in;  // Memory load
+            2'b10:   regfile_wr_data = pc_plus_4_in;   // JAL/JALR
+            default: regfile_wr_data = alu_result_in;  // Default
         endcase
         
         // // Default to ALU result, override with memory load when needed

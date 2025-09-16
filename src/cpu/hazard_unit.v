@@ -36,7 +36,7 @@ module hazard_unit (
                     (decode_rs2 == memory_rd));
 
     // Flush pipeline after taken branch/jump
-    assign flush = branch_taken;
+    //assign flush = branch_taken;
 
     always @(*) begin
         flush = branch_taken;

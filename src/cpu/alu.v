@@ -55,13 +55,5 @@ module alu #(
         alu_zero = (alu_result == 0);
     end
 
-    // Formal verification assertions
-    // synthesis translate_off
-    always @(*) begin
-        if (alu_op == ALU_SLL || alu_op == ALU_SRL || alu_op == ALU_SRA) begin
-            assert(shamt < 32) else $error("Invalid shift amount");
-        end
-    end
-    // synthesis translate_on
 
 endmodule

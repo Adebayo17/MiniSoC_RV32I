@@ -32,6 +32,8 @@ module soc_top #(
     localparam [31:0] TIMER_BASE_ADDR = 32'h3000_0000;
     localparam [31:0] GPIO_BASE_ADDR  = 32'h4000_0000;
 
+    localparam        RESET_PC        = 32'h0000_0000;
+
     // ----------------------------
     // Wires and Reg
     // ----------------------------
@@ -103,11 +105,36 @@ module soc_top #(
 
 
     // CPU Instance
+    reg cpu_rst_n;
 
     // ----------------------------
     // CPU Instance
     // ----------------------------
-    reg cpu_rst_n;
+    cpu #(
+        .RESET_PC   (RESET_PC   ),
+        .ADDR_WIDTH (ADDR_WIDTH ),
+        .DATA_WIDTH (DATA_WIDTH )
+    ) rv32i_core (
+        .clk                    (clk                    ),
+        .rst_n                  (cpu_rst_n              ),
+        .wbm_imem_cyc           (wbs_imem_cyc           ),
+        .wbm_imem_stb           (wbs_imem_stb           ),
+        .wbm_imem_we            (wbs_imem_we            ),
+        .wbm_imem_addr          (wbs_imem_addr          ),
+        .wbm_imem_data_write    (wbs_imem_data_write    ),
+        .wbm_imem_sel           (wbs_imem_sel           ),
+        .wbm_imem_data_read     (wbs_imem_data_read     ),
+        .wbm_imem_ack           (wbs_imem_ack           ),
+        .wbm_dmem_cyc           (wbs_dmem_cyc           ),
+        .wbm_dmem_stb           (wbs_dmem_stb           ),
+        .wbm_dmem_we            (wbs_dmem_we            ),
+        .wbm_dmem_addr          (wbs_dmem_addr          ),
+        .wbm_dmem_data_write    (wbs_dmem_data_write    ),
+        .wbm_dmem_sel           (wbs_dmem_sel           ),
+        .wbm_dmem_data_read     (wbs_dmem_data_read     ),
+        .wbm_dmem_ack           (wbs_dmem_ack           )
+    );
+
     always @(posedge clk) begin
         cpu_rst_n <= rst_n && init_done;
     end

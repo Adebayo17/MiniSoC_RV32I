@@ -6,6 +6,7 @@ module mem_stage #(
     input wire                  rst_n,
 
     // Pipeline inputs from execute stage
+    input wire [DATA_WIDTH-1:0] pc_plus_4_in,
     input wire [DATA_WIDTH-1:0] alu_result_in,
     input wire [DATA_WIDTH-1:0] mem_data_in,  // Store data
     input wire [4:0]            rd_in,
@@ -27,6 +28,7 @@ module mem_stage #(
     input wire                  wbm_dmem_ack,
 
     // Pipeline outputs
+    output reg [DATA_WIDTH-1:0] pc_plus_4_out,
     output reg [DATA_WIDTH-1:0] mem_result_out,
     output reg [DATA_WIDTH-1:0] alu_result_out,
     output reg [4:0]            rd_out,
@@ -42,10 +44,10 @@ module mem_stage #(
     // -------------------------------------------
     // Memory Access FSM
     // -------------------------------------------
-    localparam [1:0]  IDLE;
-    localparam [1:0]  READ;
-    localparam [1:0]  WRITE;
-    localparam [1:0]  DONE;
+    localparam [1:0]  IDLE  = 2'b00;
+    localparam [1:0]  READ  = 2'b01;
+    localparam [1:0]  WRITE = 2'b10;
+    localparam [1:0]  DONE  = 2'b11;
     
     reg [1:0] state;
 
@@ -163,6 +165,7 @@ module mem_stage #(
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
+            pc_plus_4_out  <= 0;
             mem_result_out <= 0;
             alu_result_out <= 0;
             rd_out         <= 0;
@@ -170,6 +173,7 @@ module mem_stage #(
             mem_to_reg_out <= 0;
             valid_out      <= 0;
         end else begin
+            pc_plus_4_out  <= pc_plus_4_in;
             alu_result_out <= alu_result_in;
             rd_out         <= rd_in;
             reg_write_out  <= reg_write_in && valid_in && !load_misaligned;

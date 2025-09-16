@@ -3,11 +3,11 @@
 # -------------------------------------------
 # Common Simulation Settings
 # -------------------------------------------
-SIM_DIR := $(TOP_DIR)/sim
-SIM_BUILD_DIR := $(BUILD_DIR)/sim
-IVERILOG ?= iverilog 
-VVP ?= vvp 
-GTKWAVE ?= gtkwave 
+SIM_DIR 		:= $(TOP_DIR)/sim
+SIM_BUILD_DIR 	:= $(BUILD_DIR)/sim
+IVERILOG 		?= iverilog 
+VVP 			?= vvp 
+GTKWAVE 		?= gtkwave 
 
 # -------------------------------------------
 # Include sub-components
@@ -15,6 +15,7 @@ GTKWAVE ?= gtkwave
 include $(SIM_DIR)/bus/include.sim.bus.mk
 include $(SIM_DIR)/mem/include.sim.mem.mk
 include $(SIM_DIR)/peripheral/include.sim.peripheral.mk
+include $(SIM_DIR)/cpu/include.sim.cpu.mk
 
 
 # -------------------------------------------
@@ -22,7 +23,7 @@ include $(SIM_DIR)/peripheral/include.sim.peripheral.mk
 # -------------------------------------------
 .PHONY: sim.all sim.clean
 
-sim.all: sim.bus sim.mem # sim.cpu  sim.top sim.peripheral
+sim.all: sim.bus sim.mem sim.cpu # sim.top sim.peripheral
 
 sim.clean:
 	@echo "Cleaning simulation files..."
