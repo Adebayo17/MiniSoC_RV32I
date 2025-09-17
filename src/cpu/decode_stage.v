@@ -198,7 +198,7 @@ module decode_stage #(
                 mem_to_reg_out <= mem_to_reg;
                 branch_out     <= branch;
                 alu_src_out    <= alu_src;
-                alu_op_out     <= alu_op
+                alu_op_out     <= alu_op;
                 jump_out       <= jump;
             end else begin
                 // Insert NOP when invalid

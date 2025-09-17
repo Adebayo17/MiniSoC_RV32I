@@ -1,47 +1,52 @@
-module wb_stage #(
-    parameter DATA_WIDTH = 32
+module writeback_stage #(
+    parameter ADDR_WIDTH         = 32,
+    parameter DATA_WIDTH         = 32,
+    parameter REGFILE_ADDR_WIDTH = 5
 )(
-    input wire                  clk,
-    input wire                  rst_n,
+    // Clock and reset
+    input wire                                  clk,
+    input wire                                  rst_n,
 
     // Pipeline inputs from memory stage
-    input wire [DATA_WIDTH-1:0] pc_plus_4_in,
-    input wire [DATA_WIDTH-1:0] mem_result_in,
-    input wire [DATA_WIDTH-1:0] alu_result_in,
-    input wire [4:0]            rd_in,
-    input wire                  reg_write_in,
-    input wire [1:0]            mem_to_reg_in,
-    input wire                  valid_in,
+    input wire [DATA_WIDTH-1:0]                 pc_plus_4_in,
+    input wire [DATA_WIDTH-1:0]                 mem_result_in,
+    input wire [DATA_WIDTH-1:0]                 alu_result_in,
+    input wire [REGFILE_ADDR_WIDTH-1:0]         rd_in,
+    input wire                                  reg_write_in,
+    input wire [1:0]                            mem_to_reg_in,
+    input wire                                  valid_in,
 
     // Register file interface
-    output reg                  regfile_we,
-    output reg [4:0]            regfile_rd_addr,
-    output reg [DATA_WIDTH-1:0] regfile_wr_data,
+    output reg                                  regfile_we,
+    output reg [REGFILE_ADDR_WIDTH-1:0]         regfile_rd_addr,
+    output reg [DATA_WIDTH-1:0]                 regfile_wr_data,
 
     // Pipeline outputs (for debug)
-    output reg                  valid_out
+    output reg [REGFILE_ADDR_WIDTH-1:0]         rd_out,
+    output reg [DATA_WIDTH-1:0]                 result_out,
+    output reg                                  reg_write_out,
+    output reg                                  valid_out
 );
+
+    // -------------------------------------------
+    // Internal signals
+    // -------------------------------------------
+    reg [DATA_WIDTH-1:0] wr_data;
+    reg                  we;
 
     // -------------------------------------------
     // Writeback Mux
     // -------------------------------------------
     always @(*) begin
-        regfile_we = reg_write_in && valid_in;
-        regfile_rd_addr = rd_in;
-
         case (mem_to_reg_in)
-            2'b00:   regfile_wr_data = alu_result_in;  // ALU result
-            2'b01:   regfile_wr_data = mem_result_in;  // Memory load
-            2'b10:   regfile_wr_data = pc_plus_4_in;   // JAL/JALR
-            default: regfile_wr_data = alu_result_in;  // Default
+            2'b00:   wr_data = alu_result_in;  // ALU result
+            2'b01:   wr_data = mem_result_in;  // Memory load
+            2'b10:   wr_data = pc_plus_4_in;   // JAL/JALR (return address)
+            default: wr_data = alu_result_in;  // Default
         endcase
-        
-        // // Default to ALU result, override with memory load when needed
-        // regfile_wr_data = alu_result_in;
-        
-        // if (mem_result_in != alu_result_in) begin
-        //     regfile_wr_data = mem_result_in; // Load operations
-        // end
+
+        // Generate write enable
+        we = reg_write_in && valid_in && (rd_in != 0);
     end
 
     // -------------------------------------------
@@ -49,9 +54,25 @@ module wb_stage #(
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            valid_out <= 0;
+            // Reset all outputs
+            regfile_we       <= 1'b0;
+            regfile_rd_addr  <= 0;
+            regfile_wr_data  <= 0;
+            rd_out           <= 0;
+            result_out       <= 0;
+            reg_write_out    <= 1'b0;
+            valid_out        <= 1'b0;
         end else begin
-            valid_out <= valid_in;
-        end
+            // Normal pipeline operation
+            regfile_we       <= we;
+            regfile_rd_addr  <= rd_in;
+            regfile_wr_data  <= wr_data;
+            
+            // Outputs for forwarding and debug
+            rd_out           <= rd_in;
+            result_out       <= wr_data;
+            reg_write_out    <= reg_write_in && valid_in;
+            valid_out        <= valid_in;
+        end 
     end
 endmodule

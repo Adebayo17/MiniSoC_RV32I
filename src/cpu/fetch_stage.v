@@ -18,7 +18,7 @@ module fetch_stage #(
     input wire                      wbm_imem_ack,
 
     // Pipeline input
-    input wire                      flush,          // From branch/jump
+    input wire                      flush,          // From hazard unit
     input wire [ADDR_WIDTH-1:0]     new_pc,         // From execute stage
     input wire                      stall,          // From hazard unit
 

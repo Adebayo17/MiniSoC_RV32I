@@ -15,8 +15,8 @@ module execute_stage #(
     input wire [DATA_WIDTH-1:0]                 instr_in,
     input wire [ADDR_WIDTH-1:0]                 pc_in,
     input wire [REGFILE_ADDR_WIDTH-1:0]         rd_in,
-    input wire [DATA_WIDTH-1:0]                 rs1_data,
-    input wire [DATA_WIDTH-1:0]                 rs2_data,
+    input wire [DATA_WIDTH-1:0]                 rs1_data_in,
+    input wire [DATA_WIDTH-1:0]                 rs2_data_in,
     input wire [DATA_WIDTH-1:0]                 imm_in,
     input wire [6:0]                            opcode_in,
     input wire [2:0]                            funct3_in,
@@ -33,6 +33,12 @@ module execute_stage #(
     input wire                                  alu_src_in,
     input wire [3:0]                            alu_op_in,
 
+    // Forwarding inputs
+    input wire [DATA_WIDTH-1:0]                 mem_alu_result,    // From MEM stage (alu_result_out)
+    input wire [DATA_WIDTH-1:0]                 wb_result,         // From WB stage (result_out)
+    input wire [1:0]                            forward_rs1,
+    input wire [1:0]                            forward_rs2,
+
     // Pipeline outputs to Memory Stage
     output reg [ADDR_WIDTH-1:0]                 pc_plus_4_out,
     output reg [DATA_WIDTH-1:0]                 alu_result_out,
@@ -47,14 +53,7 @@ module execute_stage #(
 
     // Branch/jump signals
     output reg                                  branch_taken_out, // for branch and jump instructions
-    output reg [DATA_WIDTH-1:0]                 branch_target_out,
-    
-
-    // Forwarding inputs
-    input wire [DATA_WIDTH-1:0]                 forwarded_mem_result,   // From MEM stage
-    input wire [DATA_WIDTH-1:0]                 forwarded_wb_result,    // From WB  stage
-    input wire [1:0]                            forward_rs1,
-    input wire [1:0]                            forward_rs2
+    output reg [DATA_WIDTH-1:0]                 branch_target_out
 );
 
     // -------------------------------------------
@@ -77,14 +76,14 @@ module execute_stage #(
     // -------------------------------------------
 
     assign rs1_data_forwarded = 
-        (forward_rs1 == 2'b10) ? forwarded_mem_result : // MEM->EX
-        (forward_rs1 == 2'b11) ? forwarded_wb_result :  // WB->EX
-        rs1_data;                                       // Regfile
+        (forward_rs1 == 2'b01) ? mem_alu_result :  // FROM_MEM: Forward from memory stage
+        (forward_rs1 == 2'b10) ? wb_result :       // FROM_WB: Forward from writeback stage
+        rs1_data_in;                               // FROM_REG_FILE: Use register file
 
     assign rs2_data_forwarded = 
-        (forward_rs2 == 2'b10) ? forwarded_mem_result :
-        (forward_rs2 == 2'b11) ? forwarded_wb_result :
-        rs2_data;
+        (forward_rs2 == 2'b01) ? mem_alu_result :  // FROM_MEM
+        (forward_rs2 == 2'b10) ? wb_result :       // FROM_WB
+        rs2_data_in;                               // FROM_REG_FILE
     
     // -------------------------------------------
     // ALU Input Selection
@@ -126,7 +125,7 @@ module execute_stage #(
         else if (jump_in && valid_in) begin
             branch_taken_out = 1'b1;
             if (opcode_in == 7'b1100111) begin // JALR
-                branch_target_out = (rs1_data + imm_in) & ~32'h1;
+                branch_target_out = (rs1_data_in + imm_in) & ~32'h1;
             end
         end
     end

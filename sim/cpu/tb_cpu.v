@@ -2,58 +2,62 @@
 
 module tb_cpu;
     // Parameters
-    parameter CLK_PERIOD = 10;  // 100 MHz
-    parameter RESET_PC = 32'h0000_0000;
-    parameter ADDR_WIDTH = 32;
-    parameter DATA_WIDTH = 32;
+    parameter CLK_PERIOD            = 10;  // 100 MHz
+    parameter RESET_PC              = 32'h0000_0000;
+    parameter ADDR_WIDTH            = 32;
+    parameter DATA_WIDTH            = 32;
+    parameter REGFILE_ADDR_WIDTH    = 5;
+    parameter IMEM_BASE_ADDR        = 32'h0000_0000;
+    parameter DMEM_BASE_ADDR        = 32'h0000_0000;
+    parameter SIZE_KB               = 4;
     
     // Clock and reset
     reg clk;
     reg rst_n;
     
     // Wishbone interfaces
-    wire wbm_imem_cyc;
-    wire wbm_imem_stb;
-    wire wbm_imem_we;
-    wire [ADDR_WIDTH-1:0] wbm_imem_addr;
-    wire [DATA_WIDTH-1:0] wbm_imem_data_write;
-    wire [3:0] wbm_imem_sel;
-    wire [DATA_WIDTH-1:0] wbm_imem_data_read;
-    wire wbm_imem_ack;
+    wire                    wbm_imem_cyc;
+    wire                    wbm_imem_stb;
+    wire                    wbm_imem_we;
+    wire [ADDR_WIDTH-1:0]   wbm_imem_addr;
+    wire [DATA_WIDTH-1:0]   wbm_imem_data_write;
+    wire [3:0]              wbm_imem_sel;
+    wire [DATA_WIDTH-1:0]   wbm_imem_data_read;
+    wire                    wbm_imem_ack;
     
-    wire wbm_dmem_cyc;
-    wire wbm_dmem_stb;
-    wire wbm_dmem_we;
-    wire [ADDR_WIDTH-1:0] wbm_dmem_addr;
-    wire [DATA_WIDTH-1:0] wbm_dmem_data_write;
-    wire [3:0] wbm_dmem_sel;
-    wire [DATA_WIDTH-1:0] wbm_dmem_data_read;
-    wire wbm_dmem_ack;
+    wire                    wbm_dmem_cyc;
+    wire                    wbm_dmem_stb;
+    wire                    wbm_dmem_we;
+    wire [ADDR_WIDTH-1:0]   wbm_dmem_addr;
+    wire [DATA_WIDTH-1:0]   wbm_dmem_data_write;
+    wire [3:0]              wbm_dmem_sel;
+    wire [DATA_WIDTH-1:0]   wbm_dmem_data_read;
+    wire                    wbm_dmem_ack;
     
     // Memory initialization signals
-    wire mem_init_start;
-    wire mem_init_done;
-    wire imem_init_en;
-    wire [ADDR_WIDTH-1:0] imem_init_addr;
-    wire [DATA_WIDTH-1:0] imem_init_data;
-    wire dmem_init_en;
-    wire [ADDR_WIDTH-1:0] dmem_init_addr;
-    wire [DATA_WIDTH-1:0] dmem_init_data;
+    wire                    mem_init_start;
+    wire                    mem_init_done;
+    wire                    imem_init_en;
+    wire [ADDR_WIDTH-1:0]   imem_init_addr;
+    wire [DATA_WIDTH-1:0]   imem_init_data;
+    wire                    dmem_init_en;
+    wire [ADDR_WIDTH-1:0]   dmem_init_addr;
+    wire [DATA_WIDTH-1:0]   dmem_init_data;
     
     // Testbench control
     integer test_num;
     integer error_count;
     integer cycle_count;
-    reg test_complete;
-    reg mem_initialized;
+    reg     test_complete;
+    reg     mem_initialized;
     
     // Instantiate the RISC-V core
     cpu #(
-        .RESET_PC(RESET_PC),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .REGFILE_ADDR_WIDTH(5)
-    ) u_core (
+        .RESET_PC           (RESET_PC           ),
+        .ADDR_WIDTH         (ADDR_WIDTH         ),
+        .DATA_WIDTH         (DATA_WIDTH         ),
+        .REGFILE_ADDR_WIDTH (REGFILE_ADDR_WIDTH )
+    ) dut (
         .clk(clk),
         .rst_n(rst_n),
         
@@ -80,8 +84,8 @@ module tb_cpu;
     
     // Instantiate memory initialization
     mem_init #(
-        .IMEM_BASE(32'h0000_0000),
-        .DMEM_BASE(32'h1000_0000),
+        .IMEM_BASE(IMEM_BASE_ADDR),
+        .DMEM_BASE(DMEM_BASE_ADDR),
         .INIT_FILE("firmware.hex"),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
@@ -100,8 +104,8 @@ module tb_cpu;
     
     // Instantiate instruction memory
     imem_wrapper #(
-        .BASE_ADDR(32'h0000_0000),
-        .SIZE_KB(16),
+        .BASE_ADDR(IMEM_BASE_ADDR),
+        .SIZE_KB(SIZE_KB),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) imem_inst (
@@ -122,8 +126,8 @@ module tb_cpu;
     
     // Instantiate data memory
     dmem_wrapper #(
-        .BASE_ADDR(32'h1000_0000),
-        .SIZE_KB(16),
+        .BASE_ADDR(IMEM_BASE_ADDR),
+        .SIZE_KB(SIZE_KB),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) dmem_inst (

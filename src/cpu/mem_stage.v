@@ -7,10 +7,6 @@ module mem_stage #(
     input wire                                  clk,
     input wire                                  rst_n,
 
-    // Pipeline control
-    input wire                                  flush,
-    input wire                                  stall,
-
     // Pipeline inputs from execute stage
     input wire [DATA_WIDTH-1:0]                 pc_plus_4_in,
     input wire [DATA_WIDTH-1:0]                 alu_result_in,
@@ -98,7 +94,7 @@ module mem_stage #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
-        end else if (!stall) begin
+        end else begin
             state <= next_state;
         end
     end
@@ -109,32 +105,28 @@ module mem_stage #(
         wbm_dmem_stb = 1'b0;
         wbm_dmem_we  = 1'b0;
 
-        if (flush) begin
-            next_state = IDLE;
-        end else begin
-            case (state)
-                IDLE: begin
-                    if (valid_in && is_mem_op && !load_misaligned && !store_misaligned && !stall) begin
-                        wbm_dmem_cyc = 1'b1;
-                        wbm_dmem_stb = 1'b1;
-                        wbm_dmem_we  = mem_write_in;
-                        next_state = REQUEST;
-                    end
-                end
-
-                REQUEST: begin
+        case (state)
+            IDLE: begin
+                if (valid_in && is_mem_op && !load_misaligned && !store_misaligned) begin
                     wbm_dmem_cyc = 1'b1;
-                    if (wbm_dmem_ack) begin
-                        next_state = IDLE;
-                    end else begin
-                        wbm_dmem_stb = 1'b1;
-                        wbm_dmem_we  = mem_write_in;
-                    end
+                    wbm_dmem_stb = 1'b1;
+                    wbm_dmem_we  = mem_write_in;
+                    next_state = REQUEST;
                 end
+            end
 
-                default: next_state = IDLE;
-            endcase
-        end
+            REQUEST: begin
+                wbm_dmem_cyc = 1'b1;
+                if (wbm_dmem_ack) begin
+                    next_state = IDLE;
+                end else begin
+                    wbm_dmem_stb = 1'b1;
+                    wbm_dmem_we  = mem_write_in;
+                end
+            end
+
+            default: next_state = IDLE;
+        endcase
     end
 
 
@@ -197,11 +189,7 @@ module mem_stage #(
             reg_write_out  <= 0;
             mem_to_reg_out <= 0;
             valid_out      <= 0;
-        end else if (flush) begin
-            // Flush pipeline
-            valid_out      <= 0;
-            reg_write_out  <= 0;
-        end else if (!stall) begin
+        end else begin
             // Normal pipeline operation
             pc_plus_4_out  <= pc_plus_4_in;
             alu_result_out <= alu_result_in;
@@ -220,7 +208,5 @@ module mem_stage #(
             // Valid output: memory ops complete when ack received or not a memory op
             valid_out <= valid_in && (mem_op_complete || !is_mem_op);
         end
-        // When stalled, registers maintain their values
     end
-
 endmodule
