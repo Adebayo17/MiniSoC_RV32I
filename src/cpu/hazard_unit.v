@@ -49,8 +49,8 @@ module hazard_unit #(
 
     // Data hazard: instruction in decode depends on result not yet available
     assign data_hazard = ex_reg_write && ex_valid && 
-                    ((decode_rs1 == execute_rd) || 
-                    (decode_rs2 == execute_rd));
+                        ((id_rs1 == ex_rd && id_rs1 != 0) || 
+                         (id_rs2 == ex_rd && id_rs2 != 0));
 
     // -------------------------------------------
     // Hazard and Control Flow

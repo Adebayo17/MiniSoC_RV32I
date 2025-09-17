@@ -104,7 +104,7 @@ module fetch_stage #(
             valid_out <= 1'b0;
         end else if (!stall && wbm_imem_ack) begin
             instr_out <= wbm_imem_data_read;
-            pc_out    <= pc_reg;
+            pc_out    <= pc;
             valid_out <= 1'b1;
         end else begin
             valid_out <= 1'b0; // No new instruction this cycle

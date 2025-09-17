@@ -49,15 +49,15 @@ module decode_stage #(
     // -------------------------------------------
     // Internal signals
     // -------------------------------------------
-    wire [REGFILE_ADDR_WIDTH-1:0] rs1_addr;
-    wire [REGFILE_ADDR_WIDTH-1:0] rs2_addr;
-    wire [REGFILE_ADDR_WIDTH-1:0] rd_addr;
+    reg  [REGFILE_ADDR_WIDTH-1:0] rs1_addr;
+    reg  [REGFILE_ADDR_WIDTH-1:0] rs2_addr;
+    reg  [REGFILE_ADDR_WIDTH-1:0] rd_addr;
     wire [DATA_WIDTH-1:0] rs1_data;
     wire [DATA_WIDTH-1:0] rs2_data;
-    wire [DATA_WIDTH-1:0] imm;
-    wire [6:0]            opcode;
-    wire [2:0]            funct3;
-    wire [6:0]            funct7;
+    reg  [DATA_WIDTH-1:0] imm;
+    reg  [6:0]            opcode;
+    reg  [2:0]            funct3;
+    reg  [6:0]            funct7;
     
     wire                  reg_write;
     wire                  mem_write;
@@ -126,7 +126,7 @@ module decode_stage #(
     // -------------------------------------------
     regfile #(
         .DATA_WIDTH     (DATA_WIDTH),
-        .REGFILE_ADDR_WIDTH     (REGFILE_ADDR_WIDTH)
+        .ADDR_WIDTH     (REGFILE_ADDR_WIDTH)
     ) reg_file (
         .clk(clk),
         .rst_n(rst_n),

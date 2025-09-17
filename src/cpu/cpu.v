@@ -73,6 +73,15 @@ module cpu #(
     wire [2:0]                      EX_to_MEM_funct3            ;
     wire                            EX_to_MEM_valid             ;
 
+    // MEM to WB
+    wire [ADDR_WIDTH-1:0]           MEM_to_WB_pc_plus_4         ;
+    wire [DATA_WIDTH-1:0]           MEM_to_WB_mem_result        ;
+    wire [DATA_WIDTH-1:0]           MEM_to_WB_alu_result        ;
+    wire [REGFILE_ADDR_WIDTH-1:0]   MEM_to_WB_rd                ;
+    wire                            MEM_to_WB_reg_write         ;
+    wire [1:0]                      MEM_to_WB_mem_to_reg        ;
+    wire                            MEM_to_WB_valid             ;
+
     // Special Pipeline
     // EX to IF
     wire [ADDR_WIDTH-1:0]           EX_to_IF_new_pc             ;

@@ -8,7 +8,7 @@ module mem_stage #(
     input wire                                  rst_n,
 
     // Pipeline inputs from execute stage
-    input wire [DATA_WIDTH-1:0]                 pc_plus_4_in,
+    input wire [ADDR_WIDTH-1:0]                 pc_plus_4_in,
     input wire [DATA_WIDTH-1:0]                 alu_result_in,
     input wire [DATA_WIDTH-1:0]                 mem_data_in,  // Store data
     input wire [REGFILE_ADDR_WIDTH-1:0]         rd_in,
@@ -30,7 +30,7 @@ module mem_stage #(
     input wire                                  wbm_dmem_ack,
 
     // Pipeline outputs
-    output reg [DATA_WIDTH-1:0]                 pc_plus_4_out,
+    output reg [ADDR_WIDTH-1:0]                 pc_plus_4_out,
     output reg [DATA_WIDTH-1:0]                 mem_result_out,
     output reg [DATA_WIDTH-1:0]                 alu_result_out,
     output reg [REGFILE_ADDR_WIDTH-1:0]         rd_out,
