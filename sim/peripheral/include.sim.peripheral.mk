@@ -1,121 +1,138 @@
-# sim/peripheral/include.sim.peripheral.mk : Peripheral Simulation Makefile
+# Peripheral Simulation Makefile
 
 # -------------------------------------------
 # Configuration
 # -------------------------------------------
-PERIPHERAL_SIM_DIR 			:= $(SIM_DIR)/peripheral
-PERIPHERAL_SRC_DIR 			:= $(TOP_DIR)/src/peripheral
-PERIPHERAL_SIM_BUILD_DIR 	:= $(SIM_BUILD_DIR)/peripheral
+PERIPHERAL_SIM_DIR         := $(SIM_DIR)/peripheral
+PERIPHERAL_SRC_DIR         := $(TOP_DIR)/src/peripheral
+PERIPHERAL_SIM_BUILD_DIR   := $(SIM_BUILD_DIR)/peripheral
 
 # Build directories
-UART_BUILD_DIR 	:= $(PERIPHERAL_SIM_BUILD_DIR)/uart
-GPIO_BUILD_DIR 	:= $(PERIPHERAL_SIM_BUILD_DIR)/gpio
+UART_BUILD_DIR  := $(PERIPHERAL_SIM_BUILD_DIR)/uart
+GPIO_BUILD_DIR  := $(PERIPHERAL_SIM_BUILD_DIR)/gpio
 TIMER_BUILD_DIR := $(PERIPHERAL_SIM_BUILD_DIR)/timer
 
 # -------------------------------------------
-# UART Simulation 32'h2000_0000
+# Peripheral target
 # -------------------------------------------
-.PHONY: run.uart wave.uart
+.PHONY: sim.uart sim.timer sim.gpio sim.peripheral
+
+sim.peripheral: sim.uart sim.timer sim.gpio
+
+# -------------------------------------------
+# UART Simulation
+# -------------------------------------------
+.PHONY: sim.uart.run sim.uart.wave
 
 # Source Files
 UART_SOURCES := \
-	$(PERIPHERAL_SRC_DIR)/uart/uart_baudgen.v \
-	$(PERIPHERAL_SRC_DIR)/uart/uart_rx.v \
-	$(PERIPHERAL_SRC_DIR)/uart/uart_tx.v \
-	$(PERIPHERAL_SRC_DIR)/uart/uart.v \
-	$(PERIPHERAL_SRC_DIR)/uart/uart_wrapper.v \
+    $(PERIPHERAL_SRC_DIR)/uart/uart_baudgen.v \
+    $(PERIPHERAL_SRC_DIR)/uart/uart_rx.v \
+    $(PERIPHERAL_SRC_DIR)/uart/uart_tx.v \
+    $(PERIPHERAL_SRC_DIR)/uart/uart.v \
+    $(PERIPHERAL_SRC_DIR)/uart/uart_wrapper.v
 
-# Testbench File
-UART_TB := $(PERIPHERAL_SIM_DIR)/uart/tb_uart.v 
+UART_TB := $(PERIPHERAL_SIM_DIR)/uart/tb_uart.v
 
-# Build target
 $(UART_BUILD_DIR)/uart_tb.out: $(UART_SOURCES) $(UART_TB)
 	@mkdir -p $(UART_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
+	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) -I$(PERIPHERAL_SRC_DIR)/uart $^
 	@echo "[UART] Testbench built: $@"
+	@echo ""
 
-# Run target
-run.uart: $(UART_BUILD_DIR)/uart_tb.out
+sim.uart: $(UART_BUILD_DIR)/uart_tb.out
+
+sim.uart.run: sim.uart
 	@echo "\n[UART] Running tests..."
 	@cd $(UART_BUILD_DIR) && $(VVP) uart_tb.out -l uart.log
 	@echo "[UART] Test completed - see $(UART_BUILD_DIR)/uart.log"
+	@echo ""
 
-# Waveform Targets
-wave.uart:
+sim.uart.wave:
 	$(GTKWAVE) $(UART_BUILD_DIR)/uart_tb.vcd &
 
-
 # -------------------------------------------
-# TIMER Simulation 32'h3000_0000
+# TIMER Simulation
 # -------------------------------------------
-.PHONY: run.timer wave.timer
+.PHONY: sim.timer.run sim.timer.wave
 
-# Sources Files
 TIMER_SOURCES := \
-	$(PERIPHERAL_SRC_DIR)/timer/timer.v \
-	$(PERIPHERAL_SRC_DIR)/timer/timer_wrapper.v \
+    $(PERIPHERAL_SRC_DIR)/timer/timer.v \
+    $(PERIPHERAL_SRC_DIR)/timer/timer_wrapper.v
 
-# Testbench File
-TIMER_TB := $(PERIPHERAL_SIM_DIR)/timer/tb_timer.v 
+TIMER_TB := $(PERIPHERAL_SIM_DIR)/timer/tb_timer.v
 
-# Build target
 $(TIMER_BUILD_DIR)/timer_tb.out: $(TIMER_SOURCES) $(TIMER_TB)
 	@mkdir -p $(TIMER_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
+	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) -I$(PERIPHERAL_SRC_DIR)/timer $^
 	@echo "[TIMER] Testbench built: $@"
+	@echo ""
 
-# Run target
-run.timer: $(TIMER_BUILD_DIR)/timer_tb.out
+sim.timer: $(TIMER_BUILD_DIR)/timer_tb.out
+
+sim.timer.run: sim.timer
 	@echo "\n[TIMER] Running tests..."
 	@cd $(TIMER_BUILD_DIR) && $(VVP) timer_tb.out -l timer.log
 	@echo "[TIMER] Test completed - see $(TIMER_BUILD_DIR)/timer.log"
+	@echo ""
 
-# Waveform Target
-wave.timer:
+sim.timer.wave:
 	$(GTKWAVE) $(TIMER_BUILD_DIR)/timer_tb.vcd &
 
 # -------------------------------------------
-# GPIO Simulation 32'h4000_0000
+# GPIO Simulation
 # -------------------------------------------
-.PHONY: run.gpio run.gpio.latency wave.gpio wave.gpio.latency
+.PHONY: sim.gpio.run sim.gpio.wave sim.gpio.latency sim.gpio.latency.run sim.gpio.latency.wave
 
-# Sources Files
 GPIO_SOURCES := \
-	$(PERIPHERAL_SRC_DIR)/gpio/gpio.v \
-	$(PERIPHERAL_SRC_DIR)/gpio/gpio_wrapper.v \
+    $(PERIPHERAL_SRC_DIR)/gpio/gpio.v \
+    $(PERIPHERAL_SRC_DIR)/gpio/gpio_wrapper.v
 
-# Testbench File
-GPIO_TB         := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio.v 
-GPIO_TB_LATENCY := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio_latency.v 
+GPIO_TB         := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio.v
+GPIO_TB_LATENCY := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio_latency.v
 
-# Build target
 $(GPIO_BUILD_DIR)/gpio_tb.out: $(GPIO_SOURCES) $(GPIO_TB)
 	@mkdir -p $(GPIO_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
+	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) -I$(PERIPHERAL_SRC_DIR)/gpio $^
 	@echo "[GPIO] Testbench built: $@"
+	@echo ""
 
 $(GPIO_BUILD_DIR)/gpio_latency_tb.out: $(GPIO_SOURCES) $(GPIO_TB_LATENCY)
 	@mkdir -p $(GPIO_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) $^
-	@echo "[GPIO] Testbench Latency built: $@"
+	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) -I$(PERIPHERAL_SRC_DIR)/gpio $^
+	@echo "[GPIO] Latency testbench built: $@"
+	@echo ""
 
-# Run targer
-run.gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
+sim.gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
+sim.gpio.latency: $(GPIO_BUILD_DIR)/gpio_latency_tb.out
+
+sim.gpio.run: sim.gpio
 	@echo "\n[GPIO] Running tests..."
 	@cd $(GPIO_BUILD_DIR) && $(VVP) gpio_tb.out -l gpio.log
 	@echo "[GPIO] Test completed - see $(GPIO_BUILD_DIR)/gpio.log"
+	@echo ""
 
-run.gpio.latency: $(GPIO_BUILD_DIR)/gpio_latency_tb.out
-	@echo "\n[GPIO] Running Latency tests..."
+sim.gpio.latency.run: sim.gpio.latency
+	@echo "\n[GPIO] Running latency tests..."
 	@cd $(GPIO_BUILD_DIR) && $(VVP) gpio_latency_tb.out -l gpio_latency.log
-	@echo "[GPIO] Test Latency completed - see $(GPIO_BUILD_DIR)/gpio_latency.log"
+	@echo "[GPIO] Latency test completed - see $(GPIO_BUILD_DIR)/gpio_latency.log"
+	@echo ""
 
-# Waveform Target
-wave.gpio:
+sim.gpio.wave:
 	$(GTKWAVE) $(GPIO_BUILD_DIR)/gpio_tb.vcd &
 
-wave.gpio.latency:
+sim.gpio.latency.wave:
 	$(GTKWAVE) $(GPIO_BUILD_DIR)/gpio_latency_tb.vcd &
+
+# -------------------------------------------
+# Aggregate Targets
+# -------------------------------------------
+.PHONY: sim.peripheral.run sim.peripheral.wave
+
+sim.peripheral.run: sim.uart.run sim.timer.run sim.gpio.run
+	@echo "All peripheral tests completed"
+
+sim.peripheral.wave: sim.uart.wave sim.timer.wave sim.gpio.wave
 
 # -------------------------------------------
 # Clean Targets
@@ -128,31 +145,26 @@ sim.peripheral.clean:
 	@find $(PERIPHERAL_SIM_DIR) -name "*.vcd" -delete
 	@find $(PERIPHERAL_SIM_DIR) -name "*.log" -delete
 
-
 # -------------------------------------------
-# Shortcut Commands
+# Shortcut Commands (consistent naming)
 # -------------------------------------------
-
-# Build shortcuts
-uart: $(UART_BUILD_DIR)/uart_tb.out
-gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
-timer: $(TIMER_BUILD_DIR)/timer_tb.out
-
-gpio-latency: $(GPIO_BUILD_DIR)/gpio_latency_tb.out
-
-# Run shortcuts
-uart-run: run.uart
-gpio-run: run.gpio
-timer-run: run.timer
-
-gpio-latency-run: run.gpio.latency
-
-# Wave shortcuts
-uart-wave: wave.uart
-gpio-wave: wave.gpio
-timer-wave: wave.timer
-
-gpio-latency-wave: wave.gpio.latency
-
-# Clean shortcut
+peripheral: sim.peripheral
+peripheral-run: sim.peripheral.run
+peripheral-wave: sim.peripheral.wave
 peripheral-clean: sim.peripheral.clean
+
+uart: sim.uart
+uart-run: sim.uart.run
+uart-wave: sim.uart.wave
+
+timer: sim.timer
+timer-run: sim.timer.run
+timer-wave: sim.timer.wave
+
+gpio: sim.gpio
+gpio-run: sim.gpio.run
+gpio-wave: sim.gpio.wave
+
+gpio-latency: sim.gpio.latency
+gpio-latency-run: sim.gpio.latency.run
+gpio-latency-wave: sim.gpio.latency.wave

@@ -1,12 +1,14 @@
-module soc_top #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter SIZE_KB    = 4,
-    parameter N_GPIO     = 8
+module top_soc #(
+    parameter FIRMWARE_FILE = "firmware.hex",
+    parameter ADDR_WIDTH    = 32,
+    parameter DATA_WIDTH    = 32,
+    parameter SIZE_KB       = 4,
+    parameter BAUD_DIV_RST  = 16'd104,          // 115200 baud @ 12MHz
+    parameter N_GPIO        = 8
 ) (
     // Clock and reset
     input wire                      clk,
-    input wire                      rst_n
+    input wire                      rst_n,
 
     // UART Physical Interface
     input wire                      uart_rx,
@@ -152,14 +154,14 @@ module soc_top #(
     ) wishbone_interconnect_inst (
         .clk                    (clk                     ),
         .rst_n                  (rst_n                   ),
-        .wbm_cpu_cyc            (wb_m_cpu_cyc            ),
-        .wbm_cpu_stb            (wb_m_cpu_stb            ),
-        .wbm_cpu_we             (wb_m_cpu_we             ),
-        .wbm_cpu_addr           (wb_m_cpu_addr           ),
-        .wbm_cpu_data_write     (wb_m_cpu_data_write     ),
-        .wbm_cpu_sel            (wb_m_cpu_sel            ),
-        .wbm_cpu_data_read      (wb_m_cpu_data_read      ),
-        .wbm_cpu_ack            (wb_m_cpu_ack            ),
+        .wbm_cpu_cyc            (wbs_dmem_cyc            ),
+        .wbm_cpu_stb            (wbs_dmem_stb            ),
+        .wbm_cpu_we             (wbs_dmem_we             ),
+        .wbm_cpu_addr           (wbs_dmem_addr           ),
+        .wbm_cpu_data_write     (wbs_dmem_data_write     ),
+        .wbm_cpu_sel            (wbs_dmem_sel            ),
+        .wbm_cpu_data_read      (wbs_dmem_data_read      ),
+        .wbm_cpu_ack            (wbs_dmem_ack            ),
         .wbs_dmem_cyc           (wbs_dmem_cyc            ),
         .wbs_dmem_stb           (wbs_dmem_stb            ),
         .wbs_dmem_we            (wbs_dmem_we             ),
@@ -201,7 +203,13 @@ module soc_top #(
     // ----------------------------
     // MEM_INIT Instance
     // ----------------------------
-    mem_init init_controller(
+    mem_init #(
+        .IMEM_BASE  (IMEM_BASE_ADDR ),
+        .DMEM_BASE  (IMEM_BASE_ADDR ),
+        .INIT_FILE  (FIRMWARE_FILE  ),
+        .ADDR_WIDTH (ADDR_WIDTH     ),
+        .DATA_WIDTH (DATA_WIDTH     )
+    ) init_controller(
         .clk                (clk           ),
         .rst_n              (rst_n         ),
         .init_start         (~rst_n        ),   // Auto-start after reset

@@ -54,12 +54,18 @@ $(DMEM_BUILD_DIR)/dmem_tb.out: $(DMEM_SOURCES) $(DMEM_TB)
 	@mkdir -p $(DMEM_BUILD_DIR)
 	$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
 	@echo "[DMEM] Testbench built: $@"
+	@echo ""
+
+sim.dmem: $(DMEM_BUILD_DIR)/dmem_tb.out
 
 # IMEM
 $(IMEM_BUILD_DIR)/imem_tb.out: $(IMEM_SOURCES) $(IMEM_TB)
 	@mkdir -p $(IMEM_BUILD_DIR)
 	$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
 	@echo "[IMEM] Testbench built: $@"
+	@echo ""
+
+sim.imem: $(IMEM_BUILD_DIR)/imem_tb.out
 
 # MEM_INIT
 $(MEM_INIT_BUILD_DIR)/mem_init_tb.out: $(MEM_INIT_SOURCES) $(MEM_INIT_TB)
@@ -67,57 +73,55 @@ $(MEM_INIT_BUILD_DIR)/mem_init_tb.out: $(MEM_INIT_SOURCES) $(MEM_INIT_TB)
 	@touch $(MEM_INIT_BUILD_DIR)/firmware.hex
 	$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
 	@echo "[MEM_INIT] Testbench built: $@"
+	@echo ""
+
+sim.mem_init: $(MEM_INIT_BUILD_DIR)/mem_init_tb.out
 
 # -------------------------------------------
 # Run Targets
 # -------------------------------------------
-.PHONY: run.dmem run.imem run.mem_init sim.mem.run
+.PHONY: sim.dmem.run sim.imem.run sim.mem_init.run sim.mem.run
 
-# Run all memory tests
-sim.mem.run: sim.mem
-	@echo "\nRunning all memory tests..."
-	@$(MAKE) --no-print-directory run.dmem
-	@$(MAKE) --no-print-directory run.imem
-	@$(MAKE) --no-print-directory run.mem_init
-	@echo "All memory tests completed"
-
-# Run DMEM tests
-run.dmem: $(DMEM_BUILD_DIR)/dmem_tb.out
+# Individual run targets
+sim.dmem.run: sim.dmem
 	@echo "\n[DMEM] Running tests..."
 	@cd $(DMEM_BUILD_DIR) && $(VVP) dmem_tb.out -l dmem.log
 	@echo "[DMEM] Test completed - see $(DMEM_BUILD_DIR)/dmem.log"
+	@echo ""
 
-# Run IMEM tests
-run.imem: $(IMEM_BUILD_DIR)/imem_tb.out
+sim.imem.run: sim.imem
 	@echo "\n[IMEM] Running tests..."
 	@cd $(IMEM_BUILD_DIR) && $(VVP) imem_tb.out -l imem.log
 	@echo "[IMEM] Test completed - see $(IMEM_BUILD_DIR)/imem.log"
+	@echo ""
 
-# Run MEM_INIT tests
-run.mem_init: $(MEM_INIT_BUILD_DIR)/mem_init_tb.out
+sim.mem_init.run: sim.mem_init
 	@echo "\n[MEM_INIT] Running tests..."
 	@cd $(MEM_INIT_BUILD_DIR) && $(VVP) mem_init_tb.out -l mem_init.log
 	@echo "[MEM_INIT] Test completed - see $(MEM_INIT_BUILD_DIR)/mem_init.log"
+	@echo ""
+
+# Run all memory tests
+sim.mem.run: sim.dmem.run sim.imem.run sim.mem_init.run
+	@echo "All memory tests completed"
+	@echo ""
+
 
 # -------------------------------------------
 # Waveform Targets
 # -------------------------------------------
-.PHONY: wave.dmem wave.imem wave.mem_init sim.mem.wave
+.PHONY: sim.dmem.wave sim.imem.wave sim.mem_init.wave sim.mem.wave
 
-sim.mem.wave:
-	$(GTKWAVE) $(DMEM_BUILD_DIR)/dmem_tb.vcd &
-	$(GTKWAVE) $(IMEM_BUILD_DIR)/imem_tb.vcd &
-	$(GTKWAVE) $(MEM_INIT_BUILD_DIR)/mem_init_tb.vcd &
-
-# Individual waveform targets
-wave.dmem:
+sim.dmem.wave:
 	$(GTKWAVE) $(DMEM_BUILD_DIR)/dmem_tb.vcd &
 
-wave.imem:
+sim.imem.wave:
 	$(GTKWAVE) $(IMEM_BUILD_DIR)/imem_tb.vcd &
 
-wave.mem_init:
+sim.mem_init.wave:
 	$(GTKWAVE) $(MEM_INIT_BUILD_DIR)/mem_init_tb.vcd &
+
+sim.mem.wave: sim.dmem.wave sim.imem.wave sim.mem_init.wave
 
 # -------------------------------------------
 # Clean Targets
@@ -129,28 +133,24 @@ sim.mem.clean:
 	@rm -rf $(MEM_SIM_BUILD_DIR)
 	@find $(MEM_SIM_DIR) -name "*.vcd" -delete
 	@find $(MEM_SIM_DIR) -name "*.log" -delete
+	@echo ""
 
 # -------------------------------------------
 # Shortcut Commands
 # -------------------------------------------
-
-# Build shortcuts
 mem: sim.mem
-dmem: $(DMEM_BUILD_DIR)/dmem_tb.out
-imem: $(IMEM_BUILD_DIR)/imem_tb.out
-mem-init: $(MEM_INIT_BUILD_DIR)/mem_init_tb.out
-
-# Run shortcuts
 mem-run: sim.mem.run
-dmem-run: run.dmem
-imem-run: run.imem
-mem-init-run: run.mem_init
-
-# Wave shortcuts
 mem-wave: sim.mem.wave
-dmem-wave: wave.dmem
-imem-wave: wave.imem
-mem-init-wave: wave.mem_init
-
-# Clean shortcut
 mem-clean: sim.mem.clean
+
+dmem: sim.dmem
+dmem-run: sim.dmem.run
+dmem-wave: sim.dmem.wave
+
+imem: sim.imem
+imem-run: sim.imem.run
+imem-wave: sim.imem.wave
+
+mem-init: sim.mem_init
+mem-init-run: sim.mem_init.run
+mem-init-wave: sim.mem_init.wave

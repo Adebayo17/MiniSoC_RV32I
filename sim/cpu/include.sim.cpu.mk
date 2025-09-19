@@ -24,15 +24,6 @@ CPU_SOURCES := \
 	$(CPU_SRC_DIR)/wb_stage.v \
 	$(CPU_SRC_DIR)/cpu.v
 
-IMEM_SOURCES := \
-	$(TOP_DIR)/src/mem/imem/imem.v \
-	$(TOP_DIR)/src/mem/imem/imem_wrapper.v \
-
-DMEM_SOURCES := \
-	$(TOP_DIR)/src/mem/dmem/dmem.v \
-	$(TOP_DIR)/src/mem/dmem/dmem_wrapper.v \
-
-MEM_INIT_SOURCES := $(TOP_DIR)/src/mem/mem_init/mem_init.v
 
 CPU_TB := $(CPU_SIM_DIR)/tb_cpu.v
 
@@ -49,12 +40,14 @@ $(CPU_SIM_BUILD_DIR)/cpu_tb.out: $(IMEM_SOURCES) $(DMEM_SOURCES) $(MEM_INIT_SOUR
 	@mkdir -p $(CPU_SIM_BUILD_DIR)
 	$(IVERILOG) -o $@ -I$(CPU_SRC_DIR) $^
 	@echo "[CPU] Testbench built: $@"
+	@echo ""
 
 # Run
 sim.cpu.run: $(CPU_SIM_BUILD_DIR)/cpu_tb.out
 	@echo "\n[RV32I_CORE] Running tests..."
 	@cd $(CPU_SIM_BUILD_DIR) && $(VVP) cpu_tb.out -l cpu.log
 	@echo "[CPU] Test completed - see $(CPU_SIM_BUILD_DIR)/cpu.log"
+	@echo ""
 
 # Wave
 sim.cpu.wave:

@@ -66,6 +66,11 @@ module wishbone_interconnect #(
     localparam [2:0] SLAVE_TIMER = 3'd3;
     localparam [2:0] SLAVE_GPIO  = 3'd4;
     localparam [2:0] SLAVE_NONE  = 3'd7;
+
+    localparam [19:0] BASE_ADDR_DMEM  = 20'h10000;
+    localparam [19:0] BASE_ADDR_UART  = 20'h20000;
+    localparam [19:0] BASE_ADDR_TIMER = 20'h30000;
+    localparam [19:0] BASE_ADDR_GPIO  = 20'h40000;
     
     reg [2:0] sel_slave;
 
@@ -76,12 +81,12 @@ module wishbone_interconnect #(
     always @(*) begin
         sel_slave = 3'd7; // Invalid
 
-        case (wb_m_cpu_addr[31:12])
-            20'h10000:  sel_slave   = SLAVE_DMEM ; 
-            20'h20000:  sel_slave   = SLAVE_UART ; 
-            20'h30000:  sel_slave   = SLAVE_TIMER; 
-            20'h40000:  sel_slave   = SLAVE_GPIO ; 
-            default:    sel_slave   = SLAVE_NONE ;
+        case (wbm_cpu_addr[31:12])
+            BASE_ADDR_DMEM:   sel_slave   = SLAVE_DMEM ; 
+            BASE_ADDR_UART:   sel_slave   = SLAVE_UART ; 
+            BASE_ADDR_TIMER:  sel_slave   = SLAVE_TIMER; 
+            BASE_ADDR_GPIO:   sel_slave   = SLAVE_GPIO ; 
+            default:          sel_slave   = SLAVE_NONE ;
         endcase
     end
 
