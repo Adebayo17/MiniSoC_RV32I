@@ -203,16 +203,30 @@ module top_soc #(
     // ----------------------------
     // MEM_INIT Instance
     // ----------------------------
+    reg init_start_reg, count_init_one_cycle;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            init_start_reg <= 1'b0;
+            count_init_one_cycle <= 1'b0;
+        end else if (!init_done) begin
+            init_start_reg <= 1'b1;  // assert for one cycle
+            count_init_one_cycle <= 1'b1;
+        end else begin
+            init_start_reg <= 1'b0;
+        end
+    end
+
+    assign init_start = init_start_reg; // Auto-start after reset
     mem_init #(
         .IMEM_BASE  (IMEM_BASE_ADDR ),
-        .DMEM_BASE  (IMEM_BASE_ADDR ),
+        .DMEM_BASE  (DMEM_BASE_ADDR ),
         .INIT_FILE  (FIRMWARE_FILE  ),
         .ADDR_WIDTH (ADDR_WIDTH     ),
         .DATA_WIDTH (DATA_WIDTH     )
     ) init_controller(
         .clk                (clk           ),
         .rst_n              (rst_n         ),
-        .init_start         (~rst_n        ),   // Auto-start after reset
+        .init_start         (init_start    ),   
         .init_done          (init_done     ),
         .imem_init_en       (imem_init_en  ),
         .imem_init_addr     (imem_init_addr),

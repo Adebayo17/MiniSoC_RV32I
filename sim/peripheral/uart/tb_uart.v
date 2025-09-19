@@ -29,9 +29,11 @@ module tb_uart;
 
     // Test Control
     reg [31:0]   test_num;
-    reg [8*40:1] test_name;
     reg [31:0]   task_error_count;
     reg [31:0]   total_errors;
+
+    // File handles for logging
+    integer log_file;
 
     // Wishbone Interface
     reg                     wbs_cyc;
@@ -134,6 +136,11 @@ module tb_uart;
 
     // Main Test Sequence
     initial begin
+        // Open log file
+        log_file = $fopen("uart.log", "w");
+        $fdisplay(log_file, "UART Test Log - %t", $time);
+
+        // Create VCD dump
         $dumpfile("uart_tb.vcd");
         $dumpvars(0, tb_uart);
 
@@ -145,19 +152,23 @@ module tb_uart;
         // Test 1: Basic Configuration
         test_num = 1;
         $display("\n[TEST %0d] UART Configuration: Starting", test_num);
+        $fdisplay(log_file, "\n[TEST %0d] UART Configuration: Starting  - %t", test_num, $time);
         task_error_count = 0;
         test_uart_configuration(task_error_count);
         total_errors += task_error_count;
         $display("[TEST %0d] UART Configuration: Completed\n", test_num);
+        $fdisplay(log_file, "[TEST %0d] UART Configuration: Completed - %t\n", test_num, $time);
 
         #(CLK_PERIOD*2);
         // Test 2: Transmitter
         test_num = 2;
         $display("\n[TEST %0d] UART Transmitter Test: Starting", test_num);
+        $fdisplay(log_file, "\n[TEST %0d] UART Transmitter Test: Starting  - %t", test_num, $time);
         task_error_count = 0;
         test_uart_transmitter(task_error_count);
         total_errors += task_error_count;
         $display("[TEST %0d] UART Transmitter Test: Completed\n", test_num);
+        $fdisplay(log_file, "[TEST %0d] UART Transmitter Test: Completed - %t\n", test_num, $time);
 
         // Test 3: Receiver
         test_num = 3;
