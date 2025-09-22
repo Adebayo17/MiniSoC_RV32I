@@ -28,9 +28,14 @@ module mem_init #(
     // -------------------------------------------
     reg [DATA_WIDTH-1:0] firmware_mem [0:1023];  
 
-    // Initialize firmware memory from file
+
     initial begin
-        $readmemh(INIT_FILE, firmware_mem);
+        if (INIT_FILE != "") begin
+            $readmemh(INIT_FILE, firmware_mem);
+            $display("[MEM_INIT] Loaded firmware from %s", INIT_FILE);
+        end else begin
+            $display("[MEM_INIT] No firmware file specified");
+        end
     end
 
     // -------------------------------------------
@@ -43,7 +48,6 @@ module mem_init #(
 
     reg [1:0] state;
     reg [ADDR_WIDTH-1:0] init_counter; 
-    reg init_pulse; // Pulse generator 
     
 
     always @(posedge clk or negedge rst_n) begin
@@ -57,56 +61,41 @@ module mem_init #(
             dmem_init_addr  <= 0;
             dmem_init_data  <= 0;
             init_counter    <= 0;
-            init_pulse      <= 0;
         end else begin
             // Default values
             imem_init_en <= 0;
             dmem_init_en <= 0;
-            init_pulse   <= 0;
 
             case (state)
                 IDLE: begin
                     if (init_start) begin
                         init_counter    <= 0;
                         state           <= LOAD_IMEM;
-                        init_pulse      <= 1; // Start with a pulse
                     end
                 end
 
                 LOAD_IMEM: begin
-                    if (init_pulse) begin
-                        imem_init_en    <= 1;
-                        imem_init_addr  <= IMEM_BASE + (init_counter << 2);
-                        imem_init_data  <= firmware_mem[init_counter];
-                        
-                        if (init_counter == 1023) begin
-                            state           <= LOAD_DMEM;
-                            init_counter    <= 0;
-                            init_pulse      <= 1;   // Pulse for DMEM start
-                        end else begin
-                            init_counter    <= init_counter + 1;
-                            init_pulse      <= 1;   // Pulse for next IMEM word
-                        end
+                    imem_init_en    <= 1;
+                    imem_init_addr  <= IMEM_BASE + (init_counter << 2);
+                    imem_init_data  <= firmware_mem[init_counter];
+                    
+                    if (init_counter == 1023) begin
+                        state           <= LOAD_DMEM;
+                        init_counter    <= 0;
                     end else begin
-                        init_pulse      <= 1;       // Generate next pulse
+                        init_counter    <= init_counter + 1;
                     end
                 end
 
                 LOAD_DMEM: begin
-                    if (init_pulse) begin
-                        dmem_init_en    <= 1;
-                        dmem_init_addr  <= DMEM_BASE + (init_counter << 2);
-                        dmem_init_data  <= 32'h0;
-                        
-                        if (init_counter == 1023) begin
-                            state           <= DONE;
-                            init_pulse      <= 0;
-                        end else begin
-                            init_counter    <= init_counter + 1;
-                            init_pulse      <= 1;   // Pulse for next DMEM word
-                        end
+                    dmem_init_en    <= 1;
+                    dmem_init_addr  <= DMEM_BASE + (init_counter << 2);
+                    dmem_init_data  <= 32'h0;
+                    
+                    if (init_counter == 1023) begin
+                        state           <= DONE;
                     end else begin
-                        init_pulse      <= 1;       // Generate next pulse
+                        init_counter    <= init_counter + 1;
                     end
                 end
 

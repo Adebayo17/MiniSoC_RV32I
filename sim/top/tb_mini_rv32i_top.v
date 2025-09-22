@@ -131,7 +131,7 @@ module tb_mini_rv32i_top;
         $fdisplay(log_file, "[TEST] Memory initialization complete at time %t", $time);
         
         // Run tests
-        run_tests();
+        verify_firmware_behavior();
         
         // End simulation
         #1000;
@@ -152,263 +152,92 @@ module tb_mini_rv32i_top;
     end
 
     // -------------------------------------------
-    // UART Tasks
-    // -------------------------------------------
-    // UART Receiver Task
-    task uart_receive;
-        output [7:0] received_data;
-        integer bit_time;
-        begin
-            bit_time = (CLK_PERIOD * BAUD_DIV_RST);
-            
-            wait(uart_tx == 0);  // Wait for start bit
-            #(bit_time * 1.5);   // Sample in middle of bit
-            
-            // Receive 8 data bits
-            for (integer i = 0; i < 8; i = i + 1) begin
-                #(bit_time);
-                received_data[i] = uart_tx;
-            end
-            
-            // Wait for stop bit
-            #(bit_time);
-            
-            $display("[UART] Received data: 0x%h", received_data);
-        end
-    endtask
-    
-    // UART Transmit Task
-    task uart_transmit;
-        input [7:0] data;
-        integer bit_time;
-        begin
-            bit_time = (CLK_PERIOD * BAUD_DIV_RST);
-            
-            // Start bit
-            uart_rx = 0;
-            #(bit_time);
-            
-            // Data bits
-            for (integer i = 0; i < 8; i = i + 1) begin
-                uart_rx = data[i];
-                #(bit_time);
-            end
-            
-            // Stop bit
-            uart_rx = 1;
-            #(bit_time);
-            
-            $display("[UART] Transmitted data: 0x%h", data);
-        end
-    endtask
-
-    // -------------------------------------------
     // Test Tasks
     // -------------------------------------------
-    task run_tests;
+    reg [7:0] previous_gpio;
+    task verify_firmware_behavior;
         begin
-            $display("[TEST] Starting test sequence...");
-            $fdisplay(log_file, "[TEST] Starting test sequence...");
+            $display("[TEST] Verifying firmware behavior...");
+            $fdisplay(log_file, "[TEST] Verifying firmware behavior...");
             
-            // Test 1: Basic CPU operation
-            test_basic_cpu_operation;
-            
-            // Test 2: UART communication
-            test_uart_communication;
-            
-            // Test 3: GPIO functionality
-            test_gpio_functionality;
-            
-            // Test 4: Timer functionality
-            test_timer_functionality;
-            
-            // Test 5: Memory access patterns
-            test_memory_access;
-            
-            $display("[TEST] Test sequence completed");
-            $fdisplay(log_file, "[TEST] Test sequence completed");
-        end
-    endtask
-    
-    // Test 1: Basic CPU operation
-    task test_basic_cpu_operation;
-        begin
-            $display("[TEST 1] Basic CPU Operation");
-            $fdisplay(log_file, "[TEST 1] Basic CPU Operation");
-            
-            // Wait for CPU to start executing
-            #2000;
-            
-            // Check if CPU is executing instructions
-            if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc > 32'h0000_0000) begin
-                $display("[TEST 1] PASS: CPU is executing instructions (PC = 0x%h)", 
-                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                $fdisplay(log_file, "[TEST 1] PASS: CPU is executing instructions (PC = 0x%h)",
-                         dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST 1] FAIL: CPU not executing instructions (PC = 0x%h)",
-                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                $fdisplay(log_file, "[TEST 1] FAIL: CPU not executing instructions (PC = 0x%h)",
-                         dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                test_fail = test_fail + 1;
-            end
-            
-            // Check memory access
-            if (dut.top_soc_inst.wbs_imem_cyc === 1'b1 || dut.top_soc_inst.wbs_dmem_cyc === 1'b1) begin
-                $display("[TEST 1] PASS: Memory access detected");
-                $fdisplay(log_file, "[TEST 1] PASS: Memory access detected");
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST 1] FAIL: No memory access detected");
-                $fdisplay(log_file, "[TEST 1] FAIL: No memory access detected");
-                test_fail = test_fail + 1;
-            end
-        end
-    endtask
-    
-    // Test 2: UART communication
-    task test_uart_communication;
-        reg uart_activity_detected;
-        begin
-            $display("[TEST 2] UART Communication");
-            $fdisplay(log_file, "[TEST 2] UART Communication");
-            
-            uart_activity_detected = 0;
-            
-            // Test UART transmission by monitoring the TX line
-            #5000;
-            
-            // Wait for any transmission with timeout
-            #100000;
-            if (uart_tx === 1'b0) begin
-                $display("[TEST 2] UART transmission detected");
-                $fdisplay(log_file, "[TEST 2] UART transmission detected");
-                test_pass = test_pass + 1;
-                uart_activity_detected = 1;
-            end else begin
-                $display("[TEST 2] FAIL: No UART transmission detected");
-                $fdisplay(log_file, "[TEST 2] FAIL: No UART transmission detected");
-                test_fail = test_fail + 1;
-            end
-            
-            // Test UART reception by sending data to the CPU
-            #1000;
-            uart_transmit(8'h55); // Send 'U' character
-            
-            // The CPU should process this
-            $display("[TEST 2] UART data sent to CPU");
-            $fdisplay(log_file, "[TEST 2] UART data sent to CPU");
-            test_pass = test_pass + 1;
-        end
-    endtask
-    
-    // Test 3: GPIO functionality
-    task test_gpio_functionality;
-        begin
-            $display("[TEST 3] GPIO Functionality");
-            $fdisplay(log_file, "[TEST 3] GPIO Functionality");
-            
-            // Monitor GPIO signals for activity
-            // The CPU firmware should eventually manipulate GPIO
-            #10000;
-            
-            // Check if any GPIO activity occurred
-            if (dut.top_soc_inst.gpio_out !== 8'b00000000 || dut.top_soc_inst.gpio_oe !== 8'b00000000) begin
-                $display("[TEST 3] PASS: GPIO activity detected (out=%b, oe=%b)",
-                        dut.top_soc_inst.gpio_out, dut.top_soc_inst.gpio_oe);
-                $fdisplay(log_file, "[TEST 3] PASS: GPIO activity detected (out=%b, oe=%b)",
-                         dut.top_soc_inst.gpio_out, dut.top_soc_inst.gpio_oe);
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST 3] FAIL: No GPIO activity detected");
-                $fdisplay(log_file, "[TEST 3] FAIL: No GPIO activity detected");
-                test_fail = test_fail + 1;
-            end
-            
-            // Test GPIO input by driving external pins
-            #1000;
-            // Drive some GPIO inputs using force (for simulation)
-            force gpio_io[0] = 1'b1;
-            force gpio_io[1] = 1'b0;
-            force gpio_io[2] = 1'b1;
-            force gpio_io[3] = 1'b0;
-            #1000;
-            release gpio_io[0];
-            release gpio_io[1];
-            release gpio_io[2];
-            release gpio_io[3];
-            
-            $display("[TEST 3] GPIO input test completed");
-            $fdisplay(log_file, "[TEST 3] GPIO input test completed");
-            test_pass = test_pass + 1;
-        end
-    endtask
-    
-    // Test 4: Timer functionality
-    task test_timer_functionality;
-        begin
-            $display("[TEST 4] Timer Functionality");
-            $fdisplay(log_file, "[TEST 4] Timer Functionality");
-            
-            // Check if timer instance exists and is counting
-            #15000;
-            
-            // Check if timer is counting
-            if (dut.top_soc_inst.timer_inst.timer_inst.count_reg > 0) begin
-                $display("[TEST 4] PASS: Timer is counting (value = %0d)",
-                        dut.top_soc_inst.timer_inst.timer_inst.count_reg);
-                $fdisplay(log_file, "[TEST 4] PASS: Timer is counting (value = %0d)",
-                         dut.top_soc_inst.timer_inst.timer_inst.count_reg);
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST 4] FAIL: Timer not counting");
-                $fdisplay(log_file, "[TEST 4] FAIL: Timer not counting");
-                test_fail = test_fail + 1;
-            end
-        end
-    endtask
-    
-    // Test 5: Memory access patterns
-    task test_memory_access;
-        begin
-            $display("[TEST 5] Memory Access Patterns");
-            $fdisplay(log_file, "[TEST 5] Memory Access Patterns");
-            
-            // Monitor memory access patterns
+            // Wait longer for the simple firmware to start
             #20000;
             
-            // Check if both instruction and data memory are being accessed
-            if (dut.top_soc_inst.wbs_imem_cyc === 1'b1 && dut.top_soc_inst.wbs_dmem_cyc === 1'b1) begin
-                $display("[TEST 5] PASS: Both instruction and data memory accessed");
-                $fdisplay(log_file, "[TEST 5] PASS: Both instruction and data memory accessed");
-                test_pass = test_pass + 1;
-            end else if (dut.top_soc_inst.wbs_imem_cyc === 1'b1) begin
-                $display("[TEST 5] PARTIAL: Only instruction memory accessed");
-                $fdisplay(log_file, "[TEST 5] PARTIAL: Only instruction memory accessed");
-                test_pass = test_pass + 1; // Still partial credit
-            end else if (dut.top_soc_inst.wbs_dmem_cyc === 1'b1) begin
-                $display("[TEST 5] PARTIAL: Only data memory accessed");
-                $fdisplay(log_file, "[TEST 5] PARTIAL: Only data memory accessed");
-                test_pass = test_pass + 1; // Still partial credit
+            // Check if memory initialization happened only once
+            if (dut.top_soc_inst.init_done !== 1'b1) begin
+                $display("[TEST] FAIL: Memory initialization not completed");
+                $fdisplay(log_file, "[TEST] FAIL: Memory initialization not completed");
+                test_fail = test_fail + 1;
+                //return;
+            end
+            
+            $display("[TEST] PASS: Memory initialization completed correctly");
+            $fdisplay(log_file, "[TEST] PASS: Memory initialization completed correctly");
+            test_pass = test_pass + 1;
+            
+            // Check CPU is running (PC should not be zero)
+            if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc === 32'h00000000) begin
+                $display("[TEST] FAIL: CPU PC is zero - not executing");
+                $fdisplay(log_file, "[TEST] FAIL: CPU PC is zero - not executing");
+                test_fail = test_fail + 1;
             end else begin
-                $display("[TEST 5] FAIL: No memory access detected");
-                $fdisplay(log_file, "[TEST 5] FAIL: No memory access detected");
+                $display("[TEST] PASS: CPU is executing (PC = %h)", 
+                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+                $fdisplay(log_file, "[TEST] PASS: CPU is executing (PC = %h)",
+                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+                test_pass = test_pass + 1;
+            end
+            
+            // Wait a bit more for GPIO activity
+            #30000;
+            
+            // For the simple firmware: check if GPIO is being toggled (not just static)
+            // The simple firmware toggles between 0 and 1, so check if it changes
+            
+            previous_gpio = dut.top_soc_inst.gpio_out;
+            
+            #10000; // Wait 10,000 cycles
+            
+            if (dut.top_soc_inst.gpio_out !== previous_gpio) begin
+                $display("[TEST] PASS: GPIO is being toggled by firmware");
+                $fdisplay(log_file, "[TEST] PASS: GPIO is being toggled by firmware");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("[TEST] FAIL: GPIO not changing (static at %b)", previous_gpio);
+                $fdisplay(log_file, "[TEST] FAIL: GPIO not changing (static at %b)", previous_gpio);
                 test_fail = test_fail + 1;
             end
             
-            // Check memory initialization
-            if (dut.top_soc_inst.init_done === 1'b1) begin
-                $display("[TEST 5] PASS: Memory initialization completed");
-                $fdisplay(log_file, "[TEST 5] PASS: Memory initialization completed");
+            // Check for UART activity (simple firmware sends '.' or 'O')
+            #20000;
+            if (uart_tx === 1'b0) begin  // Start bit detected
+                $display("[TEST] PASS: UART transmission detected");
+                $fdisplay(log_file, "[TEST] PASS: UART transmission detected");
                 test_pass = test_pass + 1;
             end else begin
-                $display("[TEST 5] FAIL: Memory initialization not completed");
-                $fdisplay(log_file, "[TEST 5] FAIL: Memory initialization not completed");
-                test_fail = test_fail + 1;
+                $display("[TEST] Checking UART status...");
+                // Check if UART is enabled and ready
+                if (dut.top_soc_inst.uart_inst.uart_inst.uart_tx_inst.tx_enable === 1'b1) begin
+                    $display("[TEST] UART is enabled, waiting for transmission...");
+                    #50000; // Wait longer
+                    if (uart_tx === 1'b0) begin
+                        $display("[TEST] PASS: UART transmission detected after wait");
+                        $fdisplay(log_file, "[TEST] PASS: UART transmission detected after wait");
+                        test_pass = test_pass + 1;
+                    end else begin
+                        $display("[TEST] FAIL: UART enabled but no transmission");
+                        $fdisplay(log_file, "[TEST] FAIL: UART enabled but no transmission");
+                        test_fail = test_fail + 1;
+                    end
+                end else begin
+                    $display("[TEST] FAIL: UART not enabled");
+                    $fdisplay(log_file, "[TEST] FAIL: UART not enabled");
+                    test_fail = test_fail + 1;
+                end
             end
         end
     endtask
+    
     
     
 

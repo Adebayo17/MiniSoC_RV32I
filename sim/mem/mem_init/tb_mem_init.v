@@ -113,18 +113,18 @@ module tb_mem_init;
 
     // Reset Generation
     initial begin
-        rst_n = 0;
+        rst_n               = 0;
+
+        init_start          = 0;
+        test_num            = 0;
+        test_name           = "";
+        total_errors        = 0;
+        task_error_count    = 0;
         #100 rst_n = 1;
     end
 
     // Main Test Sequence
     initial begin
-        // Initialize
-        test_num = 0;
-        test_name = "";
-        total_errors = 0;
-        task_error_count = 0;
-
         // Open waveform file
         $dumpfile("mem_init_tb.vcd");
         $dumpvars(0, tb_mem_init);
@@ -132,9 +132,10 @@ module tb_mem_init;
         // Create test firmware file
         create_test_firmware();
 
+
         // Wait for reset to complete
         @(posedge rst_n);
-        #(CLK_PERIOD*2);
+        #(CLK_PERIOD);
 
         // Run test cases
         $display("\n[TESTBENCH MEM_INIT][TEST 1] INITIALIZATION SEQUENCE: Starting");

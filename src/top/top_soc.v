@@ -203,14 +203,12 @@ module top_soc #(
     // ----------------------------
     // MEM_INIT Instance
     // ----------------------------
-    reg init_start_reg, count_init_one_cycle;
+    reg init_start_reg;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             init_start_reg <= 1'b0;
-            count_init_one_cycle <= 1'b0;
-        end else if (!init_done) begin
+        end else if (!init_done && rst_n && !init_start_reg) begin
             init_start_reg <= 1'b1;  // assert for one cycle
-            count_init_one_cycle <= 1'b1;
         end else begin
             init_start_reg <= 1'b0;
         end
