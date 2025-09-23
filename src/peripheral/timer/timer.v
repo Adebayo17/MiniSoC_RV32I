@@ -221,10 +221,10 @@ module timer #(
                     end
                     
                     REG_TIMER_STATUS: begin
-                        // Writing 1 to clear flags
+                        // Writing 1 to clear flags - only clear if the flag is currently set
                         if (wbs_sel[0]) begin
-                            if (wbs_data_write[STATUS_MATCH])    status_read_match    <= 1'b1;
-                            if (wbs_data_write[STATUS_OVERFLOW]) status_read_overflow <= 1'b1;
+                            status_read_match       <= status_reg[STATUS_MATCH] && wbs_data_write[STATUS_MATCH];
+                            status_read_overflow    <= status_reg[STATUS_OVERFLOW] && wbs_data_write[STATUS_OVERFLOW];
                         end
                     end
                 endcase
