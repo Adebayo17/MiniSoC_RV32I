@@ -71,7 +71,6 @@ module mem_init #(
                     if (init_start) begin
                         init_counter    <= 0;
                         state           <= LOAD_IMEM;
-                        init_done       <= 0;
                     end
                 end
 
@@ -103,6 +102,7 @@ module mem_init #(
                 DONE: begin
                     init_done   <= 1;
                     state       <= IDLE;
+                    $display("[MEM_INIT]: IMEM and DMEM initialization done");
                 end
             endcase
         end

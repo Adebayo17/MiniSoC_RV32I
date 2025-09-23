@@ -203,18 +203,18 @@ module top_soc #(
     // ----------------------------
     // MEM_INIT Instance
     // ----------------------------
-    reg init_start_reg;
+    reg rst_n_prev;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            init_start_reg <= 1'b0;
-        end else if (!init_done && rst_n && !init_start_reg) begin
-            init_start_reg <= 1'b1;  // assert for one cycle
+            rst_n_prev <= 1'b0;
         end else begin
-            init_start_reg <= 1'b0;
+            rst_n_prev <= rst_n;
         end
     end
+    
+    // Generate init_start on rising edge of rst_n
+    assign init_start = rst_n && !rst_n_prev;
 
-    assign init_start = init_start_reg; // Auto-start after reset
     mem_init #(
         .IMEM_BASE  (IMEM_BASE_ADDR ),
         .DMEM_BASE  (DMEM_BASE_ADDR ),

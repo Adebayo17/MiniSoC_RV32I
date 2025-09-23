@@ -58,7 +58,7 @@ module dmem #(
     always @(posedge clk) begin
         if (init_en) begin
             mem[init_word_addr] <= init_data;
-            $display("[INFO]: DMEM init mem at @ %h with %h", init_word_addr, init_data);
+            //$display("[INFO]: DMEM init mem at @ %h with %h", init_word_addr, init_data);
         end else if(wbs_cyc && wbs_stb && wbs_we) begin
             // Runtime writes with byte select
             if (wbs_sel[0])   mem[word_addr][7:0]    <= wbs_data_write[7:0]  ;

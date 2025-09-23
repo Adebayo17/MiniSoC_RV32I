@@ -17,7 +17,7 @@ module imem #(
     output reg [DATA_WIDTH-1:0]     wbs_data_read,
     output reg                      wbs_ack,
 
-    // Direct initialization interface (optional)
+    // Direct initialization interface
     input wire                      init_en,
     input wire [ADDR_WIDTH-1:0]     init_addr,
     input wire [DATA_WIDTH-1:0]     init_data
@@ -54,7 +54,9 @@ module imem #(
     always @(posedge clk) begin
         if (init_en) begin
             mem[init_word_addr] <= init_data;
-            $display("[INFO]: IMEM init mem at @ %h with %h", init_word_addr, init_data);
+            `ifdef DEBUG
+            $display("[DEBUG]: IMEM init mem at @ %h with %h", init_word_addr, init_data);
+            `endif
         end 
         // Hardware write protection (IMEM is read-only during operation)
         else if(wbs_cyc && wbs_stb && wbs_we) begin
