@@ -95,6 +95,7 @@ This document defines the memory layout of the MiniSoC-RV32I system. All address
 | 0   | MATCH       | Compare match occurred          |
 | 1   | OVERFLOW    | Counter overflow occurred       |
 
+---
 
 ### GPIO Peripheral (0x4000_0000)  
 

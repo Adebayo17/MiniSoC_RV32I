@@ -30,7 +30,7 @@
 
 
 /* Register Access Macros*/
-#define REAG_REG(addr)              (*(volatile uint32_t *)(addr))
+#define READ_REG(addr)              (*(volatile uint32_t *)(addr))
 #define WRITE_REG(addr, value)      (*(volatile uint32_t *)(addr) = (value))
 
 /* Bit Field Definition 
@@ -109,7 +109,7 @@ void uart_set_baud_divisor(uart_t *dev, uint16_t divisor);
 /*
  * @brief Get baud rate divisor
  * @param dev : Pointer to UART structure
- * @return : Current Baud rate divisor 
+ * @return Current Baud rate divisor 
 */
 uint16_t uart_get_baud_divisor(uart_t *dev);
 
@@ -143,14 +143,14 @@ void uart_disable_rx(uart_t *dev);
 /*
  * @brief Check if transmitter is ready for new data
  * @param dev : Pointer to UART structure
- * @return : true if transmitter is ready, false otherwise
+ * @return true if transmitter is ready, false otherwise
 */
 bool uart_tx_ready(uart_t *dev);
 
 /*
  * @brief Check if transmitter is busy
  * @param dev : Pointer to UART structure
- * @return : true if transmitter is busy, false otherwise
+ * @return true if transmitter is busy, false otherwise
 */
 bool uart_tx_busy(uart_t *dev);
 
@@ -158,21 +158,21 @@ bool uart_tx_busy(uart_t *dev);
 /*
  * @brief Check if receive data is available
  * @param dev : Pointer to UART structure
- * @return : true if data is available, false otherwise
+ * @return true if data is available, false otherwise
 */
 bool uart_rx_ready(uart_t *dev);
 
 /*
  * @brief Check if receive overrun error
  * @param dev : Pointer to UART structure
- * @return : true if overrun error occured, false otherwise
+ * @return true if overrun error occured, false otherwise
 */
 bool uart_rx_overrun(uart_t *dev);
 
 /*
  * @brief Check for frame error
  * @param dev : Pointer to UART structure
- * @return : true if frame error occured, false otherwise
+ * @return true if frame error occured, false otherwise
 */
 bool uart_rx_frame_error(uart_t *dev);
 
@@ -181,7 +181,7 @@ bool uart_rx_frame_error(uart_t *dev);
  * @brief Transmit a single byte
  * @param dev : Pointer to UART structure
  * @param data : Data byte to transmit
- * @return : true if data was queued for transmission, false if transmitter is busy
+ * @return true if data was queued for transmission, false if transmitter is busy
 */
 bool uart_transmit_byte(uart_t *dev, uint8_t data);
 
@@ -190,7 +190,7 @@ bool uart_transmit_byte(uart_t *dev, uint8_t data);
  * @brief Receive a single byte
  * @param dev : Pointer to UART structure
  * @param data : Pointer to store received Data 
- * @return : true if data was received, false if data is not available
+ * @return true if data was received, false if data is not available
 */
 bool uart_receive_byte(uart_t *dev, uint8_t *data);
 

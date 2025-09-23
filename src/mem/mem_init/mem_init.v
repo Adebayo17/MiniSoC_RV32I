@@ -71,6 +71,7 @@ module mem_init #(
                     if (init_start) begin
                         init_counter    <= 0;
                         state           <= LOAD_IMEM;
+                        init_done       <= 0;
                     end
                 end
 
