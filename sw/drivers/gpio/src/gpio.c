@@ -9,7 +9,8 @@
 
 void gpio_init(gpio_t *dev, uint32_t base_addr) 
 {
-    dev->base_addr = base_addr;
+    /* Initialize base */
+    peripheral_init(&dev->base, base_addr);
 
     /* Initialize all pins as inputs by default */
     gpio_set_direction_all(dev, 0x00);
@@ -21,7 +22,7 @@ void gpio_init(gpio_t *dev, uint32_t base_addr)
 
 void gpio_set_direction_all(gpio_t *dev, uint8_t direction_mask)
 {
-    WRITE_REG(dev->base_addr + REG_GPIO_DIR_OFFSET, direction_mask);
+    WRITE_REG(dev->base.base_address + REG_GPIO_DIR_OFFSET, direction_mask);
 }
 
 
@@ -47,7 +48,7 @@ void gpio_set_direction_pin(gpio_t *dev, gpio_pin_t pin, uint8_t direction)
 
 uint8_t gpio_get_direction_all(gpio_t *dev)
 {
-    return (uint8_t)(REAG_REG(dev->base_addr + REG_GPIO_DIR_OFFSET) & 0xFF);
+    return (uint8_t)(REAG_REG(dev->base.base_address + REG_GPIO_DIR_OFFSET) & 0xFF);
 }
 
 
@@ -62,7 +63,7 @@ uint8_t gpio_get_direction_pin(gpio_t *dev, gpio_pin_t pin)
 
 void gpio_write_all(gpio_t *dev, uint8_t value)
 {
-    WRITE_REG(dev->base_addr + REG_GPIO_DATA_OFFSET, value);
+    WRITE_REG(dev->base.base_address + REG_GPIO_DATA_OFFSET, value);
 }
 
 
@@ -85,7 +86,7 @@ void gpio_write_pin(gpio_t *dev, gpio_pin_t pin, bool value)
 
 uint8_t gpio_read_all(gpio_t *dev)
 {
-    return (uint8_t)(REAG_REG(dev->base_addr + REG_GPIO_DATA_OFFSET) & 0xFF);
+    return (uint8_t)(REAG_REG(dev->base.base_address + REG_GPIO_DATA_OFFSET) & 0xFF);
 }
 
 
@@ -100,7 +101,7 @@ bool gpio_read_pin(gpio_t *dev, gpio_pin_t pin)
 
 void gpio_set_pins(gpio_t *dev, uint8_t pin_mask)
 {
-    WRITE_REG(dev->base_addr + REG_GPIO_SET_OFFSET, pin_mask);
+    WRITE_REG(dev->base.base_address + REG_GPIO_SET_OFFSET, pin_mask);
 }
 
 
@@ -113,7 +114,7 @@ void gpio_set_pin(gpio_t *dev, gpio_pin_t pin)
 
 void gpio_clear_pins(gpio_t *dev, uint8_t pin_mask)
 {
-    WRITE_REG(dev->base_addr + REG_GPIO_CLEAR_OFFSET, pin_mask);
+    WRITE_REG(dev->base.base_address + REG_GPIO_CLEAR_OFFSET, pin_mask);
 }
 
 
@@ -126,7 +127,7 @@ void gpio_clear_pin(gpio_t *dev, gpio_pin_t pin)
 
 void gpio_toggle_pins(gpio_t *dev, uint8_t pin_mask)
 {
-    WRITE_REG(dev->base_addr + REG_GPIO_TOGGLE_OFFSET, pin_mask);
+    WRITE_REG(dev->base.base_address + REG_GPIO_TOGGLE_OFFSET, pin_mask);
 }
 
 

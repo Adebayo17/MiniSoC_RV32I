@@ -7,7 +7,9 @@
 
 void timer_init(timer_t *dev, uint32_t base_addr, uint32_t clock_freq)
 {
-    dev->base_address = base_addr;
+    /* Initialize base */
+    peripheral_init(&dev->base, base_addr);
+
     dev->clock_frequency = clock_freq;
     
     /* Disable timer and reset to known state */
@@ -24,37 +26,37 @@ void timer_init(timer_t *dev, uint32_t base_addr, uint32_t clock_freq)
 
 void timer_enable(timer_t *dev)
 {
-    uint32_t ctrl = READ_REG(dev->base_address + REG_TIMER_CTRL_OFFSET);
+    uint32_t ctrl = READ_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET);
     ctrl |= TIMER_CTRL_ENABLE_BIT;
-    WRITE_REG(dev->base_address + REG_TIMER_CTRL_OFFSET, ctrl);
+    WRITE_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET, ctrl);
 }
 
 
 void timer_disable(timer_t *dev)
 {
-    uint32_t ctrl = READ_REG(dev->base_address + REG_TIMER_CTRL_OFFSET);
+    uint32_t ctrl = READ_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET);
     ctrl &= ~TIMER_CTRL_ENABLE_BIT;
-    WRITE_REG(dev->base_address + REG_TIMER_CTRL_OFFSET, ctrl);
+    WRITE_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET, ctrl);
 }
 
 
 void timer_reset(timer_t *dev)
 {
-    uint32_t ctrl = READ_REG(dev->base_address + REG_TIMER_CTRL_OFFSET);
+    uint32_t ctrl = READ_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET);
     
     /* Set reset bit */
     ctrl |= TIMER_CTRL_RESET_BIT;
-    WRITE_REG(dev->base_address + REG_TIMER_CTRL_OFFSET, ctrl);
+    WRITE_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET, ctrl);
     
     /* Clear reset bit (reset is edge-triggered) */
     ctrl &= ~TIMER_CTRL_RESET_BIT;
-    WRITE_REG(dev->base_address + REG_TIMER_CTRL_OFFSET, ctrl);
+    WRITE_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET, ctrl);
 }
 
 
 void timer_set_mode(timer_t *dev, timer_mode_t mode)
 {
-    uint32_t ctrl = READ_REG(dev->base_address + REG_TIMER_CTRL_OFFSET);
+    uint32_t ctrl = READ_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET);
     
     if (mode == TIMER_MODE_ONESHOT) {
         ctrl |= TIMER_CTRL_ONESHOT_BIT;
@@ -62,13 +64,13 @@ void timer_set_mode(timer_t *dev, timer_mode_t mode)
         ctrl &= ~TIMER_CTRL_ONESHOT_BIT;
     }
     
-    WRITE_REG(dev->base_address + REG_TIMER_CTRL_OFFSET, ctrl);
+    WRITE_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET, ctrl);
 }
 
 
 void timer_set_prescaler(timer_t *dev, timer_prescale_t prescale)
 {
-    uint32_t ctrl = READ_REG(dev->base_address + REG_TIMER_CTRL_OFFSET);
+    uint32_t ctrl = READ_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET);
     
     /* Clear current prescaler bits */
     ctrl &= ~TIMER_CTRL_PRESCALE_MASK;
@@ -76,61 +78,61 @@ void timer_set_prescaler(timer_t *dev, timer_prescale_t prescale)
     /* Set new prescaler value */
     ctrl |= ((prescale & 0x3u) << TIMER_CTRL_PRESCALE_POS);
     
-    WRITE_REG(dev->base_address + REG_TIMER_CTRL_OFFSET, ctrl);
+    WRITE_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET, ctrl);
 }
 
 
 uint32_t timer_get_count(timer_t *dev)
 {
-    return READ_REG(dev->base_address + REG_TIMER_COUNT_OFFSET);
+    return READ_REG(dev->base.base_address + REG_TIMER_COUNT_OFFSET);
 }
 
 
 void timer_set_compare(timer_t *dev, uint32_t compare_value)
 {
-    WRITE_REG(dev->base_address + REG_TIMER_CMP_OFFSET, compare_value);
+    WRITE_REG(dev->base.base_address + REG_TIMER_CMP_OFFSET, compare_value);
 }
 
 
 uint32_t timer_get_compare(timer_t *dev)
 {
-    return READ_REG(dev->base_address + REG_TIMER_CMP_OFFSET);
+    return READ_REG(dev->base.base_address + REG_TIMER_CMP_OFFSET);
 }
 
 
 bool timer_is_match(timer_t *dev)
 {
-    uint32_t status = READ_REG(dev->base_address + REG_TIMER_STATUS_OFFSET);
+    uint32_t status = READ_REG(dev->base.base_address + REG_TIMER_STATUS_OFFSET);
     return (status & TIMER_STATUS_MATCH_BIT) != 0;
 }
 
 
 bool timer_is_overflow(timer_t *dev)
 {
-    uint32_t status = READ_REG(dev->base_address + REG_TIMER_STATUS_OFFSET);
+    uint32_t status = READ_REG(dev->base.base_address + REG_TIMER_STATUS_OFFSET);
     return (status & TIMER_STATUS_OVERFLOW_BIT) != 0;
 }
 
 
 void timer_clear_match(timer_t *dev)
 {
-    uint32_t status = READ_REG(dev->base_address + REG_TIMER_STATUS_OFFSET);
+    uint32_t status = READ_REG(dev->base.base_address + REG_TIMER_STATUS_OFFSET);
     status &= ~TIMER_STATUS_MATCH_BIT;
-    WRITE_REG(dev->base_address + REG_TIMER_STATUS_OFFSET, status);
+    WRITE_REG(dev->base.base_address + REG_TIMER_STATUS_OFFSET, status);
 }
 
 
 void timer_clear_overflow(timer_t *dev)
 {
-    uint32_t status = READ_REG(dev->base_address + REG_TIMER_STATUS_OFFSET);
+    uint32_t status = READ_REG(dev->base.base_address + REG_TIMER_STATUS_OFFSET);
     status &= ~TIMER_STATUS_OVERFLOW_BIT;
-    WRITE_REG(dev->base_address + REG_TIMER_STATUS_OFFSET, status);
+    WRITE_REG(dev->base.base_address + REG_TIMER_STATUS_OFFSET, status);
 }
 
 
 void timer_clear_status(timer_t *dev)
 {
-    WRITE_REG(dev->base_address + REG_TIMER_STATUS_OFFSET, 0x00u);
+    WRITE_REG(dev->base.base_address + REG_TIMER_STATUS_OFFSET, 0x00u);
 }
 
 
@@ -146,18 +148,12 @@ void timer_configure(timer_t *dev, timer_mode_t mode, timer_prescale_t prescale,
 
 uint32_t timer_calculate_compare_value(timer_t *dev, uint32_t timeout_us)
 {
-    uint32_t ctrl = READ_REG(dev->base_address + REG_TIMER_CTRL_OFFSET);
+    uint32_t ctrl = READ_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET);
     uint32_t prescale = (ctrl & TIMER_CTRL_PRESCALE_MASK) >> TIMER_CTRL_PRESCALE_POS;
     uint32_t prescale_value;
     
     /* Get actual prescale divisor */
-    switch (prescale) {
-        case TIMER_PRESCALE_1:    prescale_value = 1; break;
-        case TIMER_PRESCALE_8:    prescale_value = 8; break;
-        case TIMER_PRESCALE_64:   prescale_value = 64; break;
-        case TIMER_PRESCALE_1024: prescale_value = 1024; break;
-        default:                  prescale_value = 1; break;
-    }
+    prescale_value = timer_prescale_to_divisor(prescale)
     
     /* Calculate timer ticks needed for timeout */
     uint64_t ticks = ((uint64_t)timeout_us * dev->clock_frequency) / (1000000UL * prescale_value);
@@ -172,6 +168,8 @@ uint32_t timer_calculate_compare_value(timer_t *dev, uint32_t timeout_us)
 
 void timer_start_timeout(timer_t *dev, uint32_t timeout_us, timer_mode_t mode)
 {
+    if (dev == NULL) return;
+
     uint32_t compare_value = timer_calculate_compare_value(dev, timeout_us);
     timer_configure(dev, mode, TIMER_PRESCALE_1, compare_value); /* Use current prescaler */
     timer_enable(dev);
@@ -184,6 +182,8 @@ bool timer_is_timeout(timer_t *dev)
 
 void timer_delay_us(timer_t *dev, uint32_t delay_us)
 {
+    if (dev == NULL) return;
+
     uint32_t compare_value = timer_calculate_compare_value(dev, delay_us);
     
     /* Configure timer for one-shot mode */
@@ -202,5 +202,39 @@ void timer_delay_us(timer_t *dev, uint32_t delay_us)
 
 void timer_delay_ms(timer_t *dev, uint32_t delay_ms)
 {
+    if (dev == NULL) return;
+
     timer_delay_us(dev, delay_ms * 1000u);
+}
+
+
+void timer_set_config(timer_t *dev, const timer_config_t *config)
+{
+    if (dev == NULL || config == NULL) return;
+
+    timer_disable(dev);
+
+    timer_set_mode(dev, config->mode);
+    timer_set_prescaler(dev, config->prescale);
+    timer_set_compare(dev, config->compare_value);
+
+    timer_clear_status(dev);
+    timer_reset(dev);
+}
+
+
+void timer_get_config(timer_t *dev, timer_config_t *config)
+{
+    if (dev == NULL || config == NULL) return;
+    
+    uint32_t ctrl = READ_REG(dev->base.base_address + REG_TIMER_CTRL_OFFSET);
+    
+    /* Extract mode: check if oneshot bit is set */
+    config->mode = (ctrl & TIMER_CTRL_ONESHOT_BIT) ? TIMER_MODE_ONESHOT : TIMER_MODE_CONTINUOUS;
+    
+    /* Extract prescaler: mask and shift to get the 2-bit field */
+    config->prescale = (timer_prescale_t)((ctrl & TIMER_CTRL_PRESCALE_MASK) >> TIMER_CTRL_PRESCALE_POS);
+    
+    /* Read compare value */
+    config->compare_value = READ_REG(dev->base.base_address + REG_TIMER_CMP_OFFSET);
 }

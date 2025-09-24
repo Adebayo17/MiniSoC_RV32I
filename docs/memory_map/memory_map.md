@@ -44,23 +44,21 @@ This document defines the memory layout of the MiniSoC-RV32I system. All address
 - **Default**: 104 (for 115200 baud @ 12MHz)
 
 #### CTRL Register (0x0C)
-| Bit | Name         | Description                                      |
-|-----|-------------|---------------------------------------------------|
-| 0   | TX_ENABLE    | Transmitter enable (1 = enabled)                 |
-| 1   | RX_ENABLE    | Receiver enable (1 = enabled)                    |
-| 2   | TX_INT_EN    | Transmit interrupt enable (not implemented)      |
-| 3   | RX_INT_EN    | Receive interrupt enable (not implemented)       |
-| 7:4 | RESERVED     | Reserved for future use                          |
+| Bit  | Name         | Description                                      |
+|------|--------------|--------------------------------------------------|
+| 0    | TX_ENABLE    | Transmitter enable (1 = enabled)                 |
+| 1    | RX_ENABLE    | Receiver enable (1 = enabled)                    |
+| 31:2 | RESERVED     | Reserved for future use                          |
 
 #### STATUS Register (0x10)
-| Bit | Name           | Description                                |
-|-----|---------------|---------------------------------------------|
-| 0   | TX_EMPTY       | Transmitter ready for new data (1 = ready) |
-| 1   | TX_BUSY        | Transmission in progress (1 = busy)        |
-| 2   | RX_READY       | Receive data available (1 = ready)         |
-| 3   | RX_OVERRUN     | Receive overrun error (1 = error)          |
-| 4   | RX_FRAME_ERR   | Frame error (stop bit missing)             |
-| 7:5 | RESERVED       | Reserved for future use                    |
+| Bit  | Name           | Description                                |
+|------|----------------|--------------------------------------------|
+| 0    | TX_EMPTY       | Transmitter ready for new data (1 = ready) |
+| 1    | TX_BUSY        | Transmission in progress (1 = busy)        |
+| 2    | RX_READY       | Receive data available (1 = ready)         |
+| 3    | RX_OVERRUN     | Receive overrun error (1 = error)          |
+| 4    | RX_FRAME_ERR   | Frame error (stop bit missing)             |
+| 31:5 | RESERVED       | Reserved for future use                    |
 
 ---
 
