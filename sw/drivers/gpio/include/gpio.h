@@ -92,8 +92,8 @@
 
 
 /* Direction Constants */
-#define GPIO_DIR_INPUT              0u 
-#define GPIO_DIR_OUTPUT             1u
+// #define GPIO_DIR_INPUT              0u 
+// #define GPIO_DIR_OUTPUT             1u
 
 
 /* ========================================================================== */
@@ -120,8 +120,8 @@ typedef enum {
  * @brief GPIO Direction Definition
  */
 typedef enum {
-    GPIO_INPUT   = 0u,
-    GPIO_OUTPUT  = 1u
+    GPIO_DIR_INPUT   = 0u,
+    GPIO_DIR_OUTPUT  = 1u
 } gpio_direction_t;
 
 
@@ -193,7 +193,7 @@ void gpio_set_direction_all(gpio_t *dev, uint8_t direction_mask);
  * @param pin Pin number (0-7) of GPIO_PIN_x constant
  * @param direction GPIO_DIR_INPUT or GPIO_DIR_OUTPUT
  */
-void gpio_set_direction_pin(gpio_t *dev, gpio_pin_t pin, uint8_t direction);
+void gpio_set_direction_pin(gpio_t *dev, gpio_pin_t pin, gpio_direction_t direction);
 
 
 /**
@@ -210,7 +210,7 @@ uint8_t gpio_get_direction_all(gpio_t *dev);
  * @param pin Pin number (0-7) of GPIO_PIN_x constant
  * @return GPIO_DIR_INPUT or GPIO_DIR_OUTPUT
  */
-uint8_t gpio_get_direction_pin(gpio_t *dev, gpio_pin_t pin);
+gpio_direction_t gpio_get_direction_pin(gpio_t *dev, gpio_pin_t pin);
 
 
 /**
@@ -301,7 +301,7 @@ void gpio_toggle_pin(gpio_t *dev, gpio_pin_t pin);
  * @param pin_mask Bitmask of pins to configure directions number (1=output, 0=input)
  * @param direction GPIO_DIR_INPUT or GPIO_DIR_OUTPUT
  */
-void gpio_set_direction_mask(gpio_t *dev, uint8_t pin_mask, uint8_t direction);
+void gpio_set_direction_mask(gpio_t *dev, uint8_t pin_mask, gpio_direction_t direction);
 
 
 /**

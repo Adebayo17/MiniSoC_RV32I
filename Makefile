@@ -65,6 +65,27 @@ distclean: clean
 	@rm -rf *.vcd *.log *.out *.hex *.bin *.o
 	@echo "[Makefile] Distclean complete"
 
+
+# -------------------------------------------
+# Software Targets
+# -------------------------------------------
+sw: check_env
+	$(MAKE) sw.all
+
+sw-firmware: check_env
+	$(MAKE) sw.firmware
+
+sw-test: check_env
+	$(MAKE) sw.test
+
+sw-clean: check_env
+	$(MAKE) sw.clean
+
+# Build firmware for simulation (used by sim targets)
+firmware: check_env
+	$(MAKE) sw.firmware.for_sim
+
+
 # -------------------------------------------
 # help
 # -------------------------------------------

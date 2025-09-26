@@ -99,6 +99,13 @@
 /* UART Structure Definitions                                                 */
 /* ========================================================================== */
 
+#define UART_BAUD_9600              9600
+#define UART_BAUD_19200             19200
+#define UART_BAUD_38400             38400
+#define UART_BAUD_57600             57600
+#define UART_BAUD_115200            115200
+
+
 /**
  * @brief UART Device Structute
  */
@@ -159,6 +166,23 @@ uint16_t uart_get_baud_divisor(uart_t *dev);
 
 
 /**
+ * @brief Set baud rate divisor
+ * @param dev Pointer to UART structure
+ * @param clk_freq UART clock frequency
+ * @param baudrate Baud rate value
+ */
+void uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudrate);
+
+
+/**
+ * @brief Get baud rate divisor
+ * @param dev Pointer to UART structure
+ * @param clk_freq UART clock frequency
+ * @return Current Baud rate  
+ */
+uint32_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq);
+
+/**
  * @brief Enable transmitter
  * @param dev Pointer to UART structure
  */
@@ -182,6 +206,20 @@ void uart_enable_rx(uart_t *dev);
  * @param dev Pointer to UART structure
  */
 void uart_disable_rx(uart_t *dev);
+
+
+/**
+ * @brief Enable both transmitter and receiver
+ * @param dev Pointer to UART structure
+ */
+void uart_enable(uart_t *dev);
+
+
+/**
+ * @brief Disable both transmitter and receiver
+ * @param dev Pointer to UART structure
+ */
+void uart_disable(uart_t *dev)
 
 
 /**

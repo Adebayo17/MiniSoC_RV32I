@@ -32,9 +32,37 @@ void uart_set_baud_divisor(uart_t *dev, uint16_t divisor)
 
 uint16_t uart_get_baud_divisor(uart_t *dev)
 {
-    return (uint16_t)(READ_REG(dev->base.base_address + REG_BAUD_DIV_OFFSET) && BAUD_DIV_MASK);
+    return (uint16_t)(READ_REG(dev->base.base_address + REG_BAUD_DIV_OFFSET) & BAUD_DIV_MASK);
 }
 
+
+void uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudrate)
+{
+    if (baudrate == 0) {
+        return; // avoid division by zero
+    }
+
+    // Compute divisor (rounded)
+    uint32_t divisor = (clk_freq + baudrate / 2) / baudrate;
+
+    if (divisor > BAUD_DIV_MASK) {
+        divisor = BAUD_DIV_MASK; // clamp to max supported
+    }
+
+    uart_set_baud_divisor(dev, (uint16_t)divisor);
+}
+
+
+uint32_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq)
+{
+    uint16_t divisor = uart_get_baud_divisor(dev);
+
+    if (divisor == 0) {
+        return 0; // invalid config
+    }
+
+    return clk_freq / divisor;
+}
 
 void uart_enable_tx(uart_t *dev)
 {
@@ -66,6 +94,23 @@ void uart_disable_rx(uart_t *dev)
     reg &= ~CTRL_RX_ENABLE_BIT;
     WRITE_REG(dev->base.base_address + REG_CTRL_OFFSET, reg);
 }
+
+
+void uart_enable(uart_t *dev)
+{
+    uint32_t reg = READ_REG(dev->base.base_address + REG_CTRL_OFFSET);
+    reg |= (CTRL_TX_ENABLE_BIT | CTRL_RX_ENABLE_BIT);
+    WRITE_REG(dev->base.base_address + REG_CTRL_OFFSET, reg);
+}
+
+
+void uart_disable(uart_t *dev)
+{
+    uint32_t reg = READ_REG(dev->base.base_address + REG_CTRL_OFFSET);
+    reg &= ~(CTRL_TX_ENABLE_BIT | CTRL_RX_ENABLE_BIT);
+    WRITE_REG(dev->base.base_address + REG_CTRL_OFFSET, reg);
+}
+
 
 
 bool uart_tx_ready(uart_t *dev)
@@ -124,7 +169,7 @@ bool uart_receive_byte(uart_t *dev, uint8_t *data)
     }
 
     /* Read data from receive register (clears RX_READY flag) */
-    *data = (uint8_t)(READ_REG(dev->base.base_address + REG_TX_DATA_OFFSET) && RX_DATA_MASK);
+    *data = (uint8_t)(READ_REG(dev->base.base_address + REG_TX_DATA_OFFSET) & RX_DATA_MASK);
     return true;
 }
 

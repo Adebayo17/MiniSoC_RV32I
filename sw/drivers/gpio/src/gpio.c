@@ -26,7 +26,7 @@ void gpio_set_direction_all(gpio_t *dev, uint8_t direction_mask)
 }
 
 
-void gpio_set_direction_pin(gpio_t *dev, gpio_pin_t pin, uint8_t direction)
+void gpio_set_direction_pin(gpio_t *dev, gpio_pin_t pin, gpio_direction_t direction)
 {
     if (pin >= GPIO_PIN_MAX) return;
 
@@ -52,7 +52,7 @@ uint8_t gpio_get_direction_all(gpio_t *dev)
 }
 
 
-uint8_t gpio_get_direction_pin(gpio_t *dev, gpio_pin_t pin)
+gpio_direction_t gpio_get_direction_pin(gpio_t *dev, gpio_pin_t pin)
 {
     if (pin >= GPIO_PIN_MAX) return GPIO_DIR_INPUT;
 
@@ -138,21 +138,20 @@ void gpio_toggle_pin(gpio_t *dev, gpio_pin_t pin)
 }
 
 
-void gpio_set_direction_mask(gpio_t *dev, uint8_t pin_mask, uint8_t direction)
+void gpio_set_direction_mask(gpio_t *dev, uint8_t pin_mask, gpio_direction_t direction)
 {
     uint8_t current_dir = gpio_get_direction_all(dev);
 
-    if (direction == GPIO_DIR_INPUT)
+    if (direction == GPIO_DIR_OUTPUT)
     {
-        current_dir |= pin_mask;
+        current_dir |= pin_mask;   // Set pins as outputs
     }
     else
     {
-        current_dir &= ~pin_mask;
+        current_dir &= ~pin_mask;  // Set pins as inputs
     }
 
     gpio_set_direction_all(dev, current_dir);
-    
 }
 
 

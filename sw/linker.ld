@@ -1,4 +1,13 @@
-/* MiniSoc-RV32I Linker Script */ 
+/* ==================================================
+ * MiniSoc-RV32I Linker Script
+ *   IMEM = 4 KB @ 0x0000_0000 (instructions, constants)
+ *   DMEM = 4 KB @ 0x1000_0000 (data, heap, stack)
+ *
+ * DMEM partitioning:
+ *   [0x1000_0000 - 0x1000_07FF]  2 KB = .data + .bss
+ *   [0x1000_0800 - 0x1000_0BFF]  1 KB = .heap
+ *   [0x1000_0C00 - 0x1000_0FFF]  1 KB = .stack (grows downward)
+ * ================================================== */
 
 /* ---------------------------------------------------
  * Memory Map (matches SoC specification)
@@ -22,6 +31,13 @@ ENTRY(_start)
 
 
 /* ---------------------------------------------------
+ * Output Format
+ * --------------------------------------------------- */
+OUTPUT_FORMAT("elf32-little")    /* RISC-V RV32 little-endian */
+OUTPUT_ARCH(riscv:rv32)
+
+
+/* ---------------------------------------------------
  * Output Sections
  * --------------------------------------------------- */
 SECTIONS
@@ -29,83 +45,71 @@ SECTIONS
     /* ==================================================
      * Code Section (Placed in IMEM)
      * ================================================== */
-    .text :
+    . = ORIGIN(IMEM);
+    .text : ALIGN(4)
     {
-        /* Startup code first */
-        KEEP(*(.init))          /* Startup Code */
-        KEEP(*(.vector))        /* Interrupt vectors (if any) */
+        KEEP(*(.init))                      /* Startup Code */
+        KEEP(*(.vector))                    /* Interrupt vectors (if any) */
         
-        /* Main program code */
-        *(.text .text.*)        /* Program Code */
+        *(.text .text.*)                    /* Main Program Code */
+        *(.rodata .rodata.*)                /* Read-only data (constants, strings) */
         
-        /* Read-only data (constants, strings) */
-        *(.rodata .rodata.*)
-        
-        /* Ensure section alignment */
-        . = ALIGN(4);
+        . = ALIGN(4);                       /* Ensure section alignment */
+        _etext = .;                         /* End of text section */
     } > IMEM
 
     /* ==================================================
      * Initialized Data Section 
      * (goes into DMEM, but initial values stored in IMEM)
      * ================================================== */
-    .data : 
+    . = ORIGIN(DMEM);
+    .data : ALIGN(4)
     {
-        __data_start = .;       /* Start of data in DMEM */
-        
+        _sidata = LOADADDR(.data);          /* Load address of data section (in IMEM) */
+
+        _sdata = .;                         /* Start of data in DMEM */
         *(.data .data.*)
-        *(.sdata .sdata.*)      /* Small data */
-        
-        . = ALIGN(4);
-        __data_end = .;         /* End of data in DMEM */
+        *(.sdata .sdata.*)                  /* Small data */
+        _edata = .;                         /* End of data in DMEM */
     } > DMEM AT > IMEM
     
-    /* Load address of data section (in IMEM) */
-    __data_load_start = LOADADDR(.data);
-
+    
     /* ==================================================
      * Uninitialized Data Section (BSS, zero-filled)
      * ================================================== */
-    .bss (NOLOAD) : 
+    .bss (NOLOAD) : ALIGN(4)
     {
-        __bss_start = .;        /* Start of BSS */
-        
+        _sbss = .;                          /* Start of BSS */
         *(.bss .bss.*)
         *(COMMON)
-        *(.sbss .sbss.*)        /* Small BSS */
-        
-        . = ALIGN(4);
-        __bss_end = .;          /* End of BSS */
+        *(.sbss .sbss.*)                    /* Small BSS */
+        _ebss = .;                          /* End of BSS */
     } > DMEM
+
+    /* Force . = start of heap region (0x1000_0800) */
+    . = ORIGIN(DMEM) + 0x800;
+
 
     /* ==================================================
      * Heap Section (for dynamic memory allocation)
      * ================================================== */
-    .heap (NOLOAD) :
+    .heap (NOLOAD) : ALIGN(8)
     {
-        . = ALIGN(8);           /* 8-byte alignment for heap */
-        __heap_start = .;       /* Start of heap */
-        
-        /* Reserve 1KB for heap (matches system.h) */
-        . += 0x400;             /* 1KB = 0x400 bytes */
-        
-        __heap_end = .;         /* End of heap */
+        _heap_start = .;                    /* Start of heap */
+        . += 0x400;                         /* 1KB = 0x400 bytes */
+        _heap_end   = .;                    /* End of heap */
     } > DMEM
+
 
     /* ==================================================
      * Stack Section (at top of DMEM, grows downward)
      * ================================================== */
-    .stack (NOLOAD) : 
-    {
-        . = ALIGN(8);           /* 8-byte alignment for stack */
-        
-        /* Stack starts at top of DMEM and grows downward */
-        . = ORIGIN(DMEM) + LENGTH(DMEM);    /* Top of DMEM */
-        __stack_top = .;                    /* Stack pointer initial value */
-        
-        /* Reserve 1KB for stack (matches system.h) */
+    .stack (NOLOAD) : ALIGN(8)
+    {   
+        . = ORIGIN(DMEM) + LENGTH(DMEM);    /* Top of DMEM : 0x1000_1000 */
+        _estack = .;                        /* Stack pointer initial value */
         . -= 0x400;                         /* 1KB = 0x400 bytes */
-        __stack_bottom = .;                 /* Bottom of stack area */
+        _sstack = .;                        /* Bottom of stack area */
     } > DMEM
 
     /* ==================================================
@@ -113,13 +117,13 @@ SECTIONS
      * ================================================== */
     
     /* Calculate total used DMEM */
-    __dmem_used = __heap_end - ORIGIN(DMEM);
+    __dmem_used = _heap_end - ORIGIN(DMEM);
     
     /* Ensure we don't exceed DMEM size */
     ASSERT(__dmem_used <= LENGTH(DMEM), "Error: DMEM overflow!")
     
     /* Ensure stack doesn't overlap heap */
-    ASSERT(__stack_bottom >= __heap_end, "Error: Stack overlaps heap!")
+    ASSERT(_sstack >= _heap_end, "Error: Stack overlaps heap!")
     
     /* ==================================================
      * Provide symbols for C code usage

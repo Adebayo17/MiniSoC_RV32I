@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "timer.h"
 
 
 /* ========================================================================== */
@@ -62,11 +63,11 @@
 /* 
  * DMEM Layout (0x10000000 - 0x10000FFF):
  * 
- * | Range          | Size  | Purpose                          |
- * |---------------|-------|----------------------------------|
- * | 0x10000000    | 2KB   | Data (global variables, etc.)     |
- * | 0x10000800    | 1KB   | Heap (dynamic memory)             |
- * | 0x10000C00    | 1KB   | Stack (grows downward)            |
+ * | Range          | Size  | Purpose                          | Range                          |
+ * |---------------|-------|-----------------------------------|--------------------------------|
+ * | 0x10000000    | 2KB   | Data (global variables, etc.)     | [0x1000_0000 - 0x1000_07FF]    |
+ * | 0x10000800    | 1KB   | Heap (dynamic memory)             | [0x1000_0800 - 0x1000_0BFF]    |
+ * | 0x10000C00    | 1KB   | Stack (grows downward)            | [0x1000_0C00 - 0x1000_0FFF]    |
  */
 
 /* Data Section (static/global variables) */
@@ -80,7 +81,7 @@
 /* Stack Configuration (grows downward from top of DMEM) */
 #define STACK_BASE_ADDRESS          (DMEM_END_ADDRESS)              /* Top of DMEM */
 #define STACK_SIZE                  0x00000400U                     /* 1KB Stack */
-#define STACK_END_ADDRESS           (STACK_BASE_ADDRESS - STACK_SIZE)
+#define STACK_END_ADDRESS           (STACK_BASE_ADDRESS - STACK_SIZE + 1)
 
 
 /* Verify we don't exceed DMEM */
@@ -100,9 +101,9 @@
 
 
 /* Linker-provided symbols (extern references) */
-extern uint32_t __heap_start;
-extern uint32_t __heap_end;
-extern uint32_t __stack_top;
+extern uint32_t _heap_start;
+extern uint32_t _heap_end;
+extern uint32_t _estack;
 
 /* ========================================================================== */
 /* Register Access Macros                                                     */
