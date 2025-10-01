@@ -60,9 +60,34 @@ sim.cpu.clean:
 
 
 # -------------------------------------------
+# Help
+# -------------------------------------------
+.PHONY: sim.cpu.help
+
+sim.cpu.help:
+	@echo "================================================================================"
+	@echo "MiniSoC-RV32I: CPU Makefile Commands"
+	@echo "================================================================================"
+	@echo "  make sim.cpu             	- Build cpu simulation"
+	@echo "  make sim.cpu.run         	- Run cpu simulation"
+	@echo "  make sim.cpu.wave        	- Open cpu waveform"
+	@echo "  make sim.cpu.clean       	- Clean cpu simulation files"
+	@echo "  make sim.cpu.help         	- Show cpu simulation help"
+	@echo ""
+	@echo "Shortcuts:"
+	@echo "  make cpu                	- Alias for sim.cpu"
+	@echo "  make cpu-run             	- Alias for sim.cpu.run"
+	@echo "  make cpu-wave            	- Alias for sim.cpu.wave"
+	@echo "  make cpu-clean     		- Alias for sim.cpu.clean"
+	@echo "  make cpu-help            	- Alias for sim.cpu.help"
+	@echo "================================================================================"
+
+
+# -------------------------------------------
 # Shortcuts
 # -------------------------------------------
-cpu: sim.cpu
-cpu-run: sim.cpu.run
-cpu-wave: sim.cpu.wave
-cpu-clean: sim.cpu.clean
+cpu: 		sim.cpu
+cpu-run: 	sim.cpu.run
+cpu-wave: 	sim.cpu.wave
+cpu-clean: 	sim.cpu.clean
+cpu-help: 	sim.cpu.help

@@ -1,9 +1,11 @@
 module mem_init #(
-    parameter IMEM_BASE = 32'h0000_0000,
-    parameter DMEM_BASE = 32'h1000_0000,
-    parameter INIT_FILE = "firmware.hex",
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter IMEM_BASE     = 32'h0000_0000,
+    parameter DMEM_BASE     = 32'h1000_0000,
+    parameter IMEM_SIZE_KB  = 8,
+    parameter DMEM_SIZE_KB  = 4,
+    parameter INIT_FILE     = "firmware.mem",
+    parameter ADDR_WIDTH    = 32,
+    parameter DATA_WIDTH    = 32
 ) (
     // Clock and reset
     input wire                      clk,
@@ -26,7 +28,9 @@ module mem_init #(
     // -------------------------------------------
     // Memory for firmware data
     // -------------------------------------------
-    reg [DATA_WIDTH-1:0] firmware_mem [0:1023];  
+    localparam DMEM_DEPTH = DMEM_SIZE_KB * 1024 / 4;
+    localparam IMEM_DEPTH = IMEM_SIZE_KB * 1024 / 4;
+    reg [DATA_WIDTH-1:0] firmware_mem [0:IMEM_DEPTH-1];  
 
 
     initial begin
@@ -37,6 +41,8 @@ module mem_init #(
             $display("[MEM_INIT] No firmware file specified");
         end
     end
+
+    
 
     // -------------------------------------------
     // Initialization FSM
@@ -79,7 +85,7 @@ module mem_init #(
                     imem_init_addr  <= IMEM_BASE + (init_counter << 2);
                     imem_init_data  <= firmware_mem[init_counter];
                     
-                    if (init_counter == 1023) begin
+                    if (init_counter == (IMEM_DEPTH-1)) begin
                         state           <= LOAD_DMEM;
                         init_counter    <= 0;
                     end else begin
@@ -92,7 +98,7 @@ module mem_init #(
                     dmem_init_addr  <= DMEM_BASE + (init_counter << 2);
                     dmem_init_data  <= 32'h0;
                     
-                    if (init_counter == 1023) begin
+                    if (init_counter == (DMEM_DEPTH-1)) begin
                         state           <= DONE;
                     end else begin
                         init_counter    <= init_counter + 1;

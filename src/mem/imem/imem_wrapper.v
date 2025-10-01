@@ -1,6 +1,6 @@
 module imem_wrapper #(
     parameter BASE_ADDR  = 32'h0000_0000,
-    parameter SIZE_KB    = 4,
+    parameter SIZE_KB    = 8,
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32
 ) (
@@ -33,7 +33,7 @@ module imem_wrapper #(
     // -------------------------------------------
     // Address Decoding
     // -------------------------------------------
-    wire mem_select = (wbs_addr >= BASE_ADDR) && (wbs_addr < (BASE_ADDR + (SIZE_KB * 1024)));
+    wire mem_select  = (wbs_addr >= BASE_ADDR) && (wbs_addr < (BASE_ADDR + (SIZE_KB * 1024)));
     wire init_select = (init_addr >= BASE_ADDR) && (init_addr < BASE_ADDR + (SIZE_KB * 1024));
     
     wire [ADDR_WIDTH-1:0] imem_wbs_addr, imem_init_addr;

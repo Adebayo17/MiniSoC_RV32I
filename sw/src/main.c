@@ -73,7 +73,7 @@ void blink_led_demo(void)
         system_delay_ms(500);
 
         /* Send heartbeat over UART*/
-        uart_transmit_byte(&uart0, ".");
+        uart_transmit_byte(&uart0, '.');
     }
 
     print_string("\r\nLED Blink Demo Completed\r\n");   

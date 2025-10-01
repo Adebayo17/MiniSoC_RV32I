@@ -153,7 +153,7 @@ uint32_t timer_calculate_compare_value(timer_t *dev, uint32_t timeout_us)
     uint32_t prescale_value;
     
     /* Get actual prescale divisor */
-    prescale_value = timer_prescale_to_divisor(prescale)
+    prescale_value = timer_prescale_to_divisor(prescale);
     
     /* Calculate timer ticks needed for timeout */
     uint64_t ticks = ((uint64_t)timeout_us * dev->clock_frequency) / (1000000UL * prescale_value);

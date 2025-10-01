@@ -219,7 +219,7 @@ void uart_enable(uart_t *dev);
  * @brief Disable both transmitter and receiver
  * @param dev Pointer to UART structure
  */
-void uart_disable(uart_t *dev)
+void uart_disable(uart_t *dev);
 
 
 /**

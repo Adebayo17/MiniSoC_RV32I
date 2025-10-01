@@ -1,2 +1,46 @@
+# VScode config
+.vscode 
+
+# Build directories
+build/
 *.log
-.vscode
+*.vcd
+*.out
+
+# Toolchain build artifacts
+tools/
+
+# Object files and binaries
+*.o
+*.elf
+*.bin
+*.hex
+*.mem
+*.disasm
+
+# Simulation artifacts
+*.vvp
+*.vcd
+*.fsdb
+
+# Synthesis artifacts
+*.blif
+*.json
+*.ys
+
+# Editor and OS files
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Toolchain installation (if you build locally)
+/opt/riscv/
+
+# Dependency directories (if any)
+deps/
+submodules/
+
+# Backup files
+*~
+*.bak

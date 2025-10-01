@@ -10,6 +10,7 @@ module tb_cpu;
     parameter IMEM_BASE_ADDR        = 32'h0000_0000;
     parameter DMEM_BASE_ADDR        = 32'h0000_0000;
     parameter SIZE_KB               = 4;
+    parameter INIT_FILE             = "firmware.mem"
     
     // Clock and reset
     reg clk;
@@ -88,7 +89,7 @@ module tb_cpu;
     mem_init #(
         .IMEM_BASE(IMEM_BASE_ADDR),
         .DMEM_BASE(DMEM_BASE_ADDR),
-        .INIT_FILE("firmware.hex"),
+        .INIT_FILE(INIT_FILE),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) mem_init_inst (
@@ -173,7 +174,7 @@ module tb_cpu;
     // Create firmware.hex file with test program
     initial begin
         // Create a simple test program
-        f = $fopen("firmware.hex", "w");
+        f = $fopen(INIT_FILE, "w");
 
         // Load DMEM base address
         $fdisplay(f, "10000537"); // lui x10, 0x10000

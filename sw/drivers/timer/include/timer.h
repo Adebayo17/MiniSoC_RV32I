@@ -7,6 +7,7 @@
 #define TIMER_H
 
 #include "system.h"
+#include <stddef.h>
 
 
 /* ========================================================================== */
@@ -107,10 +108,14 @@ typedef struct {
 /**
  * @brief Timer Device Structure
  */
-typedef struct {
+struct timer_system {
     peripheral_t base;
     uint32_t     clock_frequency;  /* Timer clock frequency in Hz */
-} timer_t;
+};
+
+
+// Keep the typedef for convenience
+typedef struct timer_system timer_t;
 
 
 /* ========================================================================== */

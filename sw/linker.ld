@@ -1,6 +1,6 @@
 /* ==================================================
  * MiniSoc-RV32I Linker Script
- *   IMEM = 4 KB @ 0x0000_0000 (instructions, constants)
+ *   IMEM = 8 KB @ 0x0000_0000 (instructions, constants)
  *   DMEM = 4 KB @ 0x1000_0000 (data, heap, stack)
  *
  * DMEM partitioning:
@@ -10,11 +10,19 @@
  * ================================================== */
 
 /* ---------------------------------------------------
+ * Output Format
+ * --------------------------------------------------- */
+/* OUTPUT_FORMAT("elf32-little")    RISC-V RV32 little-endian */
+OUTPUT_FORMAT("elf32-littleriscv", "elf32-littleriscv", "elf32-littleriscv")
+OUTPUT_ARCH(riscv)
+
+
+/* ---------------------------------------------------
  * Memory Map (matches SoC specification)
  * --------------------------------------------------- */
 MEMORY 
 {
-    IMEM  (rx)      : ORIGIN = 0x00000000, LENGTH = 4K    /* Instruction Memory */
+    IMEM  (rx)      : ORIGIN = 0x00000000, LENGTH = 8K    /* Instruction Memory */
     DMEM  (rwx)     : ORIGIN = 0x10000000, LENGTH = 4K    /* Data Memory */
 
     /* Peripherals (not used for section placement, only for reference) */
@@ -28,13 +36,6 @@ MEMORY
  * Entry Point
  * --------------------------------------------------- */
 ENTRY(_start)
-
-
-/* ---------------------------------------------------
- * Output Format
- * --------------------------------------------------- */
-OUTPUT_FORMAT("elf32-little")    /* RISC-V RV32 little-endian */
-OUTPUT_ARCH(riscv:rv32)
 
 
 /* ---------------------------------------------------
@@ -65,13 +66,14 @@ SECTIONS
     . = ORIGIN(DMEM);
     .data : ALIGN(4)
     {
-        _sidata = LOADADDR(.data);          /* Load address of data section (in IMEM) */
-
         _sdata = .;                         /* Start of data in DMEM */
         *(.data .data.*)
         *(.sdata .sdata.*)                  /* Small data */
+        . = ALIGN(4);
         _edata = .;                         /* End of data in DMEM */
     } > DMEM AT > IMEM
+
+    _sidata = LOADADDR(.data);              /* Load address of data section (in IMEM) */
     
     
     /* ==================================================
@@ -83,6 +85,7 @@ SECTIONS
         *(.bss .bss.*)
         *(COMMON)
         *(.sbss .sbss.*)                    /* Small BSS */
+        . = ALIGN(4);
         _ebss = .;                          /* End of BSS */
     } > DMEM
 
@@ -106,15 +109,18 @@ SECTIONS
      * ================================================== */
     .stack (NOLOAD) : ALIGN(8)
     {   
-        . = ORIGIN(DMEM) + LENGTH(DMEM);    /* Top of DMEM : 0x1000_1000 */
-        _estack = .;                        /* Stack pointer initial value */
-        . -= 0x400;                         /* 1KB = 0x400 bytes */
-        _sstack = .;                        /* Bottom of stack area */
+        _sstack = .;                        /* Stack bottom: 0x10000C00 */
+        . += 0x400;                         /* Reserve 1KB stack */
+        _estack = .;                        /* Stack top: 0x10001000 (just past DMEM) */
     } > DMEM
 
     /* ==================================================
      * Memory Usage Validation
      * ================================================== */
+    
+    /* Check heap doesn't exceed available space */
+    _heap_max = _estack - 0x400;  /* Leave 1KB for stack minimum */
+    ASSERT(_heap_end <= _heap_max, "Error: Heap too large!")
     
     /* Calculate total used DMEM */
     __dmem_used = _heap_end - ORIGIN(DMEM);

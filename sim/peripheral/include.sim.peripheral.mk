@@ -82,14 +82,14 @@ sim.timer.wave:
 # -------------------------------------------
 # GPIO Simulation
 # -------------------------------------------
-.PHONY: sim.gpio.run sim.gpio.wave sim.gpio.latency sim.gpio.latency.run sim.gpio.latency.wave
+.PHONY: sim.gpio sim.gpio.run sim.gpio.wave 
 
 GPIO_SOURCES := \
     $(PERIPHERAL_SRC_DIR)/gpio/gpio.v \
     $(PERIPHERAL_SRC_DIR)/gpio/gpio_wrapper.v
 
 GPIO_TB         := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio.v
-GPIO_TB_LATENCY := $(PERIPHERAL_SIM_DIR)/gpio/tb_gpio_latency.v
+
 
 $(GPIO_BUILD_DIR)/gpio_tb.out: $(GPIO_SOURCES) $(GPIO_TB)
 	@mkdir -p $(GPIO_BUILD_DIR)
@@ -97,14 +97,9 @@ $(GPIO_BUILD_DIR)/gpio_tb.out: $(GPIO_SOURCES) $(GPIO_TB)
 	@echo "[GPIO] Testbench built: $@"
 	@echo ""
 
-$(GPIO_BUILD_DIR)/gpio_latency_tb.out: $(GPIO_SOURCES) $(GPIO_TB_LATENCY)
-	@mkdir -p $(GPIO_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(PERIPHERAL_SRC_DIR) -I$(PERIPHERAL_SRC_DIR)/gpio $^
-	@echo "[GPIO] Latency testbench built: $@"
-	@echo ""
 
 sim.gpio: $(GPIO_BUILD_DIR)/gpio_tb.out
-sim.gpio.latency: $(GPIO_BUILD_DIR)/gpio_latency_tb.out
+
 
 sim.gpio.run: sim.gpio
 	@echo "\n[GPIO] Running tests..."
@@ -112,17 +107,11 @@ sim.gpio.run: sim.gpio
 	@echo "[GPIO] Test completed - see $(GPIO_BUILD_DIR)/gpio.log"
 	@echo ""
 
-sim.gpio.latency.run: sim.gpio.latency
-	@echo "\n[GPIO] Running latency tests..."
-	@cd $(GPIO_BUILD_DIR) && $(VVP) gpio_latency_tb.out -l gpio_latency.log
-	@echo "[GPIO] Latency test completed - see $(GPIO_BUILD_DIR)/gpio_latency.log"
-	@echo ""
 
 sim.gpio.wave:
 	$(GTKWAVE) $(GPIO_BUILD_DIR)/gpio_tb.vcd &
 
-sim.gpio.latency.wave:
-	$(GTKWAVE) $(GPIO_BUILD_DIR)/gpio_latency_tb.vcd &
+
 
 # -------------------------------------------
 # Aggregate Targets
@@ -145,13 +134,64 @@ sim.peripheral.clean:
 	@find $(PERIPHERAL_SIM_DIR) -name "*.vcd" -delete
 	@find $(PERIPHERAL_SIM_DIR) -name "*.log" -delete
 
+
 # -------------------------------------------
-# Shortcut Commands (consistent naming)
+# Help
+# -------------------------------------------
+.PHONY: sim.peripheral.help
+
+sim.peripheral.help:
+	@echo "================================================================================"
+	@echo "MiniSoC-RV32I: PERIPHERALS Makefile Commands"
+	@echo "================================================================================"
+	@echo ""
+	@echo "PERIPHERAL:"
+	@echo "  make sim.peripheral       	- Build all peripherals simulation"
+	@echo "  make sim.peripheral.run   	- Run all peripherals simulation"
+	@echo "  make sim.peripheral.wave 	- Open all peripherals waveform"
+	@echo "  make sim.peripheral.clean 	- Clean all peripherals simulation files"
+	@echo "  make sim.peripheral.help  	- Show peripheral simulation help"
+	@echo ""
+	@echo "UART:"
+	@echo "  make sim.uart          	- Build uart simulation"
+	@echo "  make sim.uart.run         	- Run uart simulation"
+	@echo "  make sim.uart.wave     	- Open uart waveform"
+	@echo ""
+	@echo "GPIO:"
+	@echo "  make sim.gpio          	- Build gpio simulation"
+	@echo "  make sim.gpio.run         	- Run gpio simulation"
+	@echo "  make sim.gpio.wave     	- Open gpio waveform"
+	@echo ""
+	@echo "TIMER:"
+	@echo "  make sim.timer         	- Build timer simulation"
+	@echo "  make sim.timer.run     	- Run timer simulation"
+	@echo "  make sim.timer.wave    	- Open timer waveform"
+	@echo ""
+	@echo "Shortcuts:"
+	@echo "  make peripheral          	- Alias for sim.peripheral"
+	@echo "  make peripheral-run       	- Alias for sim.peripheral.run"
+	@echo "  make peripheral-wave      	- Alias for sim.peripheral.wave"
+	@echo "  make peripheral-clean    	- Alias for sim.peripheral.clean"
+	@echo "  make peripheral-help      	- Alias for sim.peripheral.help"
+	@echo "  make uart                	- Alias for sim.uart"
+	@echo "  make uart-run            	- Alias for sim.uart.run"
+	@echo "  make uart-wave     		- Alias for sim.uart.wave"
+	@echo "  make gpio                	- Alias for sim.gpio"
+	@echo "  make gpio-run            	- Alias for sim.gpio.run"
+	@echo "  make gpio-wave          	- Alias for sim.gpio.wave"
+	@echo "  make timer               	- Alias for sim.timer"
+	@echo "  make timer-run           	- Alias for sim.timer.run"
+	@echo "  make timer-wave          	- Alias for sim.timer.wave"
+	@echo "================================================================================"
+
+# -------------------------------------------
+# Shortcut Commands
 # -------------------------------------------
 peripheral: sim.peripheral
 peripheral-run: sim.peripheral.run
 peripheral-wave: sim.peripheral.wave
 peripheral-clean: sim.peripheral.clean
+peripheral-help: sim.peripheral.help
 
 uart: sim.uart
 uart-run: sim.uart.run
@@ -164,7 +204,3 @@ timer-wave: sim.timer.wave
 gpio: sim.gpio
 gpio-run: sim.gpio.run
 gpio-wave: sim.gpio.wave
-
-gpio-latency: sim.gpio.latency
-gpio-latency-run: sim.gpio.latency.run
-gpio-latency-wave: sim.gpio.latency.wave

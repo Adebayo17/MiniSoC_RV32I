@@ -48,7 +48,7 @@ void gpio_set_direction_pin(gpio_t *dev, gpio_pin_t pin, gpio_direction_t direct
 
 uint8_t gpio_get_direction_all(gpio_t *dev)
 {
-    return (uint8_t)(REAG_REG(dev->base.base_address + REG_GPIO_DIR_OFFSET) & 0xFF);
+    return (uint8_t)(READ_REG(dev->base.base_address + REG_GPIO_DIR_OFFSET) & 0xFF);
 }
 
 
@@ -86,7 +86,7 @@ void gpio_write_pin(gpio_t *dev, gpio_pin_t pin, bool value)
 
 uint8_t gpio_read_all(gpio_t *dev)
 {
-    return (uint8_t)(REAG_REG(dev->base.base_address + REG_GPIO_DATA_OFFSET) & 0xFF);
+    return (uint8_t)(READ_REG(dev->base.base_address + REG_GPIO_DATA_OFFSET) & 0xFF);
 }
 
 

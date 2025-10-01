@@ -11,8 +11,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "timer.h"
+#include <stddef.h>
 
+typedef struct timer_system timer_t;
 
 /* ========================================================================== */
 /* Memory Map Definitions                                                     */
@@ -23,7 +24,7 @@
  * 
  * | Name    | Base Address   | Size   | Access | Description               |
  * |---------|---------------|--------|--------|----------------------------|
- * | IMEM    | 0x0000_0000   | 4 KB   | R      | Instruction memory         |
+ * | IMEM    | 0x0000_0000   | 8 KB   | R      | Instruction memory         |
  * | DMEM    | 0x1000_0000   | 4 KB   | R/W    | Data Memory                |
  * | UART    | 0x2000_0000   | 4 KB   | R/W    | UART base register address |
  * | TIMER   | 0x3000_0000   | 4 KB   | R/W    | TIMER base register address|
@@ -44,7 +45,7 @@
 
 
 /* Memory Sizes */
-#define IMEM_SIZE                   0x00001000U /* 4KB Instruction Memory */
+#define IMEM_SIZE                   0x00002000U /* 8KB Instruction Memory */
 #define DMEM_SIZE                   0x00001000U /* 4KB Data Memory */
 #define PERIPH_SIZE                 0x00001000U /* 4KB Per Peripheral */
 
@@ -210,8 +211,8 @@ extern uint32_t _estack;
  * @param addr Address to check
  * @return true if address is in IMEM space
  */
-#define IS_IMEM_ADDRESS(addr)       (((uint32_t)(addr) >= IMEM_BASE_ADDRESS) && \
-                                    ((uint32_t)(addr) <= IMEM_END_ADDRESS))
+#define IS_IMEM_ADDRESS(addr)       (((uint32_t)(addr) >= (uint32_t)IMEM_BASE_ADDRESS) && \
+                                    ((uint32_t)(addr) <= (uint32_t)IMEM_END_ADDRESS))
 
 /**
  * @brief Check if address is in DMEM range
@@ -275,6 +276,21 @@ extern uint32_t _estack;
 #define UART_DATA_BITS_8            8               /* Informational only */
 #define UART_STOP_BITS_1            1               /* Informational only */ 
 #define UART_PARITY_NONE            0               /* Informational only */
+
+
+/* ========================================================================== */
+/* Base Peripheral Structure                                                  */
+/* ========================================================================== */
+
+
+/**
+ * @brief Base peripheral structure
+ * All peripheral drivers should include this as their first member
+ */
+typedef struct {
+    uint32_t base_address;
+} peripheral_t;
+
 
 /* ========================================================================== */
 /* System Functions                                                           */
@@ -344,7 +360,7 @@ void system_delay_ms(uint32_t ms);
  * @brief Get precise system time in microseconds
  * @return Current time in microseconds since system start
  */
-uint64_t system_get_time_us(void);
+uint32_t system_get_time_us(void);
 
 
 /**
@@ -410,19 +426,6 @@ typedef enum {
 #define ASSERT_VALID_ACCESS(addr, is_write) ((void)0)
 #endif
 
-/* ========================================================================== */
-/* Peripheral Structure Definitions                                           */
-/* ========================================================================== */
-
-/**
- * @brief Base peripheral structure
- * All peripheral drivers should include this as their first member
- */
-typedef struct {
-    uint32_t base_address;
-} peripheral_t;
-
-
 
 /* ========================================================================== */
 /* Peripheral Functions Prototypes                                            */
@@ -450,9 +453,191 @@ uint32_t peripheral_get_base_address(const peripheral_t *dev);
  * @brief Check if the offset is in the peripheral memory space
  * @param dev Pointer to Peripheral structure
  * @param offset Offset to check 
- * @return true if in peripheral memory space, false otherwise
+ * @return true if device valid and in peripheral memory space, false otherwise
  */
 bool peripheral_validate_address(const peripheral_t *dev, uint32_t offset);
+
+
+/* ========================================================================== */
+/* Memory Access Functions                                                    */
+/* ========================================================================== */
+
+/**
+ * @brief Read a byte from memory (emulated for word-aligned systems)
+ * @param addr Memory address (can be unaligned)
+ * @return 8-bit value read from the address
+ */
+uint8_t system_read_byte(uint32_t addr);
+
+
+/**
+ * @brief Write a byte to memory (emulated for word-aligned systems)
+ * @param addr Memory address (can be unaligned)
+ * @param value 8-bit value to write
+ */
+void system_write_byte(uint32_t addr, uint8_t value);
+
+
+/**
+ * @brief Read a half-word (16-bit) from memory
+ * @param addr Memory address (should be 2-byte aligned for efficiency)
+ * @return 16-bit value read from the address
+ */
+uint16_t system_read_halfword(uint32_t addr);
+
+
+/**
+ * @brief Write a half-word (16-bit) to memory
+ * @param addr Memory address (should be 2-byte aligned for efficiency)
+ * @param value 16-bit value to write
+ */
+void system_write_halfword(uint32_t addr, uint16_t value);
+
+
+/**
+ * @brief Read a word (32-bit) from memory
+ * @param addr Memory address (must be 4-byte aligned)
+ * @return 32-bit value read from the address
+ */
+uint32_t system_read_word(uint32_t addr);
+
+
+/**
+ * @brief Write a word (32-bit) to memory
+ * @param addr Memory address (must be 4-byte aligned)
+ * @param value 32-bit value to write
+ */
+void system_write_word(uint32_t addr, uint32_t value);
+
+
+/**
+ * @brief Copy memory block (memcpy equivalent)
+ * @param dest Destination address
+ * @param src Source address
+ * @param n Number of bytes to copy
+ */
+void system_memcpy(void *dest, const void *src, size_t n);
+
+
+/**
+ * @brief Set memory block to value (memset equivalent)
+ * @param dest Destination address
+ * @param value Value to set
+ * @param n Number of bytes to set
+ */
+void system_memset(void *dest, uint8_t value, size_t n);
+
+
+/* ========================================================================== */
+/* Fast Math Helpers (for common cases)                                       */
+/* ========================================================================== */
+
+/**
+ * @brief Check if a number is power of two
+ * @param x Number to check
+ * @return true if x is power of two
+ */
+static inline bool is_power_of_two(uint32_t x) {
+    return (x != 0) && ((x & (x - 1)) == 0);
+}
+
+
+/**
+ * @brief Fast division by power of two (using shift)
+ * @param value Value to divide
+ * @param power_two_divisor Must be power of two (2, 4, 8, 16, ...)
+ * @return value / power_two_divisor
+ */
+static inline uint32_t fast_udiv_pow2(uint32_t value, uint32_t power_two_divisor) {
+    // Find the shift amount by counting trailing zeros
+    uint32_t shift = 0;
+    uint32_t temp = power_two_divisor;
+    while (temp > 1) {
+        temp >>= 1;
+        shift++;
+    }
+    return value >> shift;
+}
+
+
+/**
+ * @brief Fast modulus by power of two (using mask)
+ * @param value Value for modulus
+ * @param power_two_modulus Must be power of two (2, 4, 8, 16, ...)
+ * @return value % power_two_modulus
+ */
+static inline uint32_t fast_umod_pow2(uint32_t value, uint32_t power_two_modulus) {
+    return value & (power_two_modulus - 1);
+}
+
+
+/* ========================================================================== */
+/* Software Math Functions (RV32I without M extension)                       */
+/* ========================================================================== */
+
+/**
+ * @brief 32-bit unsigned multiplication
+ * @param a First operand
+ * @param b Second operand
+ * @return a * b
+ */
+uint32_t system_umul32(uint32_t a, uint32_t b);
+
+
+/**
+ * @brief 32-bit signed multiplication
+ * @param a First operand
+ * @param b Second operand
+ * @return a * b
+ */
+int32_t system_mul32(int32_t a, int32_t b);
+
+
+/**
+ * @brief 32-bit unsigned division
+ * @param dividend Number to be divided
+ * @param divisor Number to divide by
+ * @return dividend / divisor
+ */
+uint32_t system_udiv32(uint32_t dividend, uint32_t divisor);
+
+
+/**
+ * @brief 32-bit signed division
+ * @param dividend Number to be divided
+ * @param divisor Number to divide by
+ * @return dividend / divisor
+ */
+int32_t system_div32(int32_t dividend, int32_t divisor);
+
+
+/**
+ * @brief 32-bit unsigned modulus
+ * @param dividend Number to be divided
+ * @param divisor Number to divide by
+ * @return dividend % divisor
+ */
+uint32_t system_umod32(uint32_t dividend, uint32_t divisor);
+
+
+/**
+ * @brief 32-bit signed modulus
+ * @param dividend Number to be divided
+ * @param divisor Number to divide by
+ * @return dividend % divisor
+ */
+int32_t system_mod32(int32_t dividend, int32_t divisor);
+
+
+/**
+ * @brief Multiply two 32-bit values and return 64-bit result
+ * @param a First operand
+ * @param b Second operand
+ * @return a * b as 64-bit value (lower 32 bits in result[0], upper in result[1])
+ */
+void system_umul64(uint32_t a, uint32_t b, uint32_t result[2]);
+
+
 
 
 #endif /* SYSTEM_H */

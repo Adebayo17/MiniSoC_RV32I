@@ -1,8 +1,10 @@
 module top_soc #(
-    parameter FIRMWARE_FILE = "firmware.hex",
+    parameter FIRMWARE_FILE = "firmware.mem",
     parameter ADDR_WIDTH    = 32,
     parameter DATA_WIDTH    = 32,
-    parameter SIZE_KB       = 4,
+    parameter IMEM_SIZE_KB  = 8,
+    parameter DMEM_SIZE_KB  = 4,
+    parameter DATA_SIZE_KB  = 4,
     parameter BAUD_DIV_RST  = 16'd104,          // 115200 baud @ 12MHz
     parameter N_GPIO        = 8
 ) (
@@ -216,11 +218,13 @@ module top_soc #(
     assign init_start = rst_n && !rst_n_prev;
 
     mem_init #(
-        .IMEM_BASE  (IMEM_BASE_ADDR ),
-        .DMEM_BASE  (DMEM_BASE_ADDR ),
-        .INIT_FILE  (FIRMWARE_FILE  ),
-        .ADDR_WIDTH (ADDR_WIDTH     ),
-        .DATA_WIDTH (DATA_WIDTH     )
+        .IMEM_BASE      (IMEM_BASE_ADDR ),
+        .DMEM_BASE      (DMEM_BASE_ADDR ),
+        .INIT_FILE      (FIRMWARE_FILE  ),
+        .IMEM_SIZE_KB   (IMEM_SIZE_KB   ),
+        .DMEM_SIZE_KB   (DMEM_SIZE_KB   ),
+        .ADDR_WIDTH     (ADDR_WIDTH     ),
+        .DATA_WIDTH     (DATA_WIDTH     )
     ) init_controller(
         .clk                (clk           ),
         .rst_n              (rst_n         ),
@@ -239,7 +243,7 @@ module top_soc #(
     // ----------------------------
     imem_wrapper #(
         .BASE_ADDR  (IMEM_BASE_ADDR ),
-        .SIZE_KB    (SIZE_KB        ),
+        .SIZE_KB    (IMEM_SIZE_KB   ),
         .ADDR_WIDTH (ADDR_WIDTH     ),
         .DATA_WIDTH (DATA_WIDTH     )
     ) imem_inst (
@@ -264,7 +268,7 @@ module top_soc #(
     // ----------------------------
     dmem_wrapper #(
         .BASE_ADDR  (DMEM_BASE_ADDR ),
-        .SIZE_KB    (SIZE_KB        ),
+        .SIZE_KB    (DMEM_SIZE_KB   ),
         .ADDR_WIDTH (ADDR_WIDTH     ),
         .DATA_WIDTH (DATA_WIDTH     )
     ) dmem_inst (
@@ -294,7 +298,7 @@ module top_soc #(
     // ----------------------------
     uart_wrapper #(
         .BASE_ADDR      (UART_BASE_ADDR     ),
-        .SIZE_KB        (SIZE_KB            ),
+        .SIZE_KB        (DATA_SIZE_KB       ),
         .ADDR_WIDTH     (ADDR_WIDTH         ),
         .DATA_WIDTH     (DATA_WIDTH         ),
         .BAUD_DIV_RST   (BAUD_DIV_RST       )
@@ -319,7 +323,7 @@ module top_soc #(
     // ----------------------------
     timer_wrapper #(
         .BASE_ADDR  (TIMER_BASE_ADDR    ),
-        .SIZE_KB    (SIZE_KB            ),
+        .SIZE_KB    (DATA_SIZE_KB       ),
         .ADDR_WIDTH (ADDR_WIDTH         ),
         .DATA_WIDTH (DATA_WIDTH         )
     ) timer_inst (
@@ -341,11 +345,11 @@ module top_soc #(
     // ----------------------------
     gpio_wrapper #(
         .BASE_ADDR  (GPIO_BASE_ADDR     ),
-        .SIZE_KB    (SIZE_KB            ),
+        .SIZE_KB    (DATA_SIZE_KB       ),
         .ADDR_WIDTH (ADDR_WIDTH         ),
         .DATA_WIDTH (DATA_WIDTH         ),
         .N_GPIO     (N_GPIO             )
-    ) dut (
+    ) gpio_inst (
         .clk                (clk                ),
         .rst_n              (rst_n              ),
         .wbs_cyc            (wbs_gpio_cyc       ),

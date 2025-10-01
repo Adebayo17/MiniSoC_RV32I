@@ -135,22 +135,74 @@ sim.mem.clean:
 	@find $(MEM_SIM_DIR) -name "*.log" -delete
 	@echo ""
 
+
+# -------------------------------------------
+# Help
+# -------------------------------------------
+.PHONY: sim.mem.help
+
+sim.mem.help:
+	@echo "================================================================================"
+	@echo "MiniSoC-RV32I: MEMORIES Makefile Commands"
+	@echo "================================================================================"
+	@echo ""
+	@echo "MEM:"
+	@echo "  make sim.mem             	- Build all memories simulation"
+	@echo "  make sim.mem.run         	- Run all memories simulation"
+	@echo "  make sim.mem.wave        	- Open all memories waveform"
+	@echo "  make sim.mem.clean       	- Clean all memories simulation files"
+	@echo "  make sim.mem.help        	- Show mem simulation help"
+	@echo ""
+	@echo "IMEM:"
+	@echo "  make sim.imem          	- Build imem simulation"
+	@echo "  make sim.imem.run         	- Run imem simulation"
+	@echo "  make sim.imem.wave     	- Open imem waveform"
+	@echo ""
+	@echo "DMEM:"
+	@echo "  make sim.dmem          	- Build dmem simulation"
+	@echo "  make sim.dmem.run         	- Run dmem simulation"
+	@echo "  make sim.dmem.wave     	- Open dmem waveform"
+	@echo ""
+	@echo "MEM_INIT:"
+	@echo "  make sim.mem_init         	- Build mem_init simulation"
+	@echo "  make sim.mem_init.run     	- Run mem_init simulation"
+	@echo "  make sim.mem_init.wave    	- Open mem_init waveform"
+	@echo ""
+	@echo "Shortcuts:"
+	@echo "  make mem                	- Alias for sim.mem"
+	@echo "  make mem-run            	- Alias for sim.mem.run"
+	@echo "  make mem-wave            	- Alias for sim.mem.wave"
+	@echo "  make mem-clean     		- Alias for sim.mem.clean"
+	@echo "  make mem-help            	- Alias for sim.mem.help"
+	@echo "  make imem                	- Alias for sim.imem"
+	@echo "  make imem-run            	- Alias for sim.imem.run"
+	@echo "  make imem-wave     		- Alias for sim.imem.wave"
+	@echo "  make dmem                	- Alias for sim.dmem"
+	@echo "  make dmem-run            	- Alias for sim.dmem.run"
+	@echo "  make dmem-wave          	- Alias for sim.dmem.wave"
+	@echo "  make mem-init            	- Alias for sim.mem_init"
+	@echo "  make mem-init-run        	- Alias for sim.mem_init.run"
+	@echo "  make mem-init-wave       	- Alias for sim.mem_init.wave"
+	@echo "================================================================================"
+
+
 # -------------------------------------------
 # Shortcut Commands
 # -------------------------------------------
-mem: sim.mem
-mem-run: sim.mem.run
-mem-wave: sim.mem.wave
-mem-clean: sim.mem.clean
+mem: 			sim.mem
+mem-run: 		sim.mem.run
+mem-wave: 		sim.mem.wave
+mem-clean: 		sim.mem.clean
+mem-help: 		sim.mem.help
 
-dmem: sim.dmem
-dmem-run: sim.dmem.run
-dmem-wave: sim.dmem.wave
+dmem: 			sim.dmem
+dmem-run: 		sim.dmem.run
+dmem-wave: 		sim.dmem.wave
 
-imem: sim.imem
-imem-run: sim.imem.run
-imem-wave: sim.imem.wave
+imem: 			sim.imem
+imem-run: 		sim.imem.run
+imem-wave: 		sim.imem.wave
 
-mem-init: sim.mem_init
-mem-init-run: sim.mem_init.run
-mem-init-wave: sim.mem_init.wave
+mem-init: 		sim.mem_init
+mem-init-run: 	sim.mem_init.run
+mem-init-wave: 	sim.mem_init.wave

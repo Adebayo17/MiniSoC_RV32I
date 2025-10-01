@@ -61,4 +61,5 @@ make check_env
 
 ## 📖 References
 - [RISC-V Spec](https://riscv.org/specifications/ratified/)
+- [RISC-V GNU Toolchain](https://github.com/riscv/riscv-gnu-toolchain)
 - [Wishbone b4](https://cdn.opencores.org/downloads/wbspec_b4.pdf)

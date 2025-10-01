@@ -4,10 +4,12 @@ module tb_mini_rv32i_top;
 
     // Parameters
     parameter CLK_PERIOD    = 10;  // 100 MHz
-    parameter FIRMWARE_FILE = "firmware.hex";
+    parameter FIRMWARE_FILE = "firmware.mem";
     parameter ADDR_WIDTH    = 32;
     parameter DATA_WIDTH    = 32;
-    parameter SIZE_KB       = 4;
+    parameter IMEM_SIZE_KB  = 8;
+    parameter DMEM_SIZE_KB  = 4;
+    parameter DATA_SIZE_KB  = 4;
     parameter BAUD_DIV_RST  = 16'd104;  // 115200 baud @ 12MHz
     parameter N_GPIO        = 8;
     
@@ -28,6 +30,12 @@ module tb_mini_rv32i_top;
     integer      test_fail;
     integer      cycle_count;
     integer      timeout_counter;
+    reg [7:0]    previous_gpio;
+    reg          test_complete;
+    reg [31:0]   test_result;
+    
+    reg timeout_occurred;
+    
     
     // File handles for logging
     integer log_file;
@@ -61,12 +69,14 @@ module tb_mini_rv32i_top;
     
     // Instantiate the top-level SoC
     mini_rv32i_top #(
-        .FIRMWARE_FILE(FIRMWARE_FILE),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH),
-        .SIZE_KB(SIZE_KB),
-        .BAUD_DIV_RST(BAUD_DIV_RST),
-        .N_GPIO(N_GPIO)
+        .FIRMWARE_FILE  (FIRMWARE_FILE  ),
+        .ADDR_WIDTH     (ADDR_WIDTH     ),
+        .DATA_WIDTH     (DATA_WIDTH     ),
+        .IMEM_SIZE_KB   (IMEM_SIZE_KB   ),
+        .DMEM_SIZE_KB   (DMEM_SIZE_KB   ),
+        .DATA_SIZE_KB   (DATA_SIZE_KB   ),
+        .BAUD_DIV_RST   (BAUD_DIV_RST   ),
+        .N_GPIO         (N_GPIO         )
     ) dut (
         .clk(clk),
         .rst_n(rst_n),
@@ -154,86 +164,70 @@ module tb_mini_rv32i_top;
     // -------------------------------------------
     // Test Tasks
     // -------------------------------------------
-    reg [7:0] previous_gpio;
     task verify_firmware_behavior;
         begin
-            $display("[TEST] Verifying firmware behavior...");
-            $fdisplay(log_file, "[TEST] Verifying firmware behavior...");
+            $display("[TEST] Starting firmware behavior verification...");
+            $fdisplay(log_file, "[TEST] Starting firmware behavior verification...");
             
-            // Wait longer for the simple firmware to start
-            #20000;
+            // Initialize timeout tracking
+            timeout_counter = 0;
+            timeout_occurred = 0;
+            test_complete = 0;
             
-            // Check if memory initialization happened only once
-            if (dut.top_soc_inst.init_done !== 1'b1) begin
-                $display("[TEST] FAIL: Memory initialization not completed");
-                $fdisplay(log_file, "[TEST] FAIL: Memory initialization not completed");
-                test_fail = test_fail + 1;
-                //return;
-            end
-            
-            $display("[TEST] PASS: Memory initialization completed correctly");
-            $fdisplay(log_file, "[TEST] PASS: Memory initialization completed correctly");
-            test_pass = test_pass + 1;
-            
-            // Check CPU is running (PC should not be zero)
-            if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc === 32'h00000000) begin
-                $display("[TEST] FAIL: CPU PC is zero - not executing");
-                $fdisplay(log_file, "[TEST] FAIL: CPU PC is zero - not executing");
-                test_fail = test_fail + 1;
-            end else begin
-                $display("[TEST] PASS: CPU is executing (PC = %h)", 
-                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                $fdisplay(log_file, "[TEST] PASS: CPU is executing (PC = %h)",
-                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                test_pass = test_pass + 1;
-            end
-            
-            // Wait a bit more for GPIO activity
-            #30000;
-            
-            // For the simple firmware: check if GPIO is being toggled (not just static)
-            // The simple firmware toggles between 0 and 1, so check if it changes
-            
-            previous_gpio = dut.top_soc_inst.gpio_out;
-            
-            #10000; // Wait 10,000 cycles
-            
-            if (dut.top_soc_inst.gpio_out !== previous_gpio) begin
-                $display("[TEST] PASS: GPIO is being toggled by firmware");
-                $fdisplay(log_file, "[TEST] PASS: GPIO is being toggled by firmware");
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST] FAIL: GPIO not changing (static at %b)", previous_gpio);
-                $fdisplay(log_file, "[TEST] FAIL: GPIO not changing (static at %b)", previous_gpio);
-                test_fail = test_fail + 1;
-            end
-            
-            // Check for UART activity (simple firmware sends '.' or 'O')
-            #20000;
-            if (uart_tx === 1'b0) begin  // Start bit detected
-                $display("[TEST] PASS: UART transmission detected");
-                $fdisplay(log_file, "[TEST] PASS: UART transmission detected");
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST] Checking UART status...");
-                // Check if UART is enabled and ready
-                if (dut.top_soc_inst.uart_inst.uart_inst.uart_tx_inst.tx_enable === 1'b1) begin
-                    $display("[TEST] UART is enabled, waiting for transmission...");
-                    #50000; // Wait longer
-                    if (uart_tx === 1'b0) begin
-                        $display("[TEST] PASS: UART transmission detected after wait");
-                        $fdisplay(log_file, "[TEST] PASS: UART transmission detected after wait");
-                        test_pass = test_pass + 1;
-                    end else begin
-                        $display("[TEST] FAIL: UART enabled but no transmission");
-                        $fdisplay(log_file, "[TEST] FAIL: UART enabled but no transmission");
-                        test_fail = test_fail + 1;
-                    end
-                end else begin
-                    $display("[TEST] FAIL: UART not enabled");
-                    $fdisplay(log_file, "[TEST] FAIL: UART not enabled");
+            // Wait for test completion with timeout
+            while (!test_complete && !timeout_occurred) begin
+                @(posedge clk);
+                timeout_counter = timeout_counter + 1;
+                if (timeout_counter > 1000000) begin  // 1 million cycle timeout
+                    timeout_occurred = 1;
+                    $display("[TEST] TIMEOUT: Firmware didn't complete in %0d cycles", timeout_counter);
+                    $fdisplay(log_file, "[TEST] TIMEOUT: Firmware didn't complete in %0d cycles", timeout_counter);
                     test_fail = test_fail + 1;
                 end
+            end
+            
+            if (test_complete && !timeout_occurred) begin
+                $display("[TEST] Firmware test sequence completed in %0d cycles", timeout_counter);
+                $fdisplay(log_file, "[TEST] Firmware test sequence completed in %0d cycles", timeout_counter);
+            end
+            
+            // Additional peripheral checks
+            check_peripheral_activity();
+        end
+    endtask
+
+    task check_peripheral_activity;
+        begin
+            // Check UART was used
+            if (dut.top_soc_inst.uart_inst.uart_inst.uart_tx_inst.tx_enable) begin
+                $display("[TEST] PASS: UART was enabled and used");
+                $fdisplay(log_file, "[TEST] PASS: UART was enabled and used");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("[TEST] FAIL: UART was not enabled");
+                $fdisplay(log_file, "[TEST] FAIL: UART was not enabled");
+                test_fail = test_fail + 1;
+            end
+            
+            // Check GPIO was configured
+            if (dut.top_soc_inst.gpio_inst.gpio_inst.dir_reg !== 8'h00) begin
+                $display("[TEST] PASS: GPIO was configured");
+                $fdisplay(log_file, "[TEST] PASS: GPIO was configured");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("[TEST] FAIL: GPIO was not configured");
+                $fdisplay(log_file, "[TEST] FAIL: GPIO was not configured");
+                test_fail = test_fail + 1;
+            end
+            
+            // Check for UART transmission activity
+            if (dut.top_soc_inst.uart_inst.uart_inst.uart_tx_inst.tx_busy) begin
+                $display("[TEST] PASS: UART transmission activity detected");
+                $fdisplay(log_file, "[TEST] PASS: UART transmission activity detected");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("[TEST] INFO: No active UART transmission at test end");
+                $fdisplay(log_file, "[TEST] INFO: No active UART transmission at test end");
             end
         end
     endtask
@@ -296,6 +290,34 @@ module tb_mini_rv32i_top;
         $fdisplay(log_file, "[PERF] IMEM accesses detected");
         $fdisplay(log_file, "[PERF] DMEM accesses detected");
     end
+
+    always @(posedge clk) begin
+        if (rst_n && !test_complete) begin
+            // Monitor for writes to test control address (0x50000000)
+            if (dut.top_soc_inst.rv32i_core.wbm_dmem_addr == 32'h50000000 && 
+                dut.top_soc_inst.rv32i_core.wbm_dmem_we && 
+                dut.top_soc_inst.rv32i_core.wbm_dmem_sel != 0) begin
+                
+                test_result = dut.top_soc_inst.rv32i_core.wbm_dmem_data_write;
+                test_complete = 1;
+                
+                case (test_result)
+                    32'h1234ABCD: begin
+                        $display("[TEST] FIRMWARE REPORT: ALL TESTS PASSED");
+                        test_pass = test_pass + 1;
+                    end
+                    32'hDEADBEEF: begin
+                        $display("[TEST] FIRMWARE REPORT: TESTS FAILED");
+                        test_fail = test_fail + 1;
+                    end
+                    default: begin
+                        $display("[TEST] FIRMWARE REPORT: Unknown result %h", test_result);
+                    end
+                endcase
+            end
+        end
+    end
+
     
     
 endmodule

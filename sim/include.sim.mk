@@ -1,13 +1,29 @@
 # sim/include.sim.mk : sim Folder Makefile
 
 # -------------------------------------------
-# Common Simulation Settings
+# Simulation Directories
 # -------------------------------------------
 SIM_DIR 		:= $(TOP_DIR)/sim
 SIM_BUILD_DIR 	:= $(BUILD_DIR)/sim
+export SIM_DIR SIM_BUILD_DIR
+
+# Use minisoc build directory for sources
+SIM_SRC_DIR := $(MINISOC_BUILD_DIR)/src
+SIM_FIRMWARE_DIR := $(MINISOC_BUILD_DIR)
+
+
+# -------------------------------------------
+# Simulation Tools
+# -------------------------------------------
 IVERILOG 		?= iverilog 
 VVP 			?= vvp 
 GTKWAVE 		?= gtkwave 
+
+
+# -------------------------------------------
+# Simulation Flags
+# -------------------------------------------
+
 
 # -------------------------------------------
 # Include sub-components (Respect order)
@@ -24,6 +40,7 @@ include $(SIM_DIR)/top/include.sim.top.mk
 # Simulation Variables
 # -------------------------------------------
 SIM_TARGETS := sim.bus sim.mem sim.peripheral sim.cpu sim.pad sim.top
+
 
 # -------------------------------------------
 # Top-level simulation Targets
@@ -43,6 +60,7 @@ sim.run.all: $(SIM_TARGETS:%=%.run)
 sim.clean:
 	@echo "Cleaning simulation files..."
 	@rm -rf $(SIM_BUILD_DIR)
+	@find $(SIM_DIR) -name "build" -delete
 	@find $(SIM_DIR) -name "*.vcd" -delete
 	@find $(SIM_DIR) -name "*.log" -delete
 	@find $(SIM_DIR) -name "*.out" -delete
@@ -51,7 +69,7 @@ sim.clean:
 # -------------------------------------------
 # Shortcuts
 # -------------------------------------------
-sim: sim.all
-sim-run: sim.run.all
-sim-clean: sim.clean
+sim: 		sim.all
+sim-run: 	sim.run.all
+sim-clean: 	sim.clean
 

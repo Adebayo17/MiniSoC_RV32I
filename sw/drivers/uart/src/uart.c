@@ -199,7 +199,7 @@ void uart_transmit_string(uart_t *dev, const char *str)
 
 void uart_transmit_data(uart_t *dev, const uint8_t *str, uint32_t length)
 {
-    if (data == NULL || length == 0) {
+    if (str == NULL || length == 0) {
         return;
     }
 
@@ -214,7 +214,7 @@ void uart_transmit_data(uart_t *dev, const uint8_t *str, uint32_t length)
         }
 
         /* Transmit byte */
-        WRITE_REG(dev->base.base_address + REG_TX_DATA_OFFSET, data[i]);
+        WRITE_REG(dev->base.base_address + REG_TX_DATA_OFFSET, str[i]);
     }
 }
 

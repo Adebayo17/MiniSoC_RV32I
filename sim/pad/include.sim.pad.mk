@@ -48,9 +48,34 @@ sim.pad.clean:
 
 
 # -------------------------------------------
+# Help
+# -------------------------------------------
+.PHONY: sim.pad.help
+
+sim.pad.help:
+	@echo "================================================================================"
+	@echo "MiniSoC-RV32I: pad Makefile Commands"
+	@echo "================================================================================"
+	@echo "  make sim.pad             	- Build pad simulation"
+	@echo "  make sim.pad.run         	- Run pad simulation"
+	@echo "  make sim.pad.wave        	- Open pad waveform"
+	@echo "  make sim.pad.clean       	- Clean pad simulation files"
+	@echo "  make sim.pad.help         	- Show pad simulation help"
+	@echo ""
+	@echo "Shortcuts:"
+	@echo "  make pad                	- Alias for sim.pad"
+	@echo "  make pad-run             	- Alias for sim.pad.run"
+	@echo "  make pad-wave            	- Alias for sim.pad.wave"
+	@echo "  make pad-clean     		- Alias for sim.pad.clean"
+	@echo "  make pad-help            	- Alias for sim.pad.help"
+	@echo "================================================================================"
+
+
+# -------------------------------------------
 # Shortcuts
 # -------------------------------------------
-pad: sim.pad
-pad-run: sim.pad.run
-pad-wave: sim.pad.wave
-pad-clean: sim.pad.clean
+pad: 		sim.pad
+pad-run: 	sim.pad.run
+pad-wave: 	sim.pad.wave
+pad-clean: 	sim.pad.clean
+pad-help:  	sim.pad.help

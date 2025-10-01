@@ -1,5 +1,5 @@
 module imem #(
-    parameter SIZE_KB    = 4,           // 4KB memory (1024 * 32-bit words)
+    parameter SIZE_KB    = 8,           // 4KB memory (1024 * 32-bit words)
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32
 ) (

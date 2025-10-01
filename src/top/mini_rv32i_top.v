@@ -2,7 +2,9 @@ module mini_rv32i_top #(
     parameter FIRMWARE_FILE = "firmware.hex",
     parameter ADDR_WIDTH    = 32,
     parameter DATA_WIDTH    = 32,
-    parameter SIZE_KB       = 4,
+    parameter IMEM_SIZE_KB  = 8,
+    parameter DMEM_SIZE_KB  = 4,
+    parameter DATA_SIZE_KB  = 4,
     parameter BAUD_DIV_RST  = 16'd104,          // 115200 baud @ 12MHz
     parameter N_GPIO        = 8
 ) (
@@ -29,7 +31,9 @@ module mini_rv32i_top #(
         .FIRMWARE_FILE  (FIRMWARE_FILE  ),
         .ADDR_WIDTH     (ADDR_WIDTH     ),
         .DATA_WIDTH     (DATA_WIDTH     ),
-        .SIZE_KB        (SIZE_KB        ),
+        .IMEM_SIZE_KB   (IMEM_SIZE_KB   ),
+        .DMEM_SIZE_KB   (DMEM_SIZE_KB   ),
+        .DATA_SIZE_KB   (DATA_SIZE_KB   ),
         .BAUD_DIV_RST   (BAUD_DIV_RST   ),
         .N_GPIO         (N_GPIO         )
     ) top_soc_inst (
