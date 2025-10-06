@@ -7,7 +7,7 @@ module fetch_stage #(
     input wire                      clk,
     input wire                      rst_n,
 
-    // Instruction Memory Interface (NEW)
+    // Instruction Memory Interface
     output reg                      wbm_imem_cyc,
     output reg                      wbm_imem_stb,
     output wire                     wbm_imem_we,
@@ -31,8 +31,10 @@ module fetch_stage #(
     // -------------------------------------------
     // Internal State
     // -------------------------------------------
-    reg [ADDR_WIDTH-1:0] pc, next_pc;
-    reg                  fetch_pending;
+    reg [ADDR_WIDTH-1:0]    pc, next_pc;
+    reg                     fetch_pending;
+    reg                     flush_pending;
+
 
     // -------------------------------------------
     // Constant assignments
@@ -47,14 +49,18 @@ module fetch_stage #(
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            next_pc <= RESET_PC;
+            next_pc         <= RESET_PC;
+            flush_pending   <= 1'b0;
         end else begin
             if (flush) begin
-                next_pc <= new_pc;   // Redirect on branch/jump
-            end else if (wbm_imem_ack && !stall) begin
-                next_pc <= pc + 4;   // Sequential flush
+                next_pc         <= new_pc;      // Redirect on branch/jump
+                flush_pending   <= 1'b1;
+            end else if (flush_pending && !fetch_pending) begin
+                flush_pending   <= 1'b0;        // Flush has been processed, clear the flag
+            end else if (wbm_imem_ack && !stall && !flush_pending) begin
+                next_pc         <= pc + 4;      // Sequential flush
             end else begin
-                next_pc <= pc;       // hold pc when stalled or waiting for ack
+                next_pc         <= pc;          // hold pc when stalled or waiting for ack
             end
         end
     end 
@@ -70,6 +76,7 @@ module fetch_stage #(
         end
     end 
 
+
     // ----------------------------
     // Fetch control (Wishbone)
     // ----------------------------
@@ -80,11 +87,15 @@ module fetch_stage #(
             fetch_pending <= 1'b0;
         end else if (flush) begin
             // Kill any pending transaction and restart
-            wbm_imem_cyc  <= 1'b1;
-            wbm_imem_stb  <= 1'b1;
-            fetch_pending <= 1'b1;
+            wbm_imem_cyc  <= 1'b0;
+            wbm_imem_stb  <= 1'b0;
+            fetch_pending <= 1'b0;
         end else if (!stall) begin
-            if (!fetch_pending) begin
+            if (flush_pending) begin
+                wbm_imem_cyc  <= 1'b0;
+                wbm_imem_stb  <= 1'b0;
+                fetch_pending <= 1'b0;
+            end else if (!fetch_pending) begin
                 // Start new Wishbone transaction
                 wbm_imem_cyc  <= 1'b1;
                 wbm_imem_stb  <= 1'b1;
@@ -109,11 +120,11 @@ module fetch_stage #(
             instr_out <= {DATA_WIDTH{1'b0}};
             pc_out    <= {ADDR_WIDTH{1'b0}};
             valid_out <= 1'b0;
-        end else if (flush) begin
+        end else if (flush || flush_pending) begin
             instr_out <= {DATA_WIDTH{1'b0}};
             pc_out    <= {ADDR_WIDTH{1'b0}};
             valid_out <= 1'b0;
-        end else if (!stall && wbm_imem_ack) begin
+        end else if (!stall && wbm_imem_ack && !flush_pending) begin
             instr_out <= wbm_imem_data_read;
             pc_out    <= pc;
             valid_out <= 1'b1;

@@ -188,7 +188,7 @@ top-firmware-clean: 	sim.top.firmware-clean
 top-firmware-verify: 	sim.top.firmware-verify
 
 # Quick rebuild and run
-top-quick: sim.top.firmware sim.top sim.top.run
+top-quick: sim.top.firmware debug-firmware sim.top sim.top.run
 
 # Debug: build firmware only
 debug-firmware:

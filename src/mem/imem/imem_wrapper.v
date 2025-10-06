@@ -25,12 +25,6 @@ module imem_wrapper #(
 );
 
     // -------------------------------------------
-    // Temporary wishbone signal
-    // -------------------------------------------
-    wire                  tmp_wbs_ack;
-    wire [DATA_WIDTH-1:0] tmp_wbs_data_read;
-
-    // -------------------------------------------
     // Address Decoding
     // -------------------------------------------
     wire mem_select  = (wbs_addr >= BASE_ADDR) && (wbs_addr < (BASE_ADDR + (SIZE_KB * 1024)));

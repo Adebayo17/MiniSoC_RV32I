@@ -44,9 +44,9 @@ module imem #(
             if (wbs_cyc && wbs_stb && !wbs_we) begin
                 wbs_data_read <= mem[word_addr];
             end 
-            else begin
-                wbs_data_read <= {DATA_WIDTH{1'b0}};
-            end
+            // else begin
+            //     wbs_data_read <= {DATA_WIDTH{1'b0}};
+            // end
         end
     end
 
