@@ -5,30 +5,24 @@ module dmem_wrapper #(
     parameter DATA_WIDTH = 32
 ) (
     // Clock and reset
-    input wire                      clk,
-    input wire                      rst_n,
+    input   wire                      clk,
+    input   wire                      rst_n,
 
     // Wishbone Slave Interface
-    input wire                      wbs_cyc,
-    input wire                      wbs_stb,
-    input wire                      wbs_we,
-    input wire [ADDR_WIDTH-1:0]     wbs_addr,
-    input wire [DATA_WIDTH-1:0]     wbs_data_write,
-    input wire [3:0]                wbs_sel,
-    output reg [DATA_WIDTH-1:0]     wbs_data_read,
-    output reg                      wbs_ack,
+    input   wire                      wbs_cyc,
+    input   wire                      wbs_stb,
+    input   wire                      wbs_we,
+    input   wire [ADDR_WIDTH-1:0]     wbs_addr,
+    input   wire [DATA_WIDTH-1:0]     wbs_data_write,
+    input   wire [3:0]                wbs_sel,
+    output  wire [DATA_WIDTH-1:0]     wbs_data_read,
+    output  wire                      wbs_ack,
 
     // Direct Initialization Port
-    input wire                      init_en,
-    input wire [ADDR_WIDTH-1:0]     init_addr,
-    input wire [DATA_WIDTH-1:0]     init_data
+    input   wire                      init_en,
+    input   wire [ADDR_WIDTH-1:0]     init_addr,
+    input   wire [DATA_WIDTH-1:0]     init_data
 );
-
-    // -------------------------------------------
-    // Temporary wishbone signal
-    // -------------------------------------------
-    wire                  tmp_wbs_ack;
-    wire [DATA_WIDTH-1:0] tmp_wbs_data_read;
 
     // ----------------------------
     // Address Decoding
@@ -56,27 +50,10 @@ module dmem_wrapper #(
         .wbs_addr               (dmem_wbs_addr          ), 
         .wbs_data_write         (wbs_data_write         ),
         .wbs_sel                (wbs_sel                ),
-        .wbs_data_read          (tmp_wbs_data_read      ),
-        .wbs_ack                (tmp_wbs_ack            ),
+        .wbs_data_read          (wbs_data_read          ),
+        .wbs_ack                (wbs_ack                ),
         .init_en                (init_en && init_select ),
         .init_addr              (dmem_init_addr         ),
         .init_data              (init_data              )
     );
-
-    // ----------------------------
-    // ACK and Data Read Handling
-    // ----------------------------
-    always @(posedge clk) begin
-        if (!rst_n) begin
-            wbs_data_read <= {DATA_WIDTH{1'b0}};
-            wbs_ack       <= 1'b0;
-        end else begin
-            if (mem_select) begin
-                wbs_data_read <= tmp_wbs_data_read;
-                wbs_ack       <= tmp_wbs_ack;
-            end else begin
-                wbs_ack       <= 1'b0;
-            end
-        end
-    end
 endmodule

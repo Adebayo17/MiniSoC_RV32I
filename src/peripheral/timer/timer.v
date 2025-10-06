@@ -158,22 +158,13 @@ module timer #(
     end
 
 
-
-    // -------------------------------------------
-    // Wishbone ACK
-    // -------------------------------------------
-    reg tmp_r_ack;
-    reg tmp_w_ack;
-
     // -------------------------------------------
     // Wishbone Read
     // -------------------------------------------
     always @(*) begin
         wbs_data_read = {DATA_WIDTH{1'b0}};
-        tmp_r_ack     = 1'b0;
 
         if (wbs_cyc && wbs_stb && !wbs_we) begin
-            tmp_r_ack = 1'b1;
             case (reg_offset)
                 REG_TIMER_COUNT:   wbs_data_read = count_reg;
                 REG_TIMER_CMP:     wbs_data_read = cmp_reg;
@@ -194,9 +185,7 @@ module timer #(
             ctrl_reg                <= 5'b00000;  // Disabled, free-running, prescale=1
             status_read_match       <= 1'b0;
             status_read_overflow    <= 1'b0;
-            tmp_w_ack               <= 1'b0;
         end else begin
-            tmp_w_ack <= 1'b0;
 
             // default deassert 
             status_read_match    <= 1'b0;
@@ -206,7 +195,6 @@ module timer #(
             if (ctrl_reg[CTRL_RESET]) ctrl_reg[CTRL_RESET] <= 1'b0;
             
             if (wbs_cyc && wbs_stb && wbs_we) begin
-                tmp_w_ack <= 1'b1;
                 
                 case (reg_offset)
                     REG_TIMER_CMP: begin
@@ -240,7 +228,6 @@ module timer #(
         if (!rst_n)
             wbs_ack <= 1'b0;
         else
-            wbs_ack <= (wbs_cyc && wbs_stb && (tmp_r_ack || tmp_w_ack));
+            wbs_ack <= (wbs_cyc && wbs_stb);
     end
-
 endmodule

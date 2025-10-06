@@ -51,6 +51,16 @@ module top_soc #(
     wire [ADDR_WIDTH-1:0]     dmem_init_addr;
     wire [DATA_WIDTH-1:0]     dmem_init_data;
 
+    // CPU-WISHBONE Interface: 
+    wire                      wbs_cpu_cyc        ;
+    wire                      wbs_cpu_stb        ;
+    wire                      wbs_cpu_we         ;
+    wire [ADDR_WIDTH-1:0]     wbs_cpu_addr       ;
+    wire [DATA_WIDTH-1:0]     wbs_cpu_data_write ;
+    wire [3:0]                wbs_cpu_sel        ;
+    wire [DATA_WIDTH-1:0]     wbs_cpu_data_read  ;
+    wire                      wbs_cpu_ack        ;
+
     // IMEM Instance: imem_inst
     wire                      wbs_imem_cyc       ;
     wire                      wbs_imem_stb       ;
@@ -107,9 +117,57 @@ module top_soc #(
     wire [N_GPIO-1:0]         gpio_oe            ;
 
 
+    // ----------------------------
+    // Reset Signals
+    // ----------------------------
+    wire peripheral_rst_n;
+    wire cpu_rst_n;
+    wire memory_rst_n;
+    
+    // Reset synchronization registers
+    reg rst_n_sync1, rst_n_sync2;
+    reg init_done_sync1, init_done_sync2;
+    
+    // ----------------------------
+    // Reset Synchronization
+    // ----------------------------
+    
+    // Synchronize external reset to clock domain
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            rst_n_sync1 <= 1'b0;
+            rst_n_sync2 <= 1'b0;
+        end else begin
+            rst_n_sync1 <= 1'b1;
+            rst_n_sync2 <= rst_n_sync1;
+        end
+    end
+    
+    // Synchronize init_done signal
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            init_done_sync1 <= 1'b0;
+            init_done_sync2 <= 1'b0;
+        end else begin
+            init_done_sync1 <= init_done;
+            init_done_sync2 <= init_done_sync1;
+        end
+    end
+    
+    // ----------------------------
+    // Reset Distribution
+    // ----------------------------
+    
+    // Level 1: Memory and basic peripherals (reset immediately)
+    assign memory_rst_n = rst_n_sync2;
+    
+    // Level 2: Complex peripherals (reset after memory init)
+    assign peripheral_rst_n = rst_n_sync2 && init_done_sync2;
+    
+    // Level 3: CPU (reset after everything is ready)
+    assign cpu_rst_n = rst_n_sync2 && init_done_sync2;
 
-    // CPU Instance
-    reg cpu_rst_n;
+
 
     // ----------------------------
     // CPU Instance
@@ -129,19 +187,19 @@ module top_soc #(
         .wbm_imem_sel           (wbs_imem_sel           ),
         .wbm_imem_data_read     (wbs_imem_data_read     ),
         .wbm_imem_ack           (wbs_imem_ack           ),
-        .wbm_dmem_cyc           (wbs_dmem_cyc           ),
-        .wbm_dmem_stb           (wbs_dmem_stb           ),
-        .wbm_dmem_we            (wbs_dmem_we            ),
-        .wbm_dmem_addr          (wbs_dmem_addr          ),
-        .wbm_dmem_data_write    (wbs_dmem_data_write    ),
-        .wbm_dmem_sel           (wbs_dmem_sel           ),
-        .wbm_dmem_data_read     (wbs_dmem_data_read     ),
-        .wbm_dmem_ack           (wbs_dmem_ack           )
+        .wbm_dmem_cyc           (wbs_cpu_cyc            ),
+        .wbm_dmem_stb           (wbs_cpu_stb            ),
+        .wbm_dmem_we            (wbs_cpu_we             ),
+        .wbm_dmem_addr          (wbs_cpu_addr           ),
+        .wbm_dmem_data_write    (wbs_cpu_data_write     ),
+        .wbm_dmem_sel           (wbs_cpu_sel            ),
+        .wbm_dmem_data_read     (wbs_cpu_data_read      ),
+        .wbm_dmem_ack           (wbs_cpu_ack            )
     );
 
-    always @(posedge clk) begin
-        cpu_rst_n <= rst_n && init_done;
-    end
+    // always @(posedge clk) begin
+    //     cpu_rst_n <= rst_n && init_done;
+    // end
 
     // ---------------------------------------------------------------------------------------------
     // Interconnect
@@ -155,15 +213,15 @@ module top_soc #(
         .DATA_WIDTH(DATA_WIDTH)
     ) wishbone_interconnect_inst (
         .clk                    (clk                     ),
-        .rst_n                  (rst_n                   ),
-        .wbm_cpu_cyc            (wbs_dmem_cyc            ),
-        .wbm_cpu_stb            (wbs_dmem_stb            ),
-        .wbm_cpu_we             (wbs_dmem_we             ),
-        .wbm_cpu_addr           (wbs_dmem_addr           ),
-        .wbm_cpu_data_write     (wbs_dmem_data_write     ),
-        .wbm_cpu_sel            (wbs_dmem_sel            ),
-        .wbm_cpu_data_read      (wbs_dmem_data_read      ),
-        .wbm_cpu_ack            (wbs_dmem_ack            ),
+        .rst_n                  (peripheral_rst_n        ),
+        .wbm_cpu_cyc            (wbs_cpu_cyc             ),
+        .wbm_cpu_stb            (wbs_cpu_stb             ),
+        .wbm_cpu_we             (wbs_cpu_we              ),
+        .wbm_cpu_addr           (wbs_cpu_addr            ),
+        .wbm_cpu_data_write     (wbs_cpu_data_write      ),
+        .wbm_cpu_sel            (wbs_cpu_sel             ),
+        .wbm_cpu_data_read      (wbs_cpu_data_read       ),
+        .wbm_cpu_ack            (wbs_cpu_ack             ),
         .wbs_dmem_cyc           (wbs_dmem_cyc            ),
         .wbs_dmem_stb           (wbs_dmem_stb            ),
         .wbs_dmem_we            (wbs_dmem_we             ),
@@ -205,17 +263,28 @@ module top_soc #(
     // ----------------------------
     // MEM_INIT Instance
     // ----------------------------
+    // reg rst_n_prev;
+    // always @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         rst_n_prev <= 1'b0;
+    //     end else begin
+    //         rst_n_prev <= rst_n;
+    //     end
+    // end
+    
+    // // Generate init_start on rising edge of rst_n
+    // assign init_start = rst_n && !rst_n_prev;
+
     reg rst_n_prev;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always @(posedge clk or negedge rst_n_sync2) begin
+        if (!rst_n_sync2) begin
             rst_n_prev <= 1'b0;
         end else begin
-            rst_n_prev <= rst_n;
+            rst_n_prev <= rst_n_sync2;
         end
     end
-    
-    // Generate init_start on rising edge of rst_n
-    assign init_start = rst_n && !rst_n_prev;
+    // Generate init_start on rising edge of rst_n_sync2
+    assign init_start = rst_n_sync2 && !rst_n_prev;
 
     mem_init #(
         .IMEM_BASE      (IMEM_BASE_ADDR ),
@@ -226,16 +295,16 @@ module top_soc #(
         .ADDR_WIDTH     (ADDR_WIDTH     ),
         .DATA_WIDTH     (DATA_WIDTH     )
     ) init_controller(
-        .clk                (clk           ),
-        .rst_n              (rst_n         ),
-        .init_start         (init_start    ),   
-        .init_done          (init_done     ),
-        .imem_init_en       (imem_init_en  ),
-        .imem_init_addr     (imem_init_addr),
-        .imem_init_data     (imem_init_data),
-        .dmem_init_en       (dmem_init_en  ),
-        .dmem_init_addr     (dmem_init_addr),
-        .dmem_init_data     (dmem_init_data)
+        .clk                (clk                ),
+        .rst_n              (memory_rst_n       ),
+        .init_start         (init_start         ),   
+        .init_done          (init_done          ),
+        .imem_init_en       (imem_init_en       ),
+        .imem_init_addr     (imem_init_addr     ),
+        .imem_init_data     (imem_init_data     ),
+        .dmem_init_en       (dmem_init_en       ),
+        .dmem_init_addr     (dmem_init_addr     ),
+        .dmem_init_data     (dmem_init_data     )
     );
 
     // ----------------------------
@@ -248,7 +317,7 @@ module top_soc #(
         .DATA_WIDTH (DATA_WIDTH     )
     ) imem_inst (
         .clk                (clk                  ),
-        .rst_n              (rst_n                ),
+        .rst_n              (memory_rst_n         ),
         .wbs_cyc            (wbs_imem_cyc         ),
         .wbs_stb            (wbs_imem_stb         ),
         .wbs_we             (wbs_imem_we          ),
@@ -273,7 +342,7 @@ module top_soc #(
         .DATA_WIDTH (DATA_WIDTH     )
     ) dmem_inst (
         .clk                (clk                  ),
-        .rst_n              (rst_n                ),
+        .rst_n              (memory_rst_n         ),
         .wbs_cyc            (wbs_dmem_cyc         ),
         .wbs_stb            (wbs_dmem_stb         ),
         .wbs_we             (wbs_dmem_we          ),
@@ -304,7 +373,7 @@ module top_soc #(
         .BAUD_DIV_RST   (BAUD_DIV_RST       )
     ) uart_inst (
         .clk            (clk                ),
-        .rst_n          (rst_n              ),
+        .rst_n          (peripheral_rst_n   ),
         .wbs_cyc        (wbs_uart_cyc       ),
         .wbs_stb        (wbs_uart_stb       ),
         .wbs_we         (wbs_uart_we        ),
@@ -328,7 +397,7 @@ module top_soc #(
         .DATA_WIDTH (DATA_WIDTH         )
     ) timer_inst (
         .clk                (clk                 ),
-        .rst_n              (rst_n               ),
+        .rst_n              (peripheral_rst_n    ),
         .wbs_cyc            (wbs_timer_cyc       ),
         .wbs_stb            (wbs_timer_stb       ),
         .wbs_we             (wbs_timer_we        ),
@@ -351,7 +420,7 @@ module top_soc #(
         .N_GPIO     (N_GPIO             )
     ) gpio_inst (
         .clk                (clk                ),
-        .rst_n              (rst_n              ),
+        .rst_n              (peripheral_rst_n   ),
         .wbs_cyc            (wbs_gpio_cyc       ),
         .wbs_stb            (wbs_gpio_stb       ),
         .wbs_we             (wbs_gpio_we        ),

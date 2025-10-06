@@ -19,19 +19,19 @@ module tb_imem;
     reg [31:0] total_errors;
 
     // Wishbone Interface
-    reg wbs_cyc;
-    reg wbs_stb;
-    reg wbs_we;
-    reg [ADDR_WIDTH-1:0] wbs_addr;
-    reg [DATA_WIDTH-1:0] wbs_data_write;
-    reg [3:0] wbs_sel;
-    wire [DATA_WIDTH-1:0] wbs_data_read;
-    wire wbs_ack;
+    reg                     wbs_cyc         ;
+    reg                     wbs_stb         ;
+    reg                     wbs_we          ;
+    reg [ADDR_WIDTH-1:0]    wbs_addr        ;
+    reg [DATA_WIDTH-1:0]    wbs_data_write  ;
+    reg [3:0]               wbs_sel         ;
+    wire [DATA_WIDTH-1:0]   wbs_data_read   ;
+    wire                    wbs_ack         ;
 
     // Initialization Interface
-    reg init_en;
-    reg [ADDR_WIDTH-1:0] init_addr;
-    reg [DATA_WIDTH-1:0] init_data;
+    reg                     init_en         ;
+    reg [ADDR_WIDTH-1:0]    init_addr       ;
+    reg [DATA_WIDTH-1:0]    init_data       ;
 
     // Instantiate DUT
     imem_wrapper #(
@@ -63,7 +63,19 @@ module tb_imem;
 
     // Reset Generation
     initial begin
-        rst_n = 0;
+        rst_n           = 0;
+
+        // Initialize input signals
+        wbs_cyc         = 0;
+        wbs_stb         = 0;
+        wbs_we          = 0;
+        wbs_addr        = 0;
+        wbs_data_write  = 0;
+        wbs_sel         = 0;
+        init_en         = 0;
+        init_addr       = 0;
+        init_data       = 0;
+
         #100 rst_n = 1;
     end
 

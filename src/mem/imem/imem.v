@@ -27,24 +27,26 @@ module imem #(
     localparam DEPTH = SIZE_KB * 1024 / 4;
     reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 
+    wire [$clog2(DEPTH)-1:0] word_addr;
     wire [$clog2(DEPTH)-1:0] init_word_addr;
+    assign word_addr      = wbs_addr[$clog2(DEPTH)+1:2];
     assign init_word_addr = init_addr[$clog2(DEPTH)+1:2];
 
-    wire [$clog2(DEPTH)-1:0] word_addr;
-    assign word_addr      = wbs_addr[$clog2(DEPTH)+1:2];
 
-    reg tmp_r_ack = 0;
 
     // -------------------------------------------
     // Read Path (Synchronous)
     // -------------------------------------------
-    always @(posedge clk) begin
-        if (wbs_cyc && wbs_stb && !wbs_we) begin
-            wbs_data_read <= mem[word_addr];
-            tmp_r_ack     <= 1;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            wbs_data_read <= {DATA_WIDTH{1'b0}};
         end else begin
-            wbs_data_read <= 0;
-            tmp_r_ack     <= 0;
+            if (wbs_cyc && wbs_stb && !wbs_we) begin
+                wbs_data_read <= mem[word_addr];
+            end 
+            else begin
+                wbs_data_read <= {DATA_WIDTH{1'b0}};
+            end
         end
     end
 
@@ -71,7 +73,7 @@ module imem #(
         if (!rst_n) begin
             wbs_ack <= 0;
         end else begin
-            wbs_ack <= (wbs_cyc && wbs_stb && tmp_r_ack );
+            wbs_ack <= (wbs_cyc && wbs_stb);
         end
     end  
 endmodule

@@ -73,6 +73,7 @@ module wishbone_interconnect #(
     localparam [19:0] BASE_ADDR_GPIO  = 20'h40000;
     
     reg [2:0] sel_slave;
+    reg [2:0] sel_slave_ff;
 
     // -------------------------------------------
     // Address Decdode
@@ -94,62 +95,131 @@ module wishbone_interconnect #(
     // Route signals to one slave, default to zero
     // -------------------------------------------
 
-    always @(*) begin
-        // Default: deselect all
-        {wbs_dmem_cyc, wbs_uart_cyc, wbs_timer_cyc, wbs_gpio_cyc} = 0;
-        {wbs_dmem_stb, wbs_uart_stb, wbs_timer_stb, wbs_gpio_stb} = 0;
-        {wbs_dmem_we,  wbs_uart_we,  wbs_timer_we,  wbs_gpio_we } = 0;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            // Reset all outputs
+            wbs_dmem_cyc        <= 1'b0;
+            wbs_dmem_stb        <= 1'b0;
+            wbs_dmem_we         <= 1'b0;
+            wbs_dmem_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_dmem_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_dmem_sel        <= 4'b0;
+            
+            wbs_uart_cyc        <= 1'b0;
+            wbs_uart_stb        <= 1'b0;
+            wbs_uart_we         <= 1'b0;
+            wbs_uart_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_uart_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_uart_sel        <= 4'b0;
+            
+            wbs_timer_cyc       <= 1'b0;
+            wbs_timer_stb       <= 1'b0;
+            wbs_timer_we        <= 1'b0;
+            wbs_timer_addr      <= {ADDR_WIDTH{1'b0}};
+            wbs_timer_data_write<= {DATA_WIDTH{1'b0}};
+            wbs_timer_sel       <= 4'b0;
+            
+            wbs_gpio_cyc        <= 1'b0;
+            wbs_gpio_stb        <= 1'b0;
+            wbs_gpio_we         <= 1'b0;
+            wbs_gpio_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_gpio_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_gpio_sel        <= 4'b0;
+            
+            wbm_cpu_data_read   <= {DATA_WIDTH{1'b0}};
+            wbm_cpu_ack         <= 1'b0;
+            
+            sel_slave_ff        <= SLAVE_NONE;
+        end else begin
+            // Registered slave selection
+            sel_slave_ff        <= sel_slave;
 
-        wbm_cpu_data_read       = 32'hDEADDEAD;
-        wbm_cpu_ack             = 0;
+            // Default: deselect all slaves
+            wbs_dmem_cyc        <= 1'b0;
+            wbs_dmem_stb        <= 1'b0;
+            wbs_dmem_we         <= 1'b0;
+            wbs_dmem_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_dmem_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_dmem_sel        <= 4'b0;
+            
+            wbs_uart_cyc        <= 1'b0;
+            wbs_uart_stb        <= 1'b0;
+            wbs_uart_we         <= 1'b0;
+            wbs_uart_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_uart_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_uart_sel        <= 4'b0;
+            
+            wbs_timer_cyc       <= 1'b0;
+            wbs_timer_stb       <= 1'b0;
+            wbs_timer_we        <= 1'b0;
+            wbs_timer_addr      <= {ADDR_WIDTH{1'b0}};
+            wbs_timer_data_write<= {DATA_WIDTH{1'b0}};
+            wbs_timer_sel       <= 4'b0;
+            
+            wbs_gpio_cyc        <= 1'b0;
+            wbs_gpio_stb        <= 1'b0;
+            wbs_gpio_we         <= 1'b0;
+            wbs_gpio_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_gpio_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_gpio_sel        <= 4'b0;
+            
+            wbm_cpu_ack         <= 1'b0;
+            wbm_cpu_data_read   <= {DATA_WIDTH{1'b0}};
 
-        case (sel_slave)
-            SLAVE_DMEM: begin
-                wbs_dmem_cyc           = wbm_cpu_cyc;
-                wbs_dmem_stb           = wbm_cpu_stb;
-                wbs_dmem_we            = wbm_cpu_we;
-                wbs_dmem_addr          = wbm_cpu_addr;
-                wbs_dmem_data_write    = wbm_cpu_data_write;
-                wbs_dmem_sel           = wbm_cpu_sel;
-                wbm_cpu_data_read      = wbs_dmem_data_read;
-                wbm_cpu_ack            = wbs_dmem_ack;
-            end
-            SLAVE_UART: begin
-                wbs_uart_cyc           = wbm_cpu_cyc;
-                wbs_uart_stb           = wbm_cpu_stb;
-                wbs_uart_we            = wbm_cpu_we;
-                wbs_uart_addr          = wbm_cpu_addr;
-                wbs_uart_data_write    = wbm_cpu_data_write;
-                wbs_uart_sel           = wbm_cpu_sel;
-                wbm_cpu_data_read      = wbs_uart_data_read;
-                wbm_cpu_ack            = wbs_uart_ack;
-            end
-            SLAVE_TIMER: begin
-                wbs_timer_cyc          = wbm_cpu_cyc;
-                wbs_timer_stb          = wbm_cpu_stb;
-                wbs_timer_we           = wbm_cpu_we;
-                wbs_timer_addr         = wbm_cpu_addr;
-                wbs_timer_data_write   = wbm_cpu_data_write;
-                wbs_timer_sel          = wbm_cpu_sel;
-                wbm_cpu_data_read      = wbs_timer_data_read;
-                wbm_cpu_ack            = wbs_timer_ack;
-            end
-            SLAVE_GPIO: begin
-                wbs_gpio_cyc           = wbm_cpu_cyc;
-                wbs_gpio_stb           = wbm_cpu_stb;
-                wbs_gpio_we            = wbm_cpu_we;
-                wbs_gpio_addr          = wbm_cpu_addr;
-                wbs_gpio_data_write    = wbm_cpu_data_write;
-                wbs_gpio_sel           = wbm_cpu_sel;
-                wbm_cpu_data_read      = wbs_gpio_data_read;
-                wbm_cpu_ack            = wbs_gpio_ack;
-            end
-            default: begin
-                // No slave selected
-                if (wbm_cpu_cyc && wbm_cpu_stb) begin
-                    wbm_cpu_ack = 1;   // Acknowledge but return error data
+            // Route to selected slave
+            case (sel_slave)
+                SLAVE_DMEM: begin
+                    wbs_dmem_cyc            <= wbm_cpu_cyc;
+                    wbs_dmem_stb            <= wbm_cpu_stb;
+                    wbs_dmem_we             <= wbm_cpu_we;
+                    wbs_dmem_addr           <= wbm_cpu_addr;
+                    wbs_dmem_data_write     <= wbm_cpu_data_write;
+                    wbs_dmem_sel            <= wbm_cpu_sel;
+                    wbm_cpu_data_read       <= wbs_dmem_data_read;
+                    wbm_cpu_ack             <= wbs_dmem_ack;
                 end
-            end 
-        endcase
+                
+                SLAVE_UART: begin
+                    wbs_uart_cyc            <= wbm_cpu_cyc;
+                    wbs_uart_stb            <= wbm_cpu_stb;
+                    wbs_uart_we             <= wbm_cpu_we;
+                    wbs_uart_addr           <= wbm_cpu_addr;
+                    wbs_uart_data_write     <= wbm_cpu_data_write;
+                    wbs_uart_sel            <= wbm_cpu_sel;
+                    wbm_cpu_data_read       <= wbs_uart_data_read;
+                    wbm_cpu_ack             <= wbs_uart_ack;
+                end
+                
+                SLAVE_TIMER: begin
+                    wbs_timer_cyc           <= wbm_cpu_cyc;
+                    wbs_timer_stb           <= wbm_cpu_stb;
+                    wbs_timer_we            <= wbm_cpu_we;
+                    wbs_timer_addr          <= wbm_cpu_addr;
+                    wbs_timer_data_write    <= wbm_cpu_data_write;
+                    wbs_timer_sel           <= wbm_cpu_sel;
+                    wbm_cpu_data_read       <= wbs_timer_data_read;
+                    wbm_cpu_ack             <= wbs_timer_ack;
+                end
+                
+                SLAVE_GPIO: begin
+                    wbs_gpio_cyc            <= wbm_cpu_cyc;
+                    wbs_gpio_stb            <= wbm_cpu_stb;
+                    wbs_gpio_we             <= wbm_cpu_we;
+                    wbs_gpio_addr           <= wbm_cpu_addr;
+                    wbs_gpio_data_write     <= wbm_cpu_data_write;
+                    wbs_gpio_sel            <= wbm_cpu_sel;
+                    wbm_cpu_data_read       <= wbs_gpio_data_read;
+                    wbm_cpu_ack             <= wbs_gpio_ack;
+                end
+                
+                default: begin
+                    // Invalid address - acknowledge with error data
+                    if (wbm_cpu_cyc && wbm_cpu_stb) begin
+                        wbm_cpu_ack       <= 1'b1;
+                        wbm_cpu_data_read <= 32'hDEAD_BEEF;  // Error pattern
+                    end
+                end
+            endcase
+        end
     end    
 endmodule

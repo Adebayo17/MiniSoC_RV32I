@@ -74,29 +74,26 @@ module gpio #(
     wire sel_clear   = (reg_offset == REG_GPIO_CLEAR);
     wire sel_toggle  = (reg_offset == REG_GPIO_TOGGLE);
 
-    // -------------------------------------------
-    // Wishbone ACK
-    // -------------------------------------------
-    reg tmp_r_ack;
-    reg tmp_w_ack;
 
     // -------------------------------------------
     // Wishbone Read
     // -------------------------------------------
-    always @(*) begin
-        wbs_data_read = {DATA_WIDTH{1'b0}};
-        tmp_r_ack     = 1'b0;
-
-        if (wbs_cyc && wbs_stb && !wbs_we) begin
-            tmp_r_ack = 1'b1;
-            case (reg_offset)
-                REG_GPIO_DATA:   wbs_data_read = {{(DATA_WIDTH-N_GPIO){1'b0}}, data_reg};
-                REG_GPIO_DIR:    wbs_data_read = {{(DATA_WIDTH-N_GPIO){1'b0}}, dir_reg};
-                REG_GPIO_SET:    wbs_data_read = {DATA_WIDTH{1'b0}}; // write-only
-                REG_GPIO_CLEAR:  wbs_data_read = {DATA_WIDTH{1'b0}}; // write-only
-                REG_GPIO_TOGGLE: wbs_data_read = {DATA_WIDTH{1'b0}}; // write-only
-                default:         wbs_data_read = {DATA_WIDTH{1'b0}};
-            endcase
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            wbs_data_read <= {DATA_WIDTH{1'b0}};
+        end else begin
+            if (wbs_cyc && wbs_stb && !wbs_we) begin
+                case (reg_offset)
+                    REG_GPIO_DATA:   wbs_data_read <= {{(DATA_WIDTH-N_GPIO){1'b0}}, data_reg};
+                    REG_GPIO_DIR:    wbs_data_read <= {{(DATA_WIDTH-N_GPIO){1'b0}}, dir_reg};
+                    REG_GPIO_SET:    wbs_data_read <= {DATA_WIDTH{1'b0}}; // write-only
+                    REG_GPIO_CLEAR:  wbs_data_read <= {DATA_WIDTH{1'b0}}; // write-only
+                    REG_GPIO_TOGGLE: wbs_data_read <= {DATA_WIDTH{1'b0}}; // write-only
+                    default:         wbs_data_read <= {DATA_WIDTH{1'b0}};
+                endcase
+            end else begin
+                wbs_data_read <= {DATA_WIDTH{1'b0}};
+            end
         end
     end
 
@@ -107,12 +104,9 @@ module gpio #(
         if (!rst_n) begin
             out_reg   <= {N_GPIO{1'b0}};
             dir_reg   <= {N_GPIO{1'b0}};
-            tmp_w_ack <= 1'b0;
         end else begin
-            tmp_w_ack <= 1'b0;
 
             if (wbs_cyc && wbs_stb && wbs_we) begin
-                tmp_w_ack <= 1'b1;
                 case (reg_offset)
                     REG_GPIO_DATA:   if (wbs_sel[0]) out_reg <= wbs_data_write[N_GPIO-1:0];
                     REG_GPIO_DIR:    if (wbs_sel[0]) dir_reg <= wbs_data_write[N_GPIO-1:0];
@@ -131,7 +125,7 @@ module gpio #(
         if (!rst_n)
             wbs_ack <= 1'b0;
         else
-            wbs_ack <= (wbs_cyc && wbs_stb && (tmp_r_ack || tmp_w_ack));
+            wbs_ack <= (wbs_cyc && wbs_stb);
     end
 
     // -------------------------------------------

@@ -127,6 +127,14 @@ module tb_uart;
         wbs_data_write  = 0; 
         wbs_sel         = 0;
 
+        uart_rx2        = 1'b1;
+        wbs_cyc2        = 0; 
+        wbs_stb2        = 0; 
+        wbs_we2         = 0;
+        wbs_addr2       = 0; 
+        wbs_data_write2 = 0; 
+        wbs_sel2        = 0;
+
         test_num         = 0;
         total_errors     = 0;
         task_error_count = 0;
@@ -370,10 +378,8 @@ module tb_uart;
     endtask
 
     always @(*) begin
-        if (test_num == 3) begin
-            uart_rx2 = uart_tx;
-            uart_rx  = uart_tx2;
-        end
+        uart_rx2 = uart_tx;
+        uart_rx  = uart_tx2;
     end
 
     task test_loopback;

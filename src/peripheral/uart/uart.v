@@ -82,32 +82,26 @@ module uart #(
     wire sel_ctrl       = (reg_offset == REG_UART_CTRL      );
     wire sel_status     = (reg_offset == REG_UART_STATUS    );
 
-    // -------------------------------------------
-    // Wishbone tmp ACK
-    // -------------------------------------------
-    reg tmp_r_ack;
-    reg tmp_w_ack;
 
     // -------------------------------------------
     // Wishbone Read
     // -------------------------------------------
-    always @(*) begin
-        wbs_data_read = 32'b0;
-        tmp_r_ack     = 0;
-        if (wbs_cyc && wbs_stb && !wbs_we) begin
-            tmp_r_ack = 1'b1;
-
-            case (reg_offset)
-                REG_UART_TX_DATA:   wbs_data_read = {24'b0, tx_data_reg};
-                REG_UART_RX_DATA:   wbs_data_read = {24'b0, rx_data_reg};
-                REG_UART_BAUD_DIV:  wbs_data_read = {16'b0, baud_div_reg};
-                REG_UART_CTRL:      wbs_data_read = {24'b0, ctrl_reg};
-                REG_UART_STATUS:    wbs_data_read = {24'b0, status_reg};
-                default:            wbs_data_read = 32'b0;
-            endcase
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            wbs_data_read <= {DATA_WIDTH{1'b0}};
         end else begin
-            wbs_data_read = 32'b0;
-            tmp_r_ack     = 0;
+            if (wbs_cyc && wbs_stb && !wbs_we) begin
+                case (reg_offset)
+                    REG_UART_TX_DATA:   wbs_data_read <= {24'b0, tx_data_reg};
+                    REG_UART_RX_DATA:   wbs_data_read <= {24'b0, rx_data_reg};
+                    REG_UART_BAUD_DIV:  wbs_data_read <= {16'b0, baud_div_reg};
+                    REG_UART_CTRL:      wbs_data_read <= {24'b0, ctrl_reg};
+                    REG_UART_STATUS:    wbs_data_read <= {24'b0, status_reg};
+                    default:            wbs_data_read <= {DATA_WIDTH{1'b0}};
+                endcase
+            end else begin
+                wbs_data_read <= {DATA_WIDTH{1'b0}};
+            end
         end
     end
 
@@ -121,10 +115,8 @@ module uart #(
             baud_div_reg    <= BAUD_DIV_RST;     
             ctrl_reg        <= 8'b00000011; // Enable TX and RX
             status_reg      <= 8'b00000001; // TX empty, RX not ready
-            tmp_w_ack       <= 0;
             tx_start_pulse  <= 1'b0;
         end else begin
-            tmp_w_ack       <= 0;
             tx_start_pulse  <= 1'b0;     // Single pulse
 
             // Capture received data
@@ -133,7 +125,6 @@ module uart #(
             end
 
             if (wbs_cyc && wbs_stb && wbs_we) begin
-                tmp_w_ack      <= 1'b1;
                 tx_start_pulse <= 1'b0;     // Single pulse
 
                 case (reg_offset)
@@ -166,7 +157,7 @@ module uart #(
         if (!rst_n) begin
             wbs_ack <= 0;
         end else begin
-            wbs_ack <= (wbs_cyc && wbs_stb && (tmp_w_ack || tmp_r_ack));
+            wbs_ack <= (wbs_cyc && wbs_stb);
         end
     end 
 

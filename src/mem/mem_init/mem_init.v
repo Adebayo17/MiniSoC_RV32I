@@ -108,7 +108,9 @@ module mem_init #(
                 DONE: begin
                     init_done   <= 1;
                     state       <= IDLE;
+                    `ifdef DEBUG
                     $display("[MEM_INIT]: IMEM and DMEM initialization done");
+                    `endif
                 end
             endcase
         end

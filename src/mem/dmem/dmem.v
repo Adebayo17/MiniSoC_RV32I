@@ -36,19 +36,19 @@ module dmem #(
     assign word_addr      = wbs_addr[$clog2(DEPTH)+1:2];
     assign init_word_addr = init_addr[$clog2(DEPTH)+1:2];
 
-    reg tmp_r_ack = 0;
-    reg tmp_w_ack = 0;
 
     // -------------------------------------------
     // Read Path (Synchronus)
     // -------------------------------------------
-    always @(posedge clk) begin
-        if (wbs_cyc && wbs_stb && !wbs_we) begin
-            wbs_data_read <= mem[word_addr];
-            tmp_r_ack     <= 1;
+    always @(posedge clk or rst_n) begin
+        if (!rst_n) begin
+            wbs_data_read <= {DATA_WIDTH{1'b0}};
         end else begin
-            wbs_data_read <= 0;
-            tmp_r_ack     <= 0;
+            if (wbs_cyc && wbs_stb && !wbs_we) begin
+                wbs_data_read <= mem[word_addr];
+            end else begin
+                wbs_data_read <= {DATA_WIDTH{1'b0}};
+            end
         end
     end
 
@@ -58,16 +58,16 @@ module dmem #(
     always @(posedge clk) begin
         if (init_en) begin
             mem[init_word_addr] <= init_data;
-            //$display("[INFO]: DMEM init mem at @ %h with %h", init_word_addr, init_data);
+            `ifdef DEBUG
+            $display("[INFO]: DMEM init mem at @ %h with %h", init_word_addr, init_data);
+            `endif
         end else if(wbs_cyc && wbs_stb && wbs_we) begin
             // Runtime writes with byte select
             if (wbs_sel[0])   mem[word_addr][7:0]    <= wbs_data_write[7:0]  ;
             if (wbs_sel[1])   mem[word_addr][15:8]   <= wbs_data_write[15:8] ;
             if (wbs_sel[2])   mem[word_addr][23:16]  <= wbs_data_write[23:16];
             if (wbs_sel[3])   mem[word_addr][31:24]  <= wbs_data_write[31:24];
-            tmp_w_ack     <= 1;
         end else begin
-            tmp_w_ack     <= 0;
         end
     end
 
@@ -79,7 +79,7 @@ module dmem #(
         if (!rst_n) begin
             wbs_ack <= 0;
         end else begin
-            wbs_ack <= (wbs_cyc && wbs_stb && (tmp_r_ack || tmp_w_ack));
+            wbs_ack <= (wbs_cyc && wbs_stb);
         end
     end 
 endmodule

@@ -31,7 +31,7 @@ module fetch_stage #(
     // -------------------------------------------
     // Internal State
     // -------------------------------------------
-    reg [ADDR_WIDTH-1:0] pc;
+    reg [ADDR_WIDTH-1:0] pc, next_pc;
     reg                  fetch_pending;
 
     // -------------------------------------------
@@ -43,19 +43,30 @@ module fetch_stage #(
     assign wbm_imem_addr       = pc;                    // Driven by PC register
 
     // -------------------------------------------
+    // NEXT_PC Update logic
+    // -------------------------------------------
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            next_pc <= RESET_PC;
+        end else begin
+            if (flush) begin
+                next_pc <= new_pc;   // Redirect on branch/jump
+            end else if (wbm_imem_ack && !stall) begin
+                next_pc <= pc + 4;   // Sequential flush
+            end else begin
+                next_pc <= pc;       // hold pc when stalled or waiting for ack
+            end
+        end
+    end 
+
+    // -------------------------------------------
     // PC Update logic
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             pc <= RESET_PC;
-        end else begin
-            if (flush) begin
-                pc <= new_pc;   // Redirect on branch/jump
-            end else if (wbm_imem_ack && !stall) begin
-                pc <= pc + 4;   // Sequential flush
-            end else begin
-                pc <= pc;       // hold pc when stalled or waiting for ack
-            end
+        end else if (!stall) begin
+            pc <= next_pc;
         end
     end 
 

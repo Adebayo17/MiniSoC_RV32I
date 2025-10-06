@@ -29,9 +29,9 @@ module tb_dmem;
     wire                    wbs_ack;
 
     // Initialization Interface
-    reg init_en;
-    reg [ADDR_WIDTH-1:0] init_addr;
-    reg [DATA_WIDTH-1:0] init_data;
+    reg                     init_en;
+    reg [ADDR_WIDTH-1:0]    init_addr;
+    reg [DATA_WIDTH-1:0]    init_data;
 
     // Instantiate DUT
     dmem_wrapper #(
