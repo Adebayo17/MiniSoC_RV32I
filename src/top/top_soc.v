@@ -263,18 +263,6 @@ module top_soc #(
     // ----------------------------
     // MEM_INIT Instance
     // ----------------------------
-    // reg rst_n_prev;
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         rst_n_prev <= 1'b0;
-    //     end else begin
-    //         rst_n_prev <= rst_n;
-    //     end
-    // end
-    
-    // // Generate init_start on rising edge of rst_n
-    // assign init_start = rst_n && !rst_n_prev;
-
     reg rst_n_prev;
     always @(posedge clk or negedge rst_n_sync2) begin
         if (!rst_n_sync2) begin

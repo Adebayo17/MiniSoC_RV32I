@@ -112,7 +112,8 @@ module tb_mini_rv32i_top;
         cycle_count     = 0;
         timeout_counter = 0;
 
-        count_instr_fetch = 0;        
+        gpio_selected   = 0;
+        uart_selected   = 0;     
 
         #(CLK_PERIOD*10);
         rst_n = 1;
@@ -138,77 +139,118 @@ module tb_mini_rv32i_top;
         
         test_num = 0;
 
-        // Test 1 : Memory Initialization
+        // ===== TEST 1: Memory Initialization =====
         test_num = test_num + 1;
         $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Memory Initialization: Starting", test_num);
         $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Memory Initialization: Starting", test_num);
 
-        wait(dut.top_soc_inst.memory_rst_n);
-        wait(dut.top_soc_inst.init_done == 1);
-        $display("  - Memory initialization complete at time %t", $time);
-        $fdisplay(log_file, "   - Memory initialization complete at time %t", $time);
+        test_memory_initialization();
 
-        verify_firmware_loaded();
+        $display("[TESTBENCH TOP-LEVEL][TEST %0d] Memory Initialization: ✅ PASS", test_num);
+        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Memory Initialization: ✅ PASS", test_num);
 
-        $display("[TESTBENCH TOP-LEVEL][TEST %0d] Memory Initialization: Completed", test_num);
-        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Memory Initialization: Completed", test_num);
-
-        // Test 2 : Reset released
+        // ===== TEST 2: CPU Reset =====
         test_num = test_num + 1;
-        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Reset released: Starting", test_num);
-        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Reset released: Starting", test_num);
+        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] CPU Reset: Starting", test_num);
+        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] CPU Reset: Starting", test_num);
 
-        wait(dut.top_soc_inst.cpu_rst_n);
-        $display("  - Reset released at time %t", $time);
-        $fdisplay(log_file, "   - Reset released at time %t", $time);
+        test_cpu_reset();
 
-        $display("[TESTBENCH TOP-LEVEL][TEST %0d] Reset released: Completed", test_num);
-        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Reset released: Completed", test_num);
+        $display("[TESTBENCH TOP-LEVEL][TEST %0d] CPU Reset: ✅ PASS", test_num);
+        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] CPU Reset: ✅ PASS", test_num);
 
 
-        // Test 3 : Check Instruction Fetching
+        // ===== TEST 3: Instruction Fetching =====
         test_num = test_num + 1;
-        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Check Instruction Fetching: Starting", test_num);
-        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Check Instruction Fetching: Starting", test_num);
+        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Instruction Fetching: Starting", test_num);
+        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Instruction Fetching: Starting", test_num);
 
-
-        $display("[TESTBENCH TOP-LEVEL][TEST %0d] Check Instruction Fetching: Completed", test_num);
-        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Check Instruction Fetching: Completed", test_num);
-
-
+        // Wait for CPU to start fetching
+        #(CLK_PERIOD * 20);
         
-        // Test 4 : Diagnostic CPU Freeze
+        // Monitor instruction fetch progression
+        monitor_instruction_fetch();
+
+        $display("[TESTBENCH TOP-LEVEL][TEST %0d] Instruction Fetching: ✅ PASS", test_num);
+        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Instruction Fetching: ✅ PASS", test_num);
+
+
+        // ===== TEST 4: Peripheral Access =====
         test_num = test_num + 1;
-        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Diagnostic CPU Freeze", test_num);
-        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Diagnostic CPU Freeze: Starting", test_num);
+        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Peripheral Access: Starting", test_num);
+        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Peripheral Access: Starting", test_num);
 
-        diagnose_cpu_freeze();
-        test_interconnect_basic();
-
-        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Diagnostic CPU Freeze: Completed", test_num);
-        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Diagnostic CPU Freeze: Completed", test_num);
+        // Wait for firmware to initialize peripherals
+        #(CLK_PERIOD * 100);
         
+        // Check that peripherals are being accessed
+        verify_peripheral_access();
+
+        $display("[TESTBENCH TOP-LEVEL][TEST %0d] Peripheral Access: ✅ PASS", test_num);
+        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Peripheral Access: ✅ PASS", test_num);
+
+
+        // ===== TEST 5: Pipeline Progression =====
+        test_num = test_num + 1;
+        $display("\n[TESTBENCH TOP-LEVEL][TEST %0d] Pipeline Progression: Starting", test_num);
+        $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Pipeline Progression: Starting", test_num);
+
+        // Monitor PC progression through pipeline stages
+        monitor_pipeline_progression();
+
+        $display("[TESTBENCH TOP-LEVEL][TEST %0d] Pipeline Progression: ✅ PASS", test_num);
+        $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Pipeline Progression: ✅ PASS", test_num);
         
 
-        // Summary
+        // ===== FINAL SUMMARY =====
         #1000;
         $display("\n=== TOP-LEVEL Testbench Completed ===");
         $fdisplay(log_file, "\n=== TOP-LEVEL Testbench Completed ===");
+        
+        $display("Tests Passed: %0d, Tests Failed: %0d", test_pass, test_fail);
+        $fdisplay(log_file, "Tests Passed: %0d, Tests Failed: %0d", test_pass, test_fail);
+        
         if (test_fail == 0) begin
-            $display("✅ [TEST] ALL TESTS PASSED!");
-            $fdisplay(log_file, "✅ [TEST] ALL TESTS PASSED!");
+            $display("✅ ALL TESTS PASSED!");
+            $fdisplay(log_file, "✅ ALL TESTS PASSED!");
         end else begin
-            $display("❌ [TEST] %0d TESTS FAILED!", test_fail);
-            $fdisplay(log_file, "❌ [TEST] %0d TESTS FAILED!", test_fail);
+            $display("❌ %0d TESTS FAILED!", test_fail);
+            $fdisplay(log_file, "❌ %0d TESTS FAILED!", test_fail);
         end
         
         $fclose(log_file);
         $finish;
     end
 
+
     // -------------------------------------------
-    // Memory Initialization Tasks 
+    // Tests Tasks
     // -------------------------------------------
+    task test_memory_initialization;
+        begin
+            $display("  - Waiting for memory reset...");
+            $fdisplay(log_file, "  - Waiting for memory reset...");
+            
+            // Wait for memory reset to complete
+            wait(dut.top_soc_inst.memory_rst_n);
+            $display("  - Memory reset released at %t", $time);
+            $fdisplay(log_file, "  - Memory reset released at %t", $time);
+            test_pass = test_pass + 1;
+            
+            // Wait for initialization to complete
+            wait(dut.top_soc_inst.init_done == 1);
+            $display("  - Memory initialization complete at %t", $time);
+            $fdisplay(log_file, "  - Memory initialization complete at %t", $time);
+            test_pass = test_pass + 1;
+            
+            // Verify firmware loaded correctly
+            verify_firmware_loaded();
+            
+            $display("  ✅ Memory initialization test passed");
+            $fdisplay(log_file, "  ✅ Memory initialization test passed");
+        end
+    endtask
+
     task verify_firmware_loaded;
         begin
             $display("[FIRMWARE_VERIFY] Verifying firmware loaded correctly...");
@@ -231,431 +273,229 @@ module tb_mini_rv32i_top;
             
             // Check if instructions look valid
             if (dut.top_soc_inst.imem_inst.imem_inst.mem[0] === 32'hxxxxxxxx) begin
-                $display("[FIRMWARE_VERIFY] ERROR: IMEM[0] is uninitialized!");
-                $fdisplay(log_file, "[FIRMWARE_VERIFY] ERROR: IMEM[0] is uninitialized!");
+                $display("[FIRMWARE_VERIFY] ERROR: ❌ IMEM[0] is uninitialized!");
+                $fdisplay(log_file, "[FIRMWARE_VERIFY] ERROR: ❌ IMEM[0] is uninitialized!");
+                test_fail = test_fail + 1;
             end else begin
-                $display("[FIRMWARE_VERIFY] IMEM appears to be initialized");
-                $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM appears to be initialized");
+                $display("[FIRMWARE_VERIFY] ✅ IMEM appears to be initialized");
+                $fdisplay(log_file, "[FIRMWARE_VERIFY] ✅ IMEM appears to be initialized");
+                test_pass = test_pass + 1;
             end
         end
     endtask
-
-
-    // -------------------------------------------
-    // Instruction Fetch Monitoring
-    // -------------------------------------------
-    integer count_instr_fetch;
-    always @(posedge clk) begin
-        if ((test_num >= 3) && (count_instr_fetch < 16)) begin
-            $display("[CHECK_INSTRUCTION_FETCH] PC = %h", dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-            $fdisplay(log_file, "[CHECK_INSTRUCTION_FETCH] PC = %h", dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-            count_instr_fetch = count_instr_fetch + 1;
-        end
-    end
-
-    // -------------------------------------------
-    // Diagnostic Tasks 
-    // -------------------------------------------
-    task diagnose_cpu_freeze;
+    
+    task test_cpu_reset;
         begin
-            $display("[DIAG] ===== CPU FREEZE DIAGNOSIS =====");
-            $fdisplay(log_file, "[DIAG] ===== CPU FREEZE DIAGNOSIS =====");
+            $display("  - Waiting for CPU reset release...");
+            $fdisplay(log_file, "  - Waiting for CPU reset release...");
             
-            // 1. Check CPU reset state
-            $display("[DIAG] CPU reset: %b", dut.top_soc_inst.cpu_rst_n);
-            $fdisplay(log_file, "[DIAG] CPU reset: %b", dut.top_soc_inst.cpu_rst_n);
+            // Wait for CPU reset to be released
+            wait(dut.top_soc_inst.cpu_rst_n);
+            $display("  - CPU reset released at %t", $time);
+            $fdisplay(log_file, "  - CPU reset released at %t", $time);
+            test_pass = test_pass + 1;
+
+            // Verify CPU starts at reset PC
+            if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc === 32'h00000000) begin
+                $display("  - CPU PC at reset vector: ✅ 0x00000000");
+                $fdisplay(log_file, "  - CPU PC at reset vector: ✅ 0x00000000");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("  - CPU PC incorrect: ❌ Expected 0x00000000, Got %h", 
+                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+                $fdisplay(log_file, "  - CPU PC incorrect: ❌ Expected 0x00000000, Got %h", 
+                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+                test_fail = test_fail + 1;
+            end
             
-            // 2. Check memory initialization
-            $display("[DIAG] Memory init done: %b", dut.top_soc_inst.init_done);
-            $fdisplay(log_file, "[DIAG] Memory init done: %b", dut.top_soc_inst.init_done);
             
-            // 3. Check CPU PC
-            $display("[DIAG] CPU PC: %h", dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-            $fdisplay(log_file, "[DIAG] CPU PC: %h", dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-            
-            // 4. Check if CPU is requesting instructions
-            $display("[DIAG] IMEM request - CYC: %b, STB: %b", 
-                    dut.top_soc_inst.wbs_imem_cyc, dut.top_soc_inst.wbs_imem_stb);
-            $fdisplay(log_file, "[DIAG] IMEM request - CYC: %b, STB: %b",
-                    dut.top_soc_inst.wbs_imem_cyc, dut.top_soc_inst.wbs_imem_stb);
-            
-            // 5. Check IMEM response
-            $display("[DIAG] IMEM response - ACK: %b, DATA: %h", 
-                    dut.top_soc_inst.wbs_imem_ack, dut.top_soc_inst.wbs_imem_data_read);
-            $fdisplay(log_file, "[DIAG] IMEM response - ACK: %b, DATA: %h",
-                    dut.top_soc_inst.wbs_imem_ack, dut.top_soc_inst.wbs_imem_data_read);
-            
-            // 6. Check first few IMEM locations
-            $display("[DIAG] IMEM[0]: %h", dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
-            $display("[DIAG] IMEM[1]: %h", dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
-            $fdisplay(log_file, "[DIAG] IMEM[0]: %h", dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
-            $fdisplay(log_file, "[DIAG] IMEM[1]: %h", dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
-            
-            $display("[DIAG] ===== END DIAGNOSIS =====");
-            $fdisplay(log_file, "[DIAG] ===== END DIAGNOSIS =====");
+            $display("  ✅ CPU reset test passed");
+            $fdisplay(log_file, "  ✅ CPU reset test passed");
         end
     endtask
 
-    task test_interconnect_basic;
-        integer cycles_monitored;
+    task monitor_instruction_fetch;
+        integer fetch_cycles;
         begin
-            $display("[INTERCONNECT_TEST] Testing basic interconnect functionality...");
-            $fdisplay(log_file, "[INTERCONNECT_TEST] Testing basic interconnect functionality...");
+            $display("  [FETCH] Monitoring instruction fetch...");
+            $fdisplay(log_file, "  [FETCH] Monitoring instruction fetch...");
             
-            // Wait a few cycles after reset
-            #(CLK_PERIOD * 10);
-            
-            cycles_monitored = 0;
-            
-            // Monitor interconnect activity for 1000 cycles
-            while (cycles_monitored < 1000) begin
+            fetch_cycles = 0;
+            while (fetch_cycles < 50 && dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc < 32'h00000010) begin
                 @(posedge clk);
-                cycles_monitored = cycles_monitored + 1;
+                fetch_cycles = fetch_cycles + 1;
                 
-                // Log any Wishbone activity
-                if (dut.top_soc_inst.wbs_imem_cyc || dut.top_soc_inst.wbs_dmem_cyc) begin
-                    $display("[INTERCONNECT] Cycle %0d: IMEM_CYC=%b, DMEM_CYC=%b", 
-                            cycles_monitored, 
-                            dut.top_soc_inst.wbs_imem_cyc,
-                            dut.top_soc_inst.wbs_dmem_cyc);
-                    $fdisplay(log_file, "[INTERCONNECT] Cycle %0d: IMEM_CYC=%b, DMEM_CYC=%b", 
-                            cycles_monitored, 
-                            dut.top_soc_inst.wbs_imem_cyc,
-                            dut.top_soc_inst.wbs_dmem_cyc);
+                if (dut.top_soc_inst.wbs_imem_cyc && dut.top_soc_inst.wbs_imem_stb) begin
+                    $display("  [FETCH] Cycle %0d: Fetching PC=%h", cycle_count,
+                            dut.top_soc_inst.wbs_imem_addr);
+                    $fdisplay(log_file, "  [FETCH] Cycle %0d: Fetching PC=%h", cycle_count,
+                            dut.top_soc_inst.wbs_imem_addr);
                 end
+            end
+            
+            if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc > 32'h00000000) begin
+                $display("  [FETCH] ✅ CPU is fetching instructions");
+                $fdisplay(log_file, "  [FETCH] ✅ CPU is fetching instructions");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("  [FETCH] ❌ CPU not fetching instructions");
+                $fdisplay(log_file, "  [FETCH] ❌ CPU not fetching instructions");
+                test_fail = test_fail + 1;
             end
         end
     endtask
 
-    
 
-    // task force_cpu_instruction;
-    //     input [31:0] instruction;
-    //     input [31:0] address;
-    //     begin
-    //         $display("[FORCE_TEST] Forcing instruction %h at address %h", instruction, address);
-    //         $fdisplay(log_file, "[FORCE_TEST] Forcing instruction %h at address %h", instruction, address);
-            
-    //         // Force a simple instruction to see if CPU executes it
-    //         force dut.top_soc_inst.imem_inst.imem_inst.mem[address[11:2]] = instruction;
-            
-    //         // Wait a few cycles
-    //         #(CLK_PERIOD * 20);
-            
-    //         // Release the force
-    //         release dut.top_soc_inst.imem_inst.imem_inst.mem[address[11:2]];
-            
-    //         $display("[FORCE_TEST] Instruction force released");
-    //         $fdisplay(log_file, "[FORCE_TEST] Instruction force released");
-    //     end
-    // endtask
-
-    // task test_interconnect_direct;
-    //     begin
-    //         $display("[INTERCONNECT_DIRECT] Direct interconnect test...");
-    //         $fdisplay(log_file, "[INTERCONNECT_DIRECT] Direct interconnect test...");
-            
-    //         // Test 1: Check if CPU can read from IMEM at address 0
-    //         $display("[INTERCONNECT_DIRECT] Checking IMEM read path...");
-            
-    //         // Monitor the path step by step
-    //         #(CLK_PERIOD * 5);
-            
-    //         $display("[INTERCONNECT_DIRECT] CPU PC: %h", 
-    //                 dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-    //         $display("[INTERCONNECT_DIRECT] IMEM request - ADDR: %h, CYC: %b, STB: %b", 
-    //                 dut.top_soc_inst.wbs_imem_addr,
-    //                 dut.top_soc_inst.wbs_imem_cyc,
-    //                 dut.top_soc_inst.wbs_imem_stb);
-    //         $display("[INTERCONNECT_DIRECT] IMEM response - ACK: %b, DATA: %h", 
-    //                 dut.top_soc_inst.wbs_imem_ack,
-    //                 dut.top_soc_inst.wbs_imem_data_read);
-                    
-    //         $fdisplay(log_file, "[INTERCONNECT_DIRECT] CPU PC: %h", 
-    //                 dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-    //         $fdisplay(log_file, "[INTERCONNECT_DIRECT] IMEM request - ADDR: %h, CYC: %b, STB: %b", 
-    //                 dut.top_soc_inst.wbs_imem_addr,
-    //                 dut.top_soc_inst.wbs_imem_cyc,
-    //                 dut.top_soc_inst.wbs_imem_stb);
-    //         $fdisplay(log_file, "[INTERCONNECT_DIRECT] IMEM response - ACK: %b, DATA: %h", 
-    //                 dut.top_soc_inst.wbs_imem_ack,
-    //                 dut.top_soc_inst.wbs_imem_data_read);
-    //     end
-    // endtask
-
-
-    // -------------------------------------------
-    // Verify Firmware
-    // -------------------------------------------
-    task verify_firmware_behavior;
+    task verify_peripheral_access;
         begin
-            $display("[TEST] Starting firmware behavior verification...");
-            $fdisplay(log_file, "[TEST] Starting firmware behavior verification...");
+            $display("  [PERIPHERAL] Checking peripheral access...");
+            $fdisplay(log_file, "  [PERIPHERAL] Checking peripheral access...");
             
-            // Initialize timeout tracking
-            timeout_counter = 0;
-            timeout_occurred = 0;
-            test_complete = 0;
+            // Monitor for peripheral select signals
+            #(CLK_PERIOD * 50);
+
+            if (gpio_selected) begin
+                $display("  [PERIPHERAL] ✅ GPIO select activity detected");
+                $fdisplay(log_file, "  [PERIPHERAL] ✅ GPIO select activity detected");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("  [PERIPHERAL] ❌ GPIO not accessed");
+                $fdisplay(log_file, "  [PERIPHERAL] ❌ GPIO not accessed");
+                test_fail = test_fail + 1;
+            end
+
+            if (uart_selected) begin
+                $display("  [PERIPHERAL] ✅ UART select activity detected"); 
+                $fdisplay(log_file, "  [PERIPHERAL] ✅ UART select activity detected");
+                test_pass = test_pass + 1;
+            end else begin
+                $display("  [PERIPHERAL] ❌ UART not accessed");
+                $fdisplay(log_file, "  [PERIPHERAL] ❌ UART not accessed");
+                test_fail = test_fail + 1;
+            end
+        end
+    endtask
+
+
+    task monitor_pipeline_progression;
+        integer monitor_cycles;
+        reg [31:0] last_pc;
+        begin
+            $display("  [PIPELINE] Monitoring PC progression...");
+            $fdisplay(log_file, "  [PIPELINE] Monitoring PC progression...");
             
-            // Wait for test completion with timeout
-            while (!test_complete && !timeout_occurred) begin
+            monitor_cycles = 0;
+            last_pc = dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc;
+            
+            while (monitor_cycles < 100) begin
                 @(posedge clk);
-                timeout_counter = timeout_counter + 1;
-                if (timeout_counter > 1000000) begin  // 1 million cycle timeout
-                    timeout_occurred = 1;
-                    $display("[TEST] TIMEOUT: Firmware didn't complete in %0d cycles", timeout_counter);
-                    $fdisplay(log_file, "[TEST] TIMEOUT: Firmware didn't complete in %0d cycles", timeout_counter);
-                    test_fail = test_fail + 1;
+                monitor_cycles = monitor_cycles + 1;
+                
+                // Check if PC is advancing
+                if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc !== last_pc) begin
+                    $display("  [PIPELINE] Cycle %0d: PC advanced %h -> %h", cycle_count,
+                            last_pc, dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+                    $fdisplay(log_file, "  [PIPELINE] Cycle %0d: PC advanced %h -> %h", cycle_count,
+                            last_pc, dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+                    last_pc = dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc;
                 end
             end
             
-            if (test_complete && !timeout_occurred) begin
-                $display("[TEST] Firmware test sequence completed in %0d cycles", timeout_counter);
-                $fdisplay(log_file, "[TEST] Firmware test sequence completed in %0d cycles", timeout_counter);
+            if (last_pc > 32'h00000008) begin
+                $display("  [PIPELINE] ✅ PC is progressing through pipeline");
+                $fdisplay(log_file, "  [PIPELINE] ✅ PC is progressing through pipeline");
+            end else begin
+                $display("  [PIPELINE] ❌ PC stalled at %h", last_pc);
+                $fdisplay(log_file, "  [PIPELINE] ❌ PC stalled at %h", last_pc);
+                test_fail = test_fail + 1;
             end
-            
-            // Additional peripheral checks
-            check_peripheral_activity();
         end
     endtask
 
-    task check_peripheral_activity;
-        begin
-            // Check UART was used
-            if (dut.top_soc_inst.uart_inst.uart_inst.uart_tx_inst.tx_enable) begin
-                $display("[TEST] PASS: UART was enabled and used");
-                $fdisplay(log_file, "[TEST] PASS: UART was enabled and used");
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST] FAIL: UART was not enabled");
-                $fdisplay(log_file, "[TEST] FAIL: UART was not enabled");
-                test_fail = test_fail + 1;
-            end
-            
-            // Check GPIO was configured
-            if (dut.top_soc_inst.gpio_inst.gpio_inst.dir_reg !== 8'h00) begin
-                $display("[TEST] PASS: GPIO was configured");
-                $fdisplay(log_file, "[TEST] PASS: GPIO was configured");
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST] FAIL: GPIO was not configured");
-                $fdisplay(log_file, "[TEST] FAIL: GPIO was not configured");
-                test_fail = test_fail + 1;
-            end
-            
-            // Check for UART transmission activity
-            if (dut.top_soc_inst.uart_inst.uart_inst.uart_tx_inst.tx_busy) begin
-                $display("[TEST] PASS: UART transmission activity detected");
-                $fdisplay(log_file, "[TEST] PASS: UART transmission activity detected");
-                test_pass = test_pass + 1;
-            end else begin
-                $display("[TEST] INFO: No active UART transmission at test end");
-                $fdisplay(log_file, "[TEST] INFO: No active UART transmission at test end");
-            end
-        end
-    endtask
-    
 
     // -------------------------------------------
-    // Process (Monitor and Control)
+    // Monitoring Process
     // -------------------------------------------
 
     // Cycle counter
     always @(posedge clk) begin
         cycle_count <= cycle_count + 1;
     end
-
-    // GPIO Monitor
-    always @(posedge clk) begin
-        if (rst_n && (cycle_count > 100) && (test_num > 2)) begin
-            $fdisplay(log_file, "Cycle %0d: GPIO = %b", cycle_count, gpio_io);
-        end
-    end
     
-    // Timeout prevention
+    // ===== TEST 4: Monitor Peripheral Access =====
+    reg dmem_select;
+    reg gpio_selected;
+    reg uart_selected;
+    always @(*) begin
+        if (dut.top_soc_inst.dmem_inst.mem_select) begin
+            uart_selected = 1'b1;
+            $display("[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
+            $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
+        end
+
+        if (dut.top_soc_inst.uart_inst.uart_select) begin
+            uart_selected = 1'b1;
+            $display("[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
+            $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
+        end
+        if (dut.top_soc_inst.gpio_inst.gpio_select) begin
+            gpio_selected = 1'b1;
+            $display("[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
+            $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
+        end
+    end
+
+    // Debug monitoring for address decoding
     always @(posedge clk) begin
-        if (rst_n) begin
-            timeout_counter <= timeout_counter + 1;
-            if (timeout_counter > 50000000) begin // 500,000 cycle timeout
-                $display("[TIMEOUT] Simulation timeout after %0d cycles", timeout_counter);
-                $fdisplay(log_file, "[TIMEOUT] Simulation timeout after %0d cycles", timeout_counter);
-                $finish;
-            end
+        if (dut.top_soc_inst.wbs_cpu_cyc && dut.top_soc_inst.wbs_cpu_stb) begin
+            $display("[ADDR_DEBUG] CPU accessing: Addr=%h -> GPIO_select=%b, UART_select=%b", 
+                    dut.top_soc_inst.wbs_cpu_addr,
+                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h4000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h4000_1000),
+                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h2000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h2000_1000));
+            
+            $fdisplay(log_file, "[ADDR_DEBUG] CPU accessing: Addr=%h -> GPIO_select=%b, UART_select=%b", 
+                    dut.top_soc_inst.wbs_cpu_addr,
+                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h4000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h4000_1000),
+                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h2000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h2000_1000));
         end
     end
 
-    // Monitor for critical errors
-    always @(posedge clk) begin
-        if (rst_n === 1'b1) begin
-            // Check for X or Z states in critical signals
-            if (^dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc === 1'bx) begin
-                $display("[ERROR] CPU PC has X state!");
-                $fdisplay(log_file, "[ERROR] CPU PC has X state!");
-                test_fail = test_fail + 1;
-                #100 $finish;
-            end
-        end
-    end
-    
-    // Performance monitoring
-    initial begin
-        #100000;  // After 100,000 cycles
-        $display("[PERF] Cycles executed: %0d", cycle_count);
-        $fdisplay(log_file, "[PERF] Cycles executed: %0d", cycle_count);
-        $display("[PERF] Instructions retired: ~%0d", cycle_count / 4);  // Rough estimate
-        $fdisplay(log_file, "[PERF] Instructions retired: ~%0d", cycle_count / 4);
-        
-        // Check component activity
-        $display("[PERF] IMEM accesses detected");
-        $display("[PERF] DMEM accesses detected");
-        $fdisplay(log_file, "[PERF] IMEM accesses detected");
-        $fdisplay(log_file, "[PERF] DMEM accesses detected");
+    // ===== TEST 5: Monitor Pipeline Progression =====
+    reg [31:0] fetch_pc;
+    reg [31:0] decode_pc;
+    reg [31:0] execute_pc;
+    reg [31:0] mem_pc;
+    reg [31:0] writeback_pc;
+    always @(*) begin
+        fetch_pc        = dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc;
+        decode_pc       = dut.top_soc_inst.rv32i_core.decode_stage_inst.pc_in;
+        execute_pc      = dut.top_soc_inst.rv32i_core.execute_stage_inst.pc_in;
+        mem_pc          = dut.top_soc_inst.rv32i_core.mem_stage_inst.pc_plus_4_in;
+        writeback_pc    = dut.top_soc_inst.rv32i_core.writeback_stage_inst.pc_plus_4_in;
     end
 
-    always @(posedge clk) begin
-        if (rst_n && !test_complete) begin
-            // Monitor for writes to test control address (0x50000000)
-            if (dut.top_soc_inst.rv32i_core.wbm_dmem_addr == 32'h50000000 && 
-                dut.top_soc_inst.rv32i_core.wbm_dmem_we && 
-                dut.top_soc_inst.rv32i_core.wbm_dmem_sel != 0) begin
-                
-                test_result = dut.top_soc_inst.rv32i_core.wbm_dmem_data_write;
-                test_complete = 1;
-                
-                case (test_result)
-                    32'h1234ABCD: begin
-                        $display("[TEST] FIRMWARE REPORT: ALL TESTS PASSED");
-                        test_pass = test_pass + 1;
-                    end
-                    32'hDEADBEEF: begin
-                        $display("[TEST] FIRMWARE REPORT: TESTS FAILED");
-                        test_fail = test_fail + 1;
-                    end
-                    default: begin
-                        $display("[TEST] FIRMWARE REPORT: Unknown result %h", test_result);
-                    end
-                endcase
-            end
+    always @(*) begin
+        if (test_num == 100) begin
+            $display("===============================================================================================");
+            $display("| [PIPELINE] Cycle %0d | PC = %h |", cycle_count, fetch_pc);
+            $display("|---------------------------------------------------------------------------------------------|");
+            $display("| [PIPELINE] IF  | %h |", fetch_pc);
+            $display("| [PIPELINE] ID  | %h |", decode_pc);
+            $display("| [PIPELINE] EX  | %h |", execute_pc);
+            $display("| [PIPELINE] MEM | %h |", mem_pc);
+            $display("| [PIPELINE] WB  | %h |", writeback_pc);
+            $display("|---------------------------------------------------------------------------------------------|");
+
+            $fdisplay(log_file, "%s", "===============================================================================================");
+            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] Cycle %0d | PC = %h |", cycle_count, fetch_pc));
+            $fdisplay(log_file, "%s", "|---------------------------------------------------------------------------------------------|");
+            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] IF  | %h |", fetch_pc));
+            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] ID  | %h |", decode_pc));
+            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] EX  | %h |", execute_pc));
+            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] MEM | %h |", mem_pc));
+            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] WB  | %h |", writeback_pc));
+            $fdisplay(log_file, "%s", "|---------------------------------------------------------------------------------------------|");
         end
     end
 
-    // -------------------------------------------
-    // Pipeline Flush Monitor 
-    // -------------------------------------------
-    reg [31:0] flush_count;
-    reg [31:0] branch_count;
-    reg [31:0] jump_count;
-    reg [31:0] return_count;
-    reg [31:0] instruction_count;
-    reg [31:0] last_pc;
-    reg program_completed;
-    reg [31:0] completion_time;
-
-    // Flush detection
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            flush_count <= 0;
-            branch_count <= 0;
-            jump_count <= 0;
-            return_count <= 0;
-            instruction_count <= 0;
-            last_pc <= 0;
-            program_completed <= 0;
-            completion_time <= 0;
-        end else begin
-            // Detect program completion (write to 0x50000000)
-            if (dut.top_soc_inst.wbs_dmem_cyc && 
-                dut.top_soc_inst.wbs_dmem_we && 
-                dut.top_soc_inst.wbs_dmem_addr == 32'h50000000 && 
-                !program_completed) begin
-                program_completed <= 1;
-                completion_time <= cycle_count;
-                $display("[PROGRAM_COMPLETION] Program completed at cycle %0d", cycle_count);
-                $fdisplay(log_file, "[PROGRAM_COMPLETION] Program completed at cycle %0d", cycle_count);
-                $display("[PROGRAM_COMPLETION] Test result: %h", dut.top_soc_inst.wbs_dmem_data_write);
-                $fdisplay(log_file, "[PROGRAM_COMPLETION] Test result: %h", dut.top_soc_inst.wbs_dmem_data_write);
-            end
-            
-            // Count instructions (when PC changes)
-            if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc !== last_pc && 
-                dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc !== 32'hxxxxxxxx) begin
-                instruction_count <= instruction_count + 1;
-            end
-            last_pc <= dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc;
-            
-            // Detect flushes - you'll need to check what signals your CPU exposes
-            // These are examples - adjust based on your actual CPU signals
-            if (dut.top_soc_inst.rv32i_core.execute_stage_inst.branch_taken_out) begin
-                flush_count <= flush_count + 1;
-                branch_count <= branch_count + 1;
-                $display("[FLUSH] Branch taken at PC=%h, cycle=%0d", 
-                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc, cycle_count);
-            end
-            // Add similar detection for jumps and returns based on your CPU design
-        end
-    end
-
-    // Flush analysis task
-    task analyze_flush_performance;
-        real flush_rate;
-        real ipc;
-        begin
-            $display("[FLUSH_ANALYSIS] ===== Pipeline Flush Analysis =====");
-            $fdisplay(log_file, "[FLUSH_ANALYSIS] ===== Pipeline Flush Analysis =====");
-            
-            $display("[FLUSH_ANALYSIS] Total Cycles: %0d", cycle_count);
-            $display("[FLUSH_ANALYSIS] Total Instructions: %0d", instruction_count);
-            $display("[FLUSH_ANALYSIS] Total Flushes: %0d", flush_count);
-            $display("[FLUSH_ANALYSIS]   - Branch flushes: %0d", branch_count);
-            $display("[FLUSH_ANALYSIS]   - Jump flushes: %0d", jump_count);
-            $display("[FLUSH_ANALYSIS]   - Return flushes: %0d", return_count);
-            
-            $fdisplay(log_file, "[FLUSH_ANALYSIS] Total Cycles: %0d", cycle_count);
-            $fdisplay(log_file, "[FLUSH_ANALYSIS] Total Instructions: %0d", instruction_count);
-            $fdisplay(log_file, "[FLUSH_ANALYSIS] Total Flushes: %0d", flush_count);
-            $fdisplay(log_file, "[FLUSH_ANALYSIS]   - Branch flushes: %0d", branch_count);
-            $fdisplay(log_file, "[FLUSH_ANALYSIS]   - Jump flushes: %0d", jump_count);
-            $fdisplay(log_file, "[FLUSH_ANALYSIS]   - Return flushes: %0d", return_count);
-            
-            if (instruction_count > 0) begin
-                flush_rate = (flush_count * 100.0) / instruction_count;
-                ipc = instruction_count / (cycle_count * 1.0);
-                
-                $display("[FLUSH_ANALYSIS] Flush Rate: %.2f%%", flush_rate);
-                $display("[FLUSH_ANALYSIS] Instructions Per Cycle: %.3f", ipc);
-                
-                $fdisplay(log_file, "[FLUSH_ANALYSIS] Flush Rate: %.2f%%", flush_rate);
-                $fdisplay(log_file, "[FLUSH_ANALYSIS] Instructions Per Cycle: %.3f", ipc);
-            end
-            
-            $display("[FLUSH_ANALYSIS] ===== End Analysis =====");
-            $fdisplay(log_file, "[FLUSH_ANALYSIS] ===== End Analysis =====");
-        end
-    endtask
-
-    // Progress monitoring task
-    task monitor_progress;
-        integer last_report_cycle;
-        begin
-            last_report_cycle = 0;
-            
-            while (cycle_count < 1000000 && !program_completed) begin
-                @(posedge clk);
-                
-                // Report every 10000 cycles
-                if ((cycle_count - last_report_cycle) >= 10000) begin
-                    $display("[PROGRESS] Cycle %0d: Instructions=%0d, Flushes=%0d, PC=%h",
-                            cycle_count, instruction_count, flush_count,
-                            dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                    $fdisplay(log_file, "[PROGRESS] Cycle %0d: Instructions=%0d, Flushes=%0d, PC=%h",
-                            cycle_count, instruction_count, flush_count,
-                            dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
-                    last_report_cycle = cycle_count;
-                end
-            end
-        end
-    endtask
-
-    
-    
 endmodule

@@ -75,15 +75,21 @@ module execute_stage #(
     // Forwarding Logic (Fixed)
     // -------------------------------------------
 
+    // Forwarding selection codes
+    localparam [1:0] FROM_REG  = 2'b00;
+    localparam [1:0] FROM_EX   = 2'b01;
+    localparam [1:0] FROM_MEM  = 2'b10;
+    localparam [1:0] FROM_WB   = 2'b11;
+
     assign rs1_data_forwarded = 
-        (forward_rs1 == 2'b01) ? mem_alu_result :  // FROM_MEM: Forward from memory stage
-        (forward_rs1 == 2'b10) ? wb_result :       // FROM_WB: Forward from writeback stage
-        rs1_data_in;                               // FROM_REG_FILE: Use register file
+        (forward_rs1 == FROM_MEM) ? mem_alu_result :    // FROM_MEM: Forward from memory stage
+        (forward_rs1 == FROM_WB) ? wb_result :          // FROM_WB: Forward from writeback stage
+        rs1_data_in;                                    // FROM_REG_FILE: Use register file
 
     assign rs2_data_forwarded = 
-        (forward_rs2 == 2'b01) ? mem_alu_result :  // FROM_MEM
-        (forward_rs2 == 2'b10) ? wb_result :       // FROM_WB
-        rs2_data_in;                               // FROM_REG_FILE
+        (forward_rs2 == FROM_MEM) ? mem_alu_result :    // FROM_MEM
+        (forward_rs2 == FROM_WB) ? wb_result :          // FROM_WB
+        rs2_data_in;                                    // FROM_REG_FILE
     
     // -------------------------------------------
     // ALU Input Selection

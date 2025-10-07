@@ -78,6 +78,8 @@ module decode_stage #(
     localparam OP_JAL     = 7'b1101111;
     localparam OP_IMM     = 7'b0010011;
     localparam OP_R       = 7'b0110011;
+    localparam OP_LUI     = 7'b0110111;
+    localparam OP_AUIPC   = 7'b0010111;
     localparam OP_SYSTEM  = 7'b1110011;
 
     // -------------------------------------------
@@ -100,6 +102,8 @@ module decode_stage #(
             OP_STORE:   imm = {{20{instr_in[31]}}, instr_in[31:25], instr_in[11:7]};
             OP_BRANCH:  imm = {{19{instr_in[31]}}, instr_in[31], instr_in[7], instr_in[30:25], instr_in[11:8], 1'b0};
             OP_JAL:     imm = {{12{instr_in[31]}}, instr_in[19:12], instr_in[20], instr_in[30:21], 1'b0};
+            OP_LUI:     imm = {instr_in[31:12], 12'b0};                     // U-type
+            OP_AUIPC:   imm = {instr_in[31:12], 12'b0};                     // U-type
             default:    imm = 32'b0;
         endcase
     end

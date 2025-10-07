@@ -269,6 +269,7 @@ module cpu #(
         .load_misaligned                        (MEM_load_misaligned        ),
         .store_misaligned                       (MEM_store_misaligned       )
     );
+    assign MEM_to_EX_alu_result = mem_stage_inst.alu_result_out;
 
     // Writeback Stage
     writeback_stage #(
