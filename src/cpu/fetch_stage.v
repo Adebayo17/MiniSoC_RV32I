@@ -117,11 +117,11 @@ module fetch_stage #(
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            instr_out <= {DATA_WIDTH{1'b0}};
+            instr_out <= 32'h00000013;
             pc_out    <= {ADDR_WIDTH{1'b0}};
             valid_out <= 1'b0;
         end else if (flush || flush_pending) begin
-            instr_out <= {DATA_WIDTH{1'b0}};
+            instr_out <= 32'h00000013;
             pc_out    <= {ADDR_WIDTH{1'b0}};
             valid_out <= 1'b0;
         end else if (!stall && wbm_imem_ack && !flush_pending) begin

@@ -42,6 +42,16 @@ module control_unit (
     localparam [3:0]    ALU_AND     = 4'b0111;  // and/andi
     localparam [3:0]    ALU_PASSB   = 4'b1100;  // lui (pass operand_b through)
 
+    // -------------------------------------------
+    // BRANCH Code
+    // -------------------------------------------
+    localparam [2:0] BR_BEQ  = 3'b000;
+    localparam [2:0] BR_BNE  = 3'b001;
+    localparam [2:0] BR_BLT  = 3'b100;
+    localparam [2:0] BR_BGE  = 3'b101;
+    localparam [2:0] BR_BLTU = 3'b110;
+    localparam [2:0] BR_BGEU = 3'b111;
+
     always @(*) begin
         // Default values
         reg_write       = 0;
@@ -107,7 +117,12 @@ module control_unit (
             
             OP_BRANCH: begin
                 branch = 1;
-                alu_op = {1'b0, funct3}; // Compare ops
+                case (funct3)
+                    BR_BEQ, BR_BNE:     alu_op = ALU_SUB;  // BEQ/BNE: subtract and check zero
+                    BR_BLT, BR_BGE:     alu_op = ALU_SLT;  // BLT/BGE: signed compare
+                    BR_BLTU, BR_BGEU:   alu_op = ALU_SLTU; // BLTU/BGEU: unsigned compare
+                    default:            alu_op = ALU_SUB;
+                endcase
             end
             
             OP_JAL: begin

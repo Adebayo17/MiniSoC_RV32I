@@ -71,6 +71,31 @@ module execute_stage #(
     wire [DATA_WIDTH-1:0] rs1_data_forwarded;
     wire [DATA_WIDTH-1:0] rs2_data_forwarded;
 
+
+    // -------------------------------------------
+    // BRANCH Code
+    // -------------------------------------------
+    localparam [2:0] BR_BEQ  = 3'b000;
+    localparam [2:0] BR_BNE  = 3'b001;
+    localparam [2:0] BR_BLT  = 3'b100;
+    localparam [2:0] BR_BGE  = 3'b101;
+    localparam [2:0] BR_BLTU = 3'b110;
+    localparam [2:0] BR_BGEU = 3'b111;
+
+    // -------------------------------------------
+    // Instruction opcodes (RV32I)
+    // -------------------------------------------
+    localparam OP_LOAD    = 7'b0000011;
+    localparam OP_STORE   = 7'b0100011;
+    localparam OP_BRANCH  = 7'b1100011;
+    localparam OP_JALR    = 7'b1100111;
+    localparam OP_JAL     = 7'b1101111;
+    localparam OP_IMM     = 7'b0010011;
+    localparam OP_R       = 7'b0110011;
+    localparam OP_LUI     = 7'b0110111;
+    localparam OP_AUIPC   = 7'b0010111;
+    localparam OP_SYSTEM  = 7'b1110011;
+
     // -------------------------------------------
     // Forwarding Logic (Fixed)
     // -------------------------------------------
@@ -94,7 +119,7 @@ module execute_stage #(
     // -------------------------------------------
     // ALU Input Selection
     // -------------------------------------------
-    assign alu_operand_a = rs1_data_forwarded;
+    assign alu_operand_a = (opcode_in == OP_AUIPC) ? pc_in : rs1_data_forwarded;
     assign alu_operand_b = alu_src_in ? imm_in : rs2_data_forwarded;
     
 
@@ -120,18 +145,19 @@ module execute_stage #(
         
         if (branch_in && valid_in) begin
             case (funct3_in)
-                3'b000: branch_taken_out = alu_zero;  // BEQ
-                3'b001: branch_taken_out = !alu_zero; // BNE
-                3'b100: branch_taken_out = alu_lt;    // BLT
-                3'b101: branch_taken_out = !alu_lt;   // BGE
-                3'b110: branch_taken_out = alu_ltu;   // BLTU
-                3'b111: branch_taken_out = !alu_ltu;  // BGEU
+                BR_BEQ:  branch_taken_out = alu_zero;  // BEQ: rs1 == rs2
+                BR_BNE:  branch_taken_out = !alu_zero; // BNE: rs1 != rs2
+                BR_BLT:  branch_taken_out = alu_lt;    // BLT: rs1 < rs2 (signed)
+                BR_BGE:  branch_taken_out = !alu_lt;   // BGE: rs1 >= rs2 (signed)
+                BR_BLTU: branch_taken_out = alu_ltu;   // BLTU: rs1 < rs2 (unsigned)
+                BR_BGEU: branch_taken_out = !alu_ltu;  // BGEU: rs1 >= rs2 (unsigned)
+                default: branch_taken_out = 1'b0;      // Invalid branch type
             endcase
         end
         else if (jump_in && valid_in) begin
             branch_taken_out = 1'b1;
-            if (opcode_in == 7'b1100111) begin // JALR
-                branch_target_out = (rs1_data_in + imm_in) & ~32'h1;
+            if (opcode_in == OP_JALR) begin // JALR
+                branch_target_out = (rs1_data_forwarded + imm_in) & ~32'h1;
             end
         end
     end

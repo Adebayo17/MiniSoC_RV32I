@@ -38,11 +38,11 @@ module forward_unit #(
         
         // RS1 Forwarding
         if (decode_rs1 != 0) begin
-            if (execute_reg_write && execute_valid && (execute_rd == decode_rs1)) begin
-                forward_rs1 = FROM_EX;  // Forward from execute stage
-            end
-            else if (memory_reg_write && memory_valid && (memory_rd == decode_rs1)) begin
+            if (memory_reg_write && memory_valid && (memory_rd == decode_rs1)) begin
                 forward_rs1 = FROM_MEM; // Forward from memory stage
+            end
+            else if (execute_reg_write && execute_valid && (execute_rd == decode_rs1)) begin
+                forward_rs1 = FROM_EX;  // Forward from execute stage
             end
             else if (writeback_reg_write && writeback_valid && (writeback_rd == decode_rs1)) begin
                 forward_rs1 = FROM_WB;  // Forward from writeback stage
@@ -51,16 +51,15 @@ module forward_unit #(
         
         // RS2 Forwarding
         if (decode_rs2 != 0) begin
-            if (execute_reg_write && (execute_rd == decode_rs2)) begin
-                forward_rs2 = FROM_EX;
-            end
-            else if (memory_reg_write && (memory_rd == decode_rs2)) begin
+            if (memory_reg_write && memory_valid && (memory_rd == decode_rs2)) begin
                 forward_rs2 = FROM_MEM;
             end
-            else if (writeback_reg_write && (writeback_rd == decode_rs2)) begin
+            else if (execute_reg_write  && execute_valid && (execute_rd == decode_rs2)) begin
+                forward_rs2 = FROM_EX;
+            end
+            else if (writeback_reg_write  && writeback_valid && (writeback_rd == decode_rs2)) begin
                 forward_rs2 = FROM_WB;
             end
         end
     end
-
 endmodule

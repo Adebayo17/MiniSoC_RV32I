@@ -150,7 +150,7 @@ module decode_stage #(
         if (!rst_n) begin
             // Reset all pipeline registers
             pc_out          <= 0;
-            instr_out       <= 0;
+            instr_out       <= 32'h00000013;
             rs1_addr_out    <= 0;
             rs2_addr_out    <= 0;
             rd_addr_out     <= 0;

@@ -113,7 +113,12 @@ module tb_mini_rv32i_top;
         timeout_counter = 0;
 
         gpio_selected   = 0;
-        uart_selected   = 0;     
+        uart_selected   = 0;
+        dmem_selected   = 0;
+        timer_selected  = 0; 
+
+        is_gpio_selected = 0;
+        is_uart_selected = 0;
 
         #(CLK_PERIOD*10);
         rst_n = 1;
@@ -203,7 +208,7 @@ module tb_mini_rv32i_top;
         
 
         // ===== FINAL SUMMARY =====
-        #1000;
+        #1000000;
         $display("\n=== TOP-LEVEL Testbench Completed ===");
         $fdisplay(log_file, "\n=== TOP-LEVEL Testbench Completed ===");
         
@@ -354,7 +359,7 @@ module tb_mini_rv32i_top;
             // Monitor for peripheral select signals
             #(CLK_PERIOD * 50);
 
-            if (gpio_selected) begin
+            if (is_gpio_selected) begin
                 $display("  [PERIPHERAL] ✅ GPIO select activity detected");
                 $fdisplay(log_file, "  [PERIPHERAL] ✅ GPIO select activity detected");
                 test_pass = test_pass + 1;
@@ -364,7 +369,7 @@ module tb_mini_rv32i_top;
                 test_fail = test_fail + 1;
             end
 
-            if (uart_selected) begin
+            if (is_uart_selected) begin
                 $display("  [PERIPHERAL] ✅ UART select activity detected"); 
                 $fdisplay(log_file, "  [PERIPHERAL] ✅ UART select activity detected");
                 test_pass = test_pass + 1;
@@ -387,7 +392,7 @@ module tb_mini_rv32i_top;
             monitor_cycles = 0;
             last_pc = dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc;
             
-            while (monitor_cycles < 100) begin
+            while (monitor_cycles < 20) begin
                 @(posedge clk);
                 monitor_cycles = monitor_cycles + 1;
                 
@@ -423,42 +428,46 @@ module tb_mini_rv32i_top;
     end
     
     // ===== TEST 4: Monitor Peripheral Access =====
-    reg dmem_select;
+    reg dmem_selected;
     reg gpio_selected;
     reg uart_selected;
+    reg timer_selected;
+
+    reg is_gpio_selected;
+    reg is_uart_selected;
     always @(*) begin
+        dmem_selected   = 0;
+        gpio_selected   = 0;
+        uart_selected   = 0;
+        timer_selected  = 0;
+
         if (dut.top_soc_inst.dmem_inst.mem_select) begin
-            uart_selected = 1'b1;
-            $display("[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
-            $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
+            dmem_selected = 1'b1;
+            // $display("[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
+            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
         end
 
         if (dut.top_soc_inst.uart_inst.uart_select) begin
             uart_selected = 1'b1;
-            $display("[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
-            $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
+            is_uart_selected = 1'b1;
+            // $display("[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
+            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
         end
+
+        if (dut.top_soc_inst.timer_inst.timer_select) begin
+            timer_selected = 1'b1;
+            // $display("[MONITOR][PIPELINE] ✅ TIMER select activity detected at Cycle %0d", cycle_count);
+            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ TIMER select activity detected at Cycle %0d", cycle_count);
+        end
+
         if (dut.top_soc_inst.gpio_inst.gpio_select) begin
             gpio_selected = 1'b1;
-            $display("[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
-            $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
+            is_gpio_selected = 1'b1;
+            // $display("[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
+            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
         end
     end
 
-    // Debug monitoring for address decoding
-    always @(posedge clk) begin
-        if (dut.top_soc_inst.wbs_cpu_cyc && dut.top_soc_inst.wbs_cpu_stb) begin
-            $display("[ADDR_DEBUG] CPU accessing: Addr=%h -> GPIO_select=%b, UART_select=%b", 
-                    dut.top_soc_inst.wbs_cpu_addr,
-                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h4000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h4000_1000),
-                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h2000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h2000_1000));
-            
-            $fdisplay(log_file, "[ADDR_DEBUG] CPU accessing: Addr=%h -> GPIO_select=%b, UART_select=%b", 
-                    dut.top_soc_inst.wbs_cpu_addr,
-                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h4000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h4000_1000),
-                    (dut.top_soc_inst.wbs_cpu_addr >= 32'h2000_0000 && dut.top_soc_inst.wbs_cpu_addr < 32'h2000_1000));
-        end
-    end
 
     // ===== TEST 5: Monitor Pipeline Progression =====
     reg [31:0] fetch_pc;
@@ -473,6 +482,79 @@ module tb_mini_rv32i_top;
         mem_pc          = dut.top_soc_inst.rv32i_core.mem_stage_inst.pc_plus_4_in;
         writeback_pc    = dut.top_soc_inst.rv32i_core.writeback_stage_inst.pc_plus_4_in;
     end
+
+
+    // always @(*) begin
+    //     if (fetch_pc == 32'h00000000) begin
+    //         $display("[FIRMWARE] Reached : <_start>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <_start>");
+    //     end
+
+    //     if (fetch_pc == 32'h00000030) begin
+    //         $display("[FIRMWARE] Reached : <main_loop>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <main_loop>");
+    //     end
+
+    //     if (fetch_pc == 32'h00000044) begin
+    //         $display("[FIRMWARE] Reached : <skip_uart>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <skip_uart>");
+    //     end
+
+    //     if (fetch_pc == 32'h0000004C) begin
+    //         $display("[FIRMWARE] Reached : <delay_loop>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <delay_loop>");
+    //     end
+
+    //     if (fetch_pc == 32'h00000070) begin
+    //         $display("[FIRMWARE] Reached : <uart_send_boot_msg>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_boot_msg>");
+    //     end
+
+    //     if (fetch_pc == 32'h00000090) begin
+    //         $display("[FIRMWARE] Reached : <uart_send_string>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_string>");
+    //     end
+
+    //     if (fetch_pc == 32'h000000A8) begin
+    //         $display("[FIRMWARE] Reached : <uart_string_loop>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_string_loop>");
+    //     end
+
+    //     if (fetch_pc == 32'h000000BC) begin
+    //         $display("[FIRMWARE] Reached : <uart_string_done>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_string_done>");
+    //     end
+
+    //     if (fetch_pc == 32'h000000D0) begin
+    //         $display("[FIRMWARE] Reached : <uart_send_char>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_char>");
+    //     end
+
+    //     if (fetch_pc == 32'h000000E0) begin
+    //         $display("[FIRMWARE] Reached : <uart_wait_tx>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_wait_tx>");
+    //     end
+
+    //     if (fetch_pc == 32'h00000100) begin
+    //         $display("[FIRMWARE] Reached : <uart_send_hex>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_hex>");
+    //     end
+
+    //     if (decode_pc == 32'h00000128) begin
+    //         $display("[FIRMWARE] Reached : <hex_loop>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <hex_loop>");
+    //     end
+
+    //     if (decode_pc == 32'h00000140) begin
+    //         $display("[FIRMWARE] Reached : <hex_digit>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <hex_digit>");
+    //     end
+
+    //     if (decode_pc == 32'h00000144) begin
+    //         $display("[FIRMWARE] Reached : <hex_send>");
+    //         $fdisplay(log_file, "[FIRMWARE] Reached : <hex_send>");
+    //     end
+    // end
 
     always @(*) begin
         if (test_num == 100) begin
@@ -497,5 +579,20 @@ module tb_mini_rv32i_top;
             $fdisplay(log_file, "%s", "|---------------------------------------------------------------------------------------------|");
         end
     end
+
+    // HAZARD Monitor
+    // always @(*) begin
+    //     $display("[HAZARD_DETAIL]");
+    //     $display("  EX: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_valid);
+    //     $display("  ID: rs1=%d, rs2=%d, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs1, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs2, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_valid);
+    //     $display("  MEM: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_valid);
+    //     $display("  Hazards: load_use=%b, raw_data=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.load_use_hazard, dut.top_soc_inst.rv32i_core.hazard_unit_inst.data_hazard);
+
+    //     $fdisplay(log_file, "[HAZARD_DETAIL]");
+    //     $fdisplay(log_file, "  EX: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_valid);
+    //     $fdisplay(log_file, "  ID: rs1=%d, rs2=%d, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs1, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs2, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_valid);
+    //     $fdisplay(log_file, "  MEM: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_valid);
+    //     $fdisplay(log_file, "  Hazards: load_use=%b, raw_data=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.load_use_hazard, dut.top_soc_inst.rv32i_core.hazard_unit_inst.data_hazard);
+    // end
 
 endmodule

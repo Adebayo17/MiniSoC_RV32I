@@ -71,6 +71,12 @@ module hazard_unit #(
             stall_decode    = 1'b1;
             stall_execute   = 1'b0; // Let load instruction proceed
         end
+        // else if (data_hazard) begin
+        //     stall_fetch     = 1'b1;
+        //     stall_decode    = 1'b1;
+        //     stall_execute   = 1'b0;
+        // end
+
 
         // Branch/Jump taken: flush wrong path instructions
         if (branch_taken) begin
@@ -80,11 +86,12 @@ module hazard_unit #(
         end
         
         // Memory operation stall (if memory takes multiple cycles)
-        if (ex_mem_read) begin
-            stall_fetch     = 1'b1;
-            stall_decode    = 1'b1;
-            stall_execute   = 1'b1;
-        end
+        // if (ex_mem_read) begin
+        //     stall_fetch     = 1'b1;
+        //     stall_decode    = 1'b1;
+        //     stall_execute   = 1'b1;
+        // end
     end
+
 
 endmodule
