@@ -15,6 +15,9 @@ module decode_stage #(
     input wire [DATA_WIDTH-1:0]             instr_in,
     input wire [ADDR_WIDTH-1:0]             pc_in,
     input wire                              valid_in,
+
+    // From Hazard Unit
+    input wire                              hazard_decode_detected,
     
     // From Writeback Stage (for register writeback)
     input wire                              wb_reg_write,
@@ -169,7 +172,7 @@ module decode_stage #(
             alu_op_out      <= 0;
             jump_out        <= 0;
             valid_out       <= 0;
-        end else if (flush) begin
+        end else if (flush || hazard_decode_detected) begin
             // Flush pipeline (insert bubble)
             valid_out       <= 0;
             reg_write_out   <= 0;

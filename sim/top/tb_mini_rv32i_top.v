@@ -208,7 +208,7 @@ module tb_mini_rv32i_top;
         
 
         // ===== FINAL SUMMARY =====
-        #1000000;
+        #5000000;
         $display("\n=== TOP-LEVEL Testbench Completed ===");
         $fdisplay(log_file, "\n=== TOP-LEVEL Testbench Completed ===");
         
@@ -330,11 +330,11 @@ module tb_mini_rv32i_top;
                 @(posedge clk);
                 fetch_cycles = fetch_cycles + 1;
                 
-                if (dut.top_soc_inst.wbs_imem_cyc && dut.top_soc_inst.wbs_imem_stb) begin
+                if (dut.top_soc_inst.wbs_imem_if_cyc && dut.top_soc_inst.wbs_imem_if_stb) begin
                     $display("  [FETCH] Cycle %0d: Fetching PC=%h", cycle_count,
-                            dut.top_soc_inst.wbs_imem_addr);
+                            dut.top_soc_inst.wbs_imem_if_addr);
                     $fdisplay(log_file, "  [FETCH] Cycle %0d: Fetching PC=%h", cycle_count,
-                            dut.top_soc_inst.wbs_imem_addr);
+                            dut.top_soc_inst.wbs_imem_if_addr);
                 end
             end
             
@@ -484,6 +484,7 @@ module tb_mini_rv32i_top;
     end
 
 
+    // Check Firmware stage reached
     // always @(*) begin
     //     if (fetch_pc == 32'h00000000) begin
     //         $display("[FIRMWARE] Reached : <_start>");

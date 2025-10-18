@@ -13,20 +13,30 @@ module tb_imem;
     reg rst_n;
 
     // Test Control
-    reg [31:0] test_num;
+    reg [31:0]   test_num;
     reg [8*40:1] test_name;
-    reg [31:0] task_error_count;
-    reg [31:0] total_errors;
+    reg [31:0]   task_error_count;
+    reg [31:0]   total_errors;
 
-    // Wishbone Interface
-    reg                     wbs_cyc         ;
-    reg                     wbs_stb         ;
-    reg                     wbs_we          ;
-    reg [ADDR_WIDTH-1:0]    wbs_addr        ;
-    reg [DATA_WIDTH-1:0]    wbs_data_write  ;
-    reg [3:0]               wbs_sel         ;
-    wire [DATA_WIDTH-1:0]   wbs_data_read   ;
-    wire                    wbs_ack         ;
+    // Wishbone Interface (CPU-side)
+    reg                     wbs_if_cyc         ;
+    reg                     wbs_if_stb         ;
+    reg                     wbs_if_we          ;
+    reg [ADDR_WIDTH-1:0]    wbs_if_addr        ;
+    reg [DATA_WIDTH-1:0]    wbs_if_data_write  ;
+    reg [3:0]               wbs_if_sel         ;
+    wire [DATA_WIDTH-1:0]   wbs_if_data_read   ;
+    wire                    wbs_if_ack         ;
+
+    // Wishbone Interface (System Bus-side)
+    reg                     wbs_ro_cyc         ;
+    reg                     wbs_ro_stb         ;
+    reg                     wbs_ro_we          ;
+    reg [ADDR_WIDTH-1:0]    wbs_ro_addr        ;
+    reg [DATA_WIDTH-1:0]    wbs_ro_data_write  ;
+    reg [3:0]               wbs_ro_sel         ;
+    wire [DATA_WIDTH-1:0]   wbs_ro_data_read   ;
+    wire                    wbs_ro_ack         ;
 
     // Initialization Interface
     reg                     init_en         ;
@@ -35,24 +45,32 @@ module tb_imem;
 
     // Instantiate DUT
     imem_wrapper #(
-        .BASE_ADDR(BASE_ADDR),
-        .SIZE_KB(SIZE_KB),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH)
+        .BASE_ADDR  (BASE_ADDR),
+        .SIZE_KB    (SIZE_KB),
+        .ADDR_WIDTH (ADDR_WIDTH),
+        .DATA_WIDTH (DATA_WIDTH)
     ) dut (
-        .clk(clk),
-        .rst_n(rst_n),
-        .wbs_cyc(wbs_cyc),
-        .wbs_stb(wbs_stb),
-        .wbs_we(wbs_we),
-        .wbs_addr(wbs_addr),
-        .wbs_data_write(wbs_data_write),
-        .wbs_sel(wbs_sel),
-        .wbs_data_read(wbs_data_read),
-        .wbs_ack(wbs_ack),
-        .init_en(init_en),
-        .init_addr(init_addr),
-        .init_data(init_data)
+        .clk                    (clk                ),
+        .rst_n                  (rst_n              ),
+        .wbs_if_cyc             (wbs_if_cyc         ),
+        .wbs_if_stb             (wbs_if_stb         ),
+        .wbs_if_we              (wbs_if_we          ),
+        .wbs_if_addr            (wbs_if_addr        ),
+        .wbs_if_data_write      (wbs_if_data_write  ),
+        .wbs_if_sel             (wbs_if_sel         ),
+        .wbs_if_data_read       (wbs_if_data_read   ),
+        .wbs_if_ack             (wbs_if_ack         ),
+        .wbs_ro_cyc             (wbs_ro_cyc         ),
+        .wbs_ro_stb             (wbs_ro_stb         ),
+        .wbs_ro_we              (wbs_ro_we          ),
+        .wbs_ro_addr            (wbs_ro_addr        ),
+        .wbs_ro_data_write      (wbs_ro_data_write  ),
+        .wbs_ro_sel             (wbs_ro_sel         ),
+        .wbs_ro_data_read       (wbs_ro_data_read   ),
+        .wbs_ro_ack             (wbs_ro_ack         ),
+        .init_en                (init_en            ),
+        .init_addr              (init_addr          ),
+        .init_data              (init_data          )
     );
 
     // Clock Generation
@@ -66,12 +84,20 @@ module tb_imem;
         rst_n           = 0;
 
         // Initialize input signals
-        wbs_cyc         = 0;
-        wbs_stb         = 0;
-        wbs_we          = 0;
-        wbs_addr        = 0;
-        wbs_data_write  = 0;
-        wbs_sel         = 0;
+        wbs_if_cyc         = 0;
+        wbs_if_stb         = 0;
+        wbs_if_we          = 0;
+        wbs_if_addr        = 0;
+        wbs_if_data_write  = 0;
+        wbs_if_sel         = 0;
+
+        wbs_ro_cyc         = 0;
+        wbs_ro_stb         = 0;
+        wbs_ro_we          = 0;
+        wbs_ro_addr        = 0;
+        wbs_ro_data_write  = 0;
+        wbs_ro_sel         = 0;
+
         init_en         = 0;
         init_addr       = 0;
         init_data       = 0;
@@ -148,7 +174,7 @@ module tb_imem;
 
             // Test reads
             for (i = 0; i < 4; i = i + 1) begin
-                wb_read(BASE_ADDR + (i * 4), read_data);
+                wb_read_if(BASE_ADDR + (i * 4), read_data);
                 
                 if (read_data !== (32'hA5A5_A5A5 + i)) begin
                     $display("ERROR: Read failed @ %h: Expected %h, Got %h", 
@@ -175,24 +201,24 @@ module tb_imem;
             @(posedge clk);
 
             // Attempt write operation - this should be protected and cause warning
-            wbs_cyc = 1;
-            wbs_stb = 1;
-            wbs_we = 1;
-            wbs_addr = BASE_ADDR;
-            wbs_data_write = 32'hDEAD_BEEF;
-            wbs_sel = 4'b1111;
+            wbs_if_cyc = 1;
+            wbs_if_stb = 1;
+            wbs_if_we = 1;
+            wbs_if_addr = BASE_ADDR;
+            wbs_if_data_write = 32'hDEAD_BEEF;
+            wbs_if_sel = 4'b1111;
             
             // Wait for ack or timeout
             #100;
             
             // Deassert signals
-            wbs_cyc = 0;
-            wbs_stb = 0;
-            wbs_we = 0;
+            wbs_if_cyc = 0;
+            wbs_if_stb = 0;
+            wbs_if_we = 0;
             @(posedge clk);
 
             // Verify memory was not modified
-            wb_read(BASE_ADDR, read_data);
+            wb_read_if(BASE_ADDR, read_data);
             if (read_data === 32'hDEAD_BEEF) begin
                 $display("ERROR: Write protection failed - memory was modified");
                 error_count = error_count + 1;
@@ -228,7 +254,7 @@ module tb_imem;
 
             // Verify initialization
             for (i = 0; i < 4; i = i + 1) begin
-                wb_read(BASE_ADDR + (i * 4), read_data);
+                wb_read_if(BASE_ADDR + (i * 4), read_data);
                 
                 if (read_data !== (32'h12345678 + i)) begin
                     $display("ERROR: Initialization failed @ %h: Expected %h, Got %h", 
@@ -244,45 +270,89 @@ module tb_imem;
     // Wishbone Bus Tasks
     // -------------------------------------------
 
-    task wb_write;
+    task wb_write_if;
         input [ADDR_WIDTH-1:0] addr;
         input [DATA_WIDTH-1:0] data;
         input [3:0] sel;
         begin
             @(posedge clk);
-            wbs_cyc = 1;
-            wbs_stb = 1;
-            wbs_we = 1;
-            wbs_addr = addr;
-            wbs_data_write = data;
-            wbs_sel = sel;
+            wbs_if_cyc = 1;
+            wbs_if_stb = 1;
+            wbs_if_we = 1;
+            wbs_if_addr = addr;
+            wbs_if_data_write = data;
+            wbs_if_sel = sel;
             
             @(posedge clk);
-            while (!wbs_ack) @(posedge clk);
+            while (!wbs_if_ack) @(posedge clk);
             
-            wbs_cyc = 0;
-            wbs_stb = 0;
-            wbs_we = 0;
+            wbs_if_cyc = 0;
+            wbs_if_stb = 0;
+            wbs_if_we = 0;
             @(posedge clk);
         end
     endtask
 
-    task wb_read;
+    task wb_read_if;
         input [ADDR_WIDTH-1:0] addr;
         output [DATA_WIDTH-1:0] data;
         begin
             @(posedge clk);
-            wbs_cyc = 1;
-            wbs_stb = 1;
-            wbs_we = 0;
-            wbs_addr = addr;
+            wbs_if_cyc = 1;
+            wbs_if_stb = 1;
+            wbs_if_we = 0;
+            wbs_if_addr = addr;
             
             @(posedge clk);
-            while (!wbs_ack) @(posedge clk);
-            data = wbs_data_read;
+            while (!wbs_if_ack) @(posedge clk);
+            data = wbs_if_data_read;
             
-            wbs_cyc = 0;
-            wbs_stb = 0;
+            wbs_if_cyc = 0;
+            wbs_if_stb = 0;
+            @(posedge clk);
+        end
+    endtask
+
+
+    task wb_write_ro;
+        input [ADDR_WIDTH-1:0] addr;
+        input [DATA_WIDTH-1:0] data;
+        input [3:0] sel;
+        begin
+            @(posedge clk);
+            wbs_ro_cyc = 1;
+            wbs_ro_stb = 1;
+            wbs_ro_we = 1;
+            wbs_ro_addr = addr;
+            wbs_ro_data_write = data;
+            wbs_ro_sel = sel;
+            
+            @(posedge clk);
+            while (!wbs_ro_ack) @(posedge clk);
+            
+            wbs_ro_cyc = 0;
+            wbs_ro_stb = 0;
+            wbs_ro_we = 0;
+            @(posedge clk);
+        end
+    endtask
+
+    task wb_read_ro;
+        input [ADDR_WIDTH-1:0] addr;
+        output [DATA_WIDTH-1:0] data;
+        begin
+            @(posedge clk);
+            wbs_ro_cyc = 1;
+            wbs_ro_stb = 1;
+            wbs_ro_we = 0;
+            wbs_ro_addr = addr;
+            
+            @(posedge clk);
+            while (!wbs_ro_ack) @(posedge clk);
+            data = wbs_ro_data_read;
+            
+            wbs_ro_cyc = 0;
+            wbs_ro_stb = 0;
             @(posedge clk);
         end
     endtask

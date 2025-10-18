@@ -23,11 +23,15 @@ module mem_stage #(
     output reg                                  wbm_dmem_cyc,
     output reg                                  wbm_dmem_stb,
     output reg                                  wbm_dmem_we,
-    output reg [ADDR_WIDTH-1:0]                 wbm_dmem_addr,
-    output reg [DATA_WIDTH-1:0]                 wbm_dmem_data_write,
+    output wire [ADDR_WIDTH-1:0]                 wbm_dmem_addr,
+    output wire [DATA_WIDTH-1:0]                 wbm_dmem_data_write,
     output reg [3:0]                            wbm_dmem_sel,
     input wire [DATA_WIDTH-1:0]                 wbm_dmem_data_read,
     input wire                                  wbm_dmem_ack,
+
+    // Memory status outputs for hazard unit
+    output wire                                 mem_busy,
+    output wire                                 mem_ack,
 
     // Pipeline outputs
     output reg [ADDR_WIDTH-1:0]                 pc_plus_4_out,
@@ -60,8 +64,12 @@ module mem_stage #(
     localparam [2:0]  HALFU = 3'b101;
 
     // Internal signals
-    wire is_mem_op = (mem_read_in || mem_write_in) && valid_in;
-    wire mem_op_complete = (state == REQUEST && wbm_dmem_ack) || !is_mem_op;
+    wire is_mem_op          = (mem_read_in || mem_write_in) && valid_in;
+    wire mem_op_complete    = (state == REQUEST && wbm_dmem_ack);  //  || !is_mem_op
+
+    // Memory status assignments
+    assign mem_busy = (state != IDLE) && !wbm_dmem_ack;
+    assign mem_ack  = wbm_dmem_ack;
 
     // -------------------------------------------
     // Address Alignment Checking
@@ -100,7 +108,7 @@ module mem_stage #(
     end
 
     always @(*) begin
-        next_state = state;
+        next_state   = state;
         wbm_dmem_cyc = 1'b0;
         wbm_dmem_stb = 1'b0;
         wbm_dmem_we  = 1'b0;
@@ -145,15 +153,39 @@ module mem_stage #(
     // -------------------------------------------
     // Store Data Preparation
     // -------------------------------------------
-    always @(*) begin
-        wbm_dmem_addr = alu_result_in;
+    reg [DATA_WIDTH-1:0] store_data_latched;
+    reg [ADDR_WIDTH-1:0] store_addr_latched;
 
-        case (funct3_in)
-            BYTE:  wbm_dmem_data_write = {4{mem_data_in[7:0]}};
-            HALF:  wbm_dmem_data_write = {2{mem_data_in[15:0]}};
-            default: wbm_dmem_data_write = mem_data_in;
-        endcase
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            store_data_latched <= 0;
+            store_addr_latched <= 0;
+        end
+        else if (valid_in && mem_write_in && state == IDLE) begin
+            // Latch data and address only when a new store starts
+            case (funct3_in)
+                BYTE:  store_data_latched <= {4{mem_data_in[7:0]}};
+                HALF:  store_data_latched <= {2{mem_data_in[15:0]}};
+                default: store_data_latched <= mem_data_in;
+            endcase
+            store_addr_latched <= alu_result_in;
+        end
     end
+
+    // Use latched values while the FSM is busy
+    assign wbm_dmem_data_write = (state == IDLE) ? store_data_latched : store_data_latched;
+    assign wbm_dmem_addr       = (state == IDLE) ? alu_result_in      : store_addr_latched;
+
+    // always @(*) begin
+    //     wbm_dmem_addr = alu_result_in;
+
+    //     case (funct3_in)
+    //         BYTE:  wbm_dmem_data_write = {4{mem_data_in[7:0]}};
+    //         HALF:  wbm_dmem_data_write = {2{mem_data_in[15:0]}};
+    //         default: wbm_dmem_data_write = mem_data_in;
+    //     endcase
+    // end
+
 
     // -------------------------------------------
     // Load Data Processing

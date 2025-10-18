@@ -2,8 +2,9 @@
 # Simple RISC-V RV32I firmware for MiniSoC testbench
 # Uses only base instruction set (no M extension)
 
-.section .text
-.global _start
+    .section .init
+    .globl _start
+    .globl _estack
 
 # Memory-mapped peripheral addresses
 .equ UART_BASE,         0x20000000
@@ -28,8 +29,42 @@
 
 _start:
     # Initialize stack pointer
-    li sp, 0x10000FFC
+    la sp, _estack
+
+    /* --------------------------------------------------
+     * Initialize .bss section to zero
+     * -------------------------------------------------- */
+    la      t0, _sbss               /* t0 = start of .bss */
+    la      t1, _ebss               /* t1 = end of .bss */
+    beq     t0, t1, bss_done        /* if no bss, skip */
+
+bss_loop:
+    sw      zero, 0(t0)             /* *t0 = 0 */
+    addi    t0, t0, 4               /* next word */
+    blt     t0, t1, bss_loop
+
+bss_done:
+
+    /* --------------------------------------------------
+     * Copy .data section from LMA (IMEM) to VMA (DMEM)
+     * -------------------------------------------------- */
+    la      t0, _sidata             /* source (in IMEM image) */
+    la      t1, _sdata              /* destination (in DMEM) */
+    la      t2, _edata
+    beq     t1, t2, data_done
+
+data_loop:
+    lw      t3, 0(t0)
+    sw      t3, 0(t1)
+    addi    t0, t0, 4
+    addi    t1, t1, 4
+    blt     t1, t2, data_loop
+
+data_done:
+    call main_loop
     
+
+main_loop:
     # Initialize GPIO - set all as output
     li t0, GPIO_BASE
     li t1, 0xFF
@@ -47,8 +82,8 @@ _start:
     li s0, 0            # Counter
     li s1, GPIO_BASE    # GPIO base
     li s2, UART_BASE    # UART base
-    
-main_loop:
+
+
     # Update GPIO with counter value
     sw s0, 0(s1)        # Write to GPIO_DATA
     

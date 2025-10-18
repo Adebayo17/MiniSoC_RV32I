@@ -201,3 +201,5 @@ debug-firmware:
 	@echo "[TOP_SIM_FIRMWARE_DEBUG] Generated: $(TOP_SIM_BUILD_DIR)/firmware.mem"
 	@echo "[TOP_SIM_FIRMWARE_DEBUG] Firmware disassembly:"
 	$(RISCV_PREFIX)objdump -d $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware.disasm
+	$(RISCV_PREFIX)objdump -D $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_full.disasm
+	$(RISCV_PREFIX)objdump -h $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_section.disasm

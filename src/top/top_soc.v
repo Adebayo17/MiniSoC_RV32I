@@ -62,14 +62,24 @@ module top_soc #(
     wire                      wbs_cpu_ack        ;
 
     // IMEM Instance: imem_inst
-    wire                      wbs_imem_cyc       ;
-    wire                      wbs_imem_stb       ;
-    wire                      wbs_imem_we        ;
-    wire [ADDR_WIDTH-1:0]     wbs_imem_addr      ;
-    wire [DATA_WIDTH-1:0]     wbs_imem_data_write;
-    wire [3:0]                wbs_imem_sel       ;
-    wire [DATA_WIDTH-1:0]     wbs_imem_data_read ;
-    wire                      wbs_imem_ack       ;
+    wire                      wbs_imem_if_cyc       ;
+    wire                      wbs_imem_if_stb       ;
+    wire                      wbs_imem_if_we        ;
+    wire [ADDR_WIDTH-1:0]     wbs_imem_if_addr      ;
+    wire [DATA_WIDTH-1:0]     wbs_imem_if_data_write;
+    wire [3:0]                wbs_imem_if_sel       ;
+    wire [DATA_WIDTH-1:0]     wbs_imem_if_data_read ;
+    wire                      wbs_imem_if_ack       ;
+
+    wire                      wbs_imem_ro_cyc       ;
+    wire                      wbs_imem_ro_stb       ;
+    wire                      wbs_imem_ro_we        ;
+    wire [ADDR_WIDTH-1:0]     wbs_imem_ro_addr      ;
+    wire [DATA_WIDTH-1:0]     wbs_imem_ro_data_write;
+    wire [3:0]                wbs_imem_ro_sel       ;
+    wire [DATA_WIDTH-1:0]     wbs_imem_ro_data_read ;
+    wire                      wbs_imem_ro_ack       ;
+
 
     // DMEM Instance: dmem_inst
     wire                      wbs_dmem_cyc       ;
@@ -179,14 +189,14 @@ module top_soc #(
     ) rv32i_core (
         .clk                    (clk                    ),
         .rst_n                  (cpu_rst_n              ),
-        .wbm_imem_cyc           (wbs_imem_cyc           ),
-        .wbm_imem_stb           (wbs_imem_stb           ),
-        .wbm_imem_we            (wbs_imem_we            ),
-        .wbm_imem_addr          (wbs_imem_addr          ),
-        .wbm_imem_data_write    (wbs_imem_data_write    ),
-        .wbm_imem_sel           (wbs_imem_sel           ),
-        .wbm_imem_data_read     (wbs_imem_data_read     ),
-        .wbm_imem_ack           (wbs_imem_ack           ),
+        .wbm_imem_cyc           (wbs_imem_if_cyc        ),
+        .wbm_imem_stb           (wbs_imem_if_stb        ),
+        .wbm_imem_we            (wbs_imem_if_we         ),
+        .wbm_imem_addr          (wbs_imem_if_addr       ),
+        .wbm_imem_data_write    (wbs_imem_if_data_write ),
+        .wbm_imem_sel           (wbs_imem_if_sel        ),
+        .wbm_imem_data_read     (wbs_imem_if_data_read  ),
+        .wbm_imem_ack           (wbs_imem_if_ack        ),
         .wbm_dmem_cyc           (wbs_cpu_cyc            ),
         .wbm_dmem_stb           (wbs_cpu_stb            ),
         .wbm_dmem_we            (wbs_cpu_we             ),
@@ -197,9 +207,6 @@ module top_soc #(
         .wbm_dmem_ack           (wbs_cpu_ack            )
     );
 
-    // always @(posedge clk) begin
-    //     cpu_rst_n <= rst_n && init_done;
-    // end
 
     // ---------------------------------------------------------------------------------------------
     // Interconnect
@@ -222,6 +229,14 @@ module top_soc #(
         .wbm_cpu_sel            (wbs_cpu_sel             ),
         .wbm_cpu_data_read      (wbs_cpu_data_read       ),
         .wbm_cpu_ack            (wbs_cpu_ack             ),
+        .wbs_imem_cyc           (wbs_imem_ro_cyc         ),
+        .wbs_imem_stb           (wbs_imem_ro_stb         ),
+        .wbs_imem_we            (wbs_imem_ro_we          ),
+        .wbs_imem_addr          (wbs_imem_ro_addr        ),
+        .wbs_imem_data_write    (wbs_imem_ro_data_write  ),
+        .wbs_imem_sel           (wbs_imem_ro_sel         ),
+        .wbs_imem_data_read     (wbs_imem_ro_data_read   ),
+        .wbs_imem_ack           (wbs_imem_ro_ack         ),
         .wbs_dmem_cyc           (wbs_dmem_cyc            ),
         .wbs_dmem_stb           (wbs_dmem_stb            ),
         .wbs_dmem_we            (wbs_dmem_we             ),
@@ -304,19 +319,27 @@ module top_soc #(
         .ADDR_WIDTH (ADDR_WIDTH     ),
         .DATA_WIDTH (DATA_WIDTH     )
     ) imem_inst (
-        .clk                (clk                  ),
-        .rst_n              (memory_rst_n         ),
-        .wbs_cyc            (wbs_imem_cyc         ),
-        .wbs_stb            (wbs_imem_stb         ),
-        .wbs_we             (wbs_imem_we          ),
-        .wbs_addr           (wbs_imem_addr        ),  
-        .wbs_data_write     (wbs_imem_data_write  ),
-        .wbs_sel            (wbs_imem_sel         ),
-        .wbs_data_read      (wbs_imem_data_read   ),
-        .wbs_ack            (wbs_imem_ack         ),
-        .init_en            (imem_init_en         ),
-        .init_addr          (imem_init_addr       ),
-        .init_data          (imem_init_data       )
+        .clk                (clk                        ),
+        .rst_n              (memory_rst_n               ),
+        .wbs_if_cyc         (wbs_imem_if_cyc            ),
+        .wbs_if_stb         (wbs_imem_if_stb            ),
+        .wbs_if_we          (wbs_imem_if_we             ),
+        .wbs_if_addr        (wbs_imem_if_addr           ),
+        .wbs_if_data_write  (wbs_imem_if_data_write     ),
+        .wbs_if_sel         (wbs_imem_if_sel            ),
+        .wbs_if_data_read   (wbs_imem_if_data_read      ),
+        .wbs_if_ack         (wbs_imem_if_ack            ),
+        .wbs_ro_cyc         (wbs_imem_ro_cyc            ),
+        .wbs_ro_stb         (wbs_imem_ro_stb            ),
+        .wbs_ro_we          (wbs_imem_ro_we             ),
+        .wbs_ro_addr        (wbs_imem_ro_addr           ),
+        .wbs_ro_data_write  (wbs_imem_ro_data_write     ),
+        .wbs_ro_sel         (wbs_imem_ro_sel            ),
+        .wbs_ro_data_read   (wbs_imem_ro_data_read      ),
+        .wbs_ro_ack         (wbs_imem_ro_ack            ),
+        .init_en            (imem_init_en               ),
+        .init_addr          (imem_init_addr             ),
+        .init_data          (imem_init_data             )
     );
 
 

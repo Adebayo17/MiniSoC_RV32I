@@ -109,12 +109,12 @@ module execute_stage #(
     assign rs1_data_forwarded = 
         (forward_rs1 == FROM_MEM) ? mem_alu_result :    // FROM_MEM: Forward from memory stage
         (forward_rs1 == FROM_WB) ? wb_result :          // FROM_WB: Forward from writeback stage
-        rs1_data_in;                                    // FROM_REG_FILE: Use register file
+        rs1_data_in;                                    // FROM_REG: Use register file
 
     assign rs2_data_forwarded = 
         (forward_rs2 == FROM_MEM) ? mem_alu_result :    // FROM_MEM
         (forward_rs2 == FROM_WB) ? wb_result :          // FROM_WB
-        rs2_data_in;                                    // FROM_REG_FILE
+        rs2_data_in;                                    // FROM_REG
     
     // -------------------------------------------
     // ALU Input Selection

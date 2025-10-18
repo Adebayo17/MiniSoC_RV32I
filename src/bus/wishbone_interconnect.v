@@ -16,6 +16,16 @@ module wishbone_interconnect #(
     output reg [DATA_WIDTH-1:0]     wbm_cpu_data_read,
     output reg                      wbm_cpu_ack,
 
+    // Slave 0: IMEM
+    output reg                      wbs_imem_cyc,
+    output reg                      wbs_imem_stb,
+    output reg                      wbs_imem_we,
+    output reg [ADDR_WIDTH-1:0]     wbs_imem_addr,
+    output reg [DATA_WIDTH-1:0]     wbs_imem_data_write,
+    output reg [3:0]                wbs_imem_sel,
+    input wire [DATA_WIDTH-1:0]     wbs_imem_data_read,
+    input wire                      wbs_imem_ack,
+
     // Slave 1: DMEM
     output reg                      wbs_dmem_cyc,
     output reg                      wbs_dmem_stb,
@@ -61,19 +71,20 @@ module wishbone_interconnect #(
     // Internal Decode Signals
     // -------------------------------------------
     
+    localparam [2:0] SLAVE_IMEM  = 3'd0;
     localparam [2:0] SLAVE_DMEM  = 3'd1;
     localparam [2:0] SLAVE_UART  = 3'd2;
     localparam [2:0] SLAVE_TIMER = 3'd3;
     localparam [2:0] SLAVE_GPIO  = 3'd4;
     localparam [2:0] SLAVE_NONE  = 3'd7;
 
+    localparam [19:0] BASE_ADDR_IMEM  = 20'h00000;
     localparam [19:0] BASE_ADDR_DMEM  = 20'h10000;
     localparam [19:0] BASE_ADDR_UART  = 20'h20000;
     localparam [19:0] BASE_ADDR_TIMER = 20'h30000;
     localparam [19:0] BASE_ADDR_GPIO  = 20'h40000;
     
     reg [2:0] sel_slave;
-    reg [2:0] sel_slave_ff;
 
     // -------------------------------------------
     // Address Decdode
@@ -83,6 +94,7 @@ module wishbone_interconnect #(
         sel_slave = 3'd7; // Invalid
 
         case (wbm_cpu_addr[31:12])
+            BASE_ADDR_IMEM:   sel_slave   = SLAVE_IMEM ; 
             BASE_ADDR_DMEM:   sel_slave   = SLAVE_DMEM ; 
             BASE_ADDR_UART:   sel_slave   = SLAVE_UART ; 
             BASE_ADDR_TIMER:  sel_slave   = SLAVE_TIMER; 
@@ -98,6 +110,13 @@ module wishbone_interconnect #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset all outputs
+            wbs_imem_cyc        <= 1'b0;
+            wbs_imem_stb        <= 1'b0;
+            wbs_imem_we         <= 1'b0;
+            wbs_imem_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_imem_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_imem_sel        <= 4'b0;
+
             wbs_dmem_cyc        <= 1'b0;
             wbs_dmem_stb        <= 1'b0;
             wbs_dmem_we         <= 1'b0;
@@ -128,13 +147,15 @@ module wishbone_interconnect #(
             
             wbm_cpu_data_read   <= {DATA_WIDTH{1'b0}};
             wbm_cpu_ack         <= 1'b0;
-            
-            sel_slave_ff        <= SLAVE_NONE;
         end else begin
-            // Registered slave selection
-            sel_slave_ff        <= sel_slave;
-
             // Default: deselect all slaves
+            wbs_imem_cyc        <= 1'b0;
+            wbs_imem_stb        <= 1'b0;
+            wbs_imem_we         <= 1'b0;
+            wbs_imem_addr       <= {ADDR_WIDTH{1'b0}};
+            wbs_imem_data_write <= {DATA_WIDTH{1'b0}};
+            wbs_imem_sel        <= 4'b0;
+
             wbs_dmem_cyc        <= 1'b0;
             wbs_dmem_stb        <= 1'b0;
             wbs_dmem_we         <= 1'b0;
@@ -168,6 +189,17 @@ module wishbone_interconnect #(
 
             // Route to selected slave
             case (sel_slave)
+                SLAVE_IMEM: begin
+                    wbs_imem_cyc            <= wbm_cpu_cyc;
+                    wbs_imem_stb            <= wbm_cpu_stb;
+                    wbs_imem_we             <= wbm_cpu_we && 1'b0; // to avoid write attempt
+                    wbs_imem_addr           <= wbm_cpu_addr;
+                    wbs_imem_data_write     <= wbm_cpu_data_write;
+                    wbs_imem_sel            <= wbm_cpu_sel;
+                    wbm_cpu_data_read       <= wbs_imem_data_read;
+                    wbm_cpu_ack             <= wbs_imem_ack;
+                end
+
                 SLAVE_DMEM: begin
                     wbs_dmem_cyc            <= wbm_cpu_cyc;
                     wbs_dmem_stb            <= wbm_cpu_stb;
@@ -221,5 +253,5 @@ module wishbone_interconnect #(
                 end
             endcase
         end
-    end    
+    end 
 endmodule

@@ -105,9 +105,12 @@ module cpu #(
     wire                            hazard_unit_stall_fetch     ;
     wire                            hazard_unit_stall_decode    ; 
     wire                            hazard_unit_stall_execute   ;
+    wire                            hazard_unit_stall_writeback ;
     wire                            hazard_unit_flush_fetch     ;
     wire                            hazard_unit_flush_decode    ; 
     wire                            hazard_unit_flush_execute   ;
+    wire                            hazard_unit_mem_busy        ;
+    wire                            hazard_unit_mem_ack         ;
 
     // Forwarding 
     wire [1:0]                      forward_unit_forward_rs1    ;
@@ -259,6 +262,8 @@ module cpu #(
         .wbm_dmem_sel                           (wbm_dmem_sel               ),
         .wbm_dmem_data_read                     (wbm_dmem_data_read         ),
         .wbm_dmem_ack                           (wbm_dmem_ack               ),
+        .mem_busy                               (hazard_unit_mem_busy       ),
+        .mem_ack                                (hazard_unit_mem_ack        ),
         .pc_plus_4_out                          (MEM_to_WB_pc_plus_4        ),
         .mem_result_out                         (MEM_to_WB_mem_result       ),
         .alu_result_out                         (MEM_to_WB_alu_result       ),
@@ -279,6 +284,7 @@ module cpu #(
     ) writeback_stage_inst (
         .clk                                    (clk                        ),
         .rst_n                                  (rst_n                      ),
+        .stall                                  (hazard_unit_stall_writeback),
         .pc_plus_4_in                           (MEM_to_WB_pc_plus_4        ),
         .mem_result_in                          (MEM_to_WB_mem_result       ),
         .alu_result_in                          (MEM_to_WB_alu_result       ),
@@ -306,6 +312,7 @@ module cpu #(
         .REGFILE_ADDR_WIDTH (REGFILE_ADDR_WIDTH )
     ) hazard_unit_inst (
         .fetch_valid                            (IF_to_ID_valid             ),
+        .if_instr_out                           (IF_to_ID_instr             ),
         .id_rs1                                 (ID_to_EX_rs1_addr          ),       
         .id_rs2                                 (ID_to_EX_rs2_addr          ),       
         .id_mem_read                            (ID_to_EX_mem_read          ),  
@@ -317,10 +324,13 @@ module cpu #(
         .mem_rd                                 (MEM_to_WB_rd               ),       
         .mem_reg_write                          (MEM_to_WB_reg_write        ),
         .mem_valid                              (MEM_to_WB_valid            ),
+        .mem_busy                               (hazard_unit_mem_busy       ),
+        .mem_ack                                (hazard_unit_mem_ack        ),
         .branch_taken                           (hazard_unit_branch_taken   ),
         .stall_fetch                            (hazard_unit_stall_fetch    ),  
         .stall_decode                           (hazard_unit_stall_decode   ), 
         .stall_execute                          (hazard_unit_stall_execute  ),
+        .stall_writeback                        (hazard_unit_stall_writeback),
         .flush_fetch                            (hazard_unit_flush_fetch    ),  
         .flush_decode                           (hazard_unit_flush_decode   ), 
         .flush_execute                          (hazard_unit_flush_execute  )
@@ -341,5 +351,4 @@ module cpu #(
         .forward_rs1                            (forward_unit_forward_rs1   ),
         .forward_rs2                            (forward_unit_forward_rs2   )
     );
-
 endmodule

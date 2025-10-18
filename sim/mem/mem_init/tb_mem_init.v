@@ -42,29 +42,29 @@ module tb_mem_init;
     wire [ADDR_WIDTH-1:0] wbs_addr;
     wire [DATA_WIDTH-1:0] wbs_data_write;
     wire [3:0] wbs_sel;
-    wire [DATA_WIDTH-1:0] imem_data_read, dmem_data_read;
-    wire imem_ack, dmem_ack;
+    wire [DATA_WIDTH-1:0] imem_if_data_read, imem_ro_data_read, dmem_data_read;
+    wire imem_if_ack, imem_ro_ack, dmem_ack;
 
     // Instantiate DUT
     mem_init #(
-        .IMEM_BASE(IMEM_BASE),
-        .DMEM_BASE(DMEM_BASE),
-        .IMEM_SIZE_KB(IMEM_SIZE_KB),
-        .DMEM_SIZE_KB(DMEM_SIZE_KB),
-        .INIT_FILE(INIT_FILE),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH)
+        .IMEM_BASE      (IMEM_BASE),
+        .DMEM_BASE      (DMEM_BASE),
+        .IMEM_SIZE_KB   (IMEM_SIZE_KB),
+        .DMEM_SIZE_KB   (DMEM_SIZE_KB),
+        .INIT_FILE      (INIT_FILE),
+        .ADDR_WIDTH     (ADDR_WIDTH),
+        .DATA_WIDTH     (DATA_WIDTH)
     ) dut (
-        .clk(clk),
-        .rst_n(rst_n),
-        .init_start(init_start),
-        .init_done(init_done),
-        .imem_init_en(imem_init_en),
-        .imem_init_addr(imem_init_addr),
-        .imem_init_data(imem_init_data),
-        .dmem_init_en(dmem_init_en),
-        .dmem_init_addr(dmem_init_addr),
-        .dmem_init_data(dmem_init_data)
+        .clk                (clk            ),
+        .rst_n              (rst_n          ),
+        .init_start         (init_start     ),
+        .init_done          (init_done      ),
+        .imem_init_en       (imem_init_en   ),
+        .imem_init_addr     (imem_init_addr ),
+        .imem_init_data     (imem_init_data ),
+        .dmem_init_en       (dmem_init_en   ),
+        .dmem_init_addr     (dmem_init_addr ),
+        .dmem_init_data     (dmem_init_data )
     );
 
     // Instantiate IMEM
@@ -76,17 +76,25 @@ module tb_mem_init;
     ) imem_inst (
         .clk(clk),
         .rst_n(rst_n),
-        .wbs_cyc(1'b0),        // Not used for reads in this test
-        .wbs_stb(1'b0),
-        .wbs_we(1'b0),
-        .wbs_addr(32'b0),
-        .wbs_data_write(32'b0),
-        .wbs_sel(4'b0),
-        .wbs_data_read(imem_data_read),
-        .wbs_ack(imem_ack),
-        .init_en(imem_init_en),
-        .init_addr(imem_init_addr),
-        .init_data(imem_init_data)
+        .wbs_if_cyc         (1'b0),        // Not used for reads in this test
+        .wbs_if_stb         (1'b0),
+        .wbs_if_we          (1'b0),
+        .wbs_if_addr        (32'b0),
+        .wbs_if_data_write  (32'b0),
+        .wbs_if_sel         (4'b0),
+        .wbs_if_data_read   (imem_if_data_read),
+        .wbs_if_ack         (imem_if_ack),
+        .wbs_ro_cyc         (1'b0),        // Not used for reads in this test
+        .wbs_ro_stb         (1'b0),
+        .wbs_ro_we          (1'b0),
+        .wbs_ro_addr        (32'b0),
+        .wbs_ro_data_write  (32'b0),
+        .wbs_ro_sel         (4'b0),
+        .wbs_ro_data_read   (imem_ro_data_read),
+        .wbs_ro_ack         (imem_ro_ack),
+        .init_en            (imem_init_en),
+        .init_addr          (imem_init_addr),
+        .init_data          (imem_init_data)
     );
 
     // Instantiate DMEM

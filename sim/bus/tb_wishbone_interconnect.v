@@ -35,6 +35,15 @@ module tb_wishbone_interconnect;
     wire [3:0]                wb_m_cpu_sel;
     wire [DATA_WIDTH-1:0]     wb_m_cpu_data_read;
     wire                      wb_m_cpu_ack;
+    // Slave 0: IMEM
+    wire                      wb_s0_imem_cyc;
+    wire                      wb_s0_imem_stb;
+    wire                      wb_s0_imem_we;
+    wire [ADDR_WIDTH-1:0]     wb_s0_imem_addr;
+    wire [DATA_WIDTH-1:0]     wb_s0_imem_data_write;
+    wire [3:0]                wb_s0_imem_sel;
+    wire [DATA_WIDTH-1:0]     wb_s0_imem_data_read;
+    wire                      wb_s0_imem_ack;
     // Slave 1: DMEM
     wire                      wb_s1_dmem_cyc;
     wire                      wb_s1_dmem_stb;
@@ -81,48 +90,56 @@ module tb_wishbone_interconnect;
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) dut (
-        .clk                     (clk                     ),
-        .rst_n                   (rst_n                   ),
-        .wbm_cpu_cyc            (wb_m_cpu_cyc            ),
-        .wbm_cpu_stb            (wb_m_cpu_stb            ),
-        .wbm_cpu_we             (wb_m_cpu_we             ),
-        .wbm_cpu_addr           (wb_m_cpu_addr           ),
-        .wbm_cpu_data_write     (wb_m_cpu_data_write     ),
-        .wbm_cpu_sel            (wb_m_cpu_sel            ),
-        .wbm_cpu_data_read      (wb_m_cpu_data_read      ),
-        .wbm_cpu_ack            (wb_m_cpu_ack            ),
-        .wbs_dmem_cyc           (wb_s1_dmem_cyc          ),
-        .wbs_dmem_stb           (wb_s1_dmem_stb          ),
-        .wbs_dmem_we            (wb_s1_dmem_we           ),
-        .wbs_dmem_addr          (wb_s1_dmem_addr         ),
-        .wbs_dmem_data_write    (wb_s1_dmem_data_write   ),
-        .wbs_dmem_sel           (wb_s1_dmem_sel          ),
-        .wbs_dmem_data_read     (wb_s1_dmem_data_read    ),
-        .wbs_dmem_ack           (wb_s1_dmem_ack          ),
-        .wbs_uart_cyc           (wb_s2_uart_cyc          ),
-        .wbs_uart_stb           (wb_s2_uart_stb          ),
-        .wbs_uart_we            (wb_s2_uart_we           ),
-        .wbs_uart_addr          (wb_s2_uart_addr         ),
-        .wbs_uart_data_write    (wb_s2_uart_data_write   ),
-        .wbs_uart_sel           (wb_s2_uart_sel          ),
-        .wbs_uart_data_read     (wb_s2_uart_data_read    ),
-        .wbs_uart_ack           (wb_s2_uart_ack          ),
-        .wbs_timer_cyc          (wb_s3_timer_cyc         ),
-        .wbs_timer_stb          (wb_s3_timer_stb         ),
-        .wbs_timer_we           (wb_s3_timer_we          ),
-        .wbs_timer_addr         (wb_s3_timer_addr        ),
-        .wbs_timer_data_write   (wb_s3_timer_data_write  ),
-        .wbs_timer_sel          (wb_s3_timer_sel         ),
-        .wbs_timer_data_read    (wb_s3_timer_data_read   ),
-        .wbs_timer_ack          (wb_s3_timer_ack         ),
-        .wbs_gpio_cyc           (wb_s4_gpio_cyc          ),
-        .wbs_gpio_stb           (wb_s4_gpio_stb          ),
-        .wbs_gpio_we            (wb_s4_gpio_we           ),
-        .wbs_gpio_addr          (wb_s4_gpio_addr         ),
-        .wbs_gpio_data_write    (wb_s4_gpio_data_write   ),
-        .wbs_gpio_sel           (wb_s4_gpio_sel          ),
-        .wbs_gpio_data_read     (wb_s4_gpio_data_read    ),
-        .wbs_gpio_ack           (wb_s4_gpio_ack          )
+        .clk                        (clk                     ),
+        .rst_n                      (rst_n                   ),
+        .wbm_cpu_cyc                (wb_m_cpu_cyc            ),
+        .wbm_cpu_stb                (wb_m_cpu_stb            ),
+        .wbm_cpu_we                 (wb_m_cpu_we             ),
+        .wbm_cpu_addr               (wb_m_cpu_addr           ),
+        .wbm_cpu_data_write         (wb_m_cpu_data_write     ),
+        .wbm_cpu_sel                (wb_m_cpu_sel            ),
+        .wbm_cpu_data_read          (wb_m_cpu_data_read      ),
+        .wbm_cpu_ack                (wb_m_cpu_ack            ),
+        .wbs_imem_cyc               (wb_s0_imem_cyc          ),
+        .wbs_imem_stb               (wb_s0_imem_stb          ),
+        .wbs_imem_we                (wb_s0_imem_we           ),
+        .wbs_imem_addr              (wb_s0_imem_addr         ),
+        .wbs_imem_data_write        (wb_s0_imem_data_write   ),
+        .wbs_imem_sel               (wb_s0_imem_sel          ),
+        .wbs_imem_data_read         (wb_s0_imem_data_read    ),
+        .wbs_imem_ack               (wb_s0_imem_ack          ),
+        .wbs_dmem_cyc               (wb_s1_dmem_cyc          ),
+        .wbs_dmem_stb               (wb_s1_dmem_stb          ),
+        .wbs_dmem_we                (wb_s1_dmem_we           ),
+        .wbs_dmem_addr              (wb_s1_dmem_addr         ),
+        .wbs_dmem_data_write        (wb_s1_dmem_data_write   ),
+        .wbs_dmem_sel               (wb_s1_dmem_sel          ),
+        .wbs_dmem_data_read         (wb_s1_dmem_data_read    ),
+        .wbs_dmem_ack               (wb_s1_dmem_ack          ),
+        .wbs_uart_cyc               (wb_s2_uart_cyc          ),
+        .wbs_uart_stb               (wb_s2_uart_stb          ),
+        .wbs_uart_we                (wb_s2_uart_we           ),
+        .wbs_uart_addr              (wb_s2_uart_addr         ),
+        .wbs_uart_data_write        (wb_s2_uart_data_write   ),
+        .wbs_uart_sel               (wb_s2_uart_sel          ),
+        .wbs_uart_data_read         (wb_s2_uart_data_read    ),
+        .wbs_uart_ack               (wb_s2_uart_ack          ),
+        .wbs_timer_cyc              (wb_s3_timer_cyc         ),
+        .wbs_timer_stb              (wb_s3_timer_stb         ),
+        .wbs_timer_we               (wb_s3_timer_we          ),
+        .wbs_timer_addr             (wb_s3_timer_addr        ),
+        .wbs_timer_data_write       (wb_s3_timer_data_write  ),
+        .wbs_timer_sel              (wb_s3_timer_sel         ),
+        .wbs_timer_data_read        (wb_s3_timer_data_read   ),
+        .wbs_timer_ack              (wb_s3_timer_ack         ),
+        .wbs_gpio_cyc               (wb_s4_gpio_cyc          ),
+        .wbs_gpio_stb               (wb_s4_gpio_stb          ),
+        .wbs_gpio_we                (wb_s4_gpio_we           ),
+        .wbs_gpio_addr              (wb_s4_gpio_addr         ),
+        .wbs_gpio_data_write        (wb_s4_gpio_data_write   ),
+        .wbs_gpio_sel               (wb_s4_gpio_sel          ),
+        .wbs_gpio_data_read         (wb_s4_gpio_data_read    ),
+        .wbs_gpio_ack               (wb_s4_gpio_ack          )
     );
 
     // -------------------------------------------

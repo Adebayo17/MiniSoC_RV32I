@@ -7,6 +7,9 @@ module writeback_stage #(
     input wire                                  clk,
     input wire                                  rst_n,
 
+    // Pipeline control
+    input wire                                  stall,
+
     // Pipeline inputs from memory stage
     input wire [DATA_WIDTH-1:0]                 pc_plus_4_in,
     input wire [DATA_WIDTH-1:0]                 mem_result_in,
@@ -62,7 +65,7 @@ module writeback_stage #(
             result_out       <= 0;
             reg_write_out    <= 1'b0;
             valid_out        <= 1'b0;
-        end else begin
+        end else if (!stall) begin
             // Normal pipeline operation
             regfile_we       <= we;
             regfile_rd_addr  <= rd_in;
