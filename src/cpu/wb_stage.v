@@ -11,6 +11,8 @@ module writeback_stage #(
     input wire                                  stall,
 
     // Pipeline inputs from memory stage
+    input wire [DATA_WIDTH-1:0]                 instr_in,
+    input wire [ADDR_WIDTH-1:0]                 pc_in,
     input wire [DATA_WIDTH-1:0]                 pc_plus_4_in,
     input wire [DATA_WIDTH-1:0]                 mem_result_in,
     input wire [DATA_WIDTH-1:0]                 alu_result_in,
@@ -25,6 +27,9 @@ module writeback_stage #(
     output reg [DATA_WIDTH-1:0]                 regfile_wr_data,
 
     // Pipeline outputs (for debug)
+    output reg [DATA_WIDTH-1:0]                 instr_out,
+    output reg [ADDR_WIDTH-1:0]                 pc_out,
+    output reg [ADDR_WIDTH-1:0]                 pc_plus_4_out,
     output reg [REGFILE_ADDR_WIDTH-1:0]         rd_out,
     output reg [DATA_WIDTH-1:0]                 result_out,
     output reg                                  reg_write_out,
@@ -58,24 +63,30 @@ module writeback_stage #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset all outputs
-            regfile_we       <= 1'b0;
-            regfile_rd_addr  <= 0;
-            regfile_wr_data  <= 0;
-            rd_out           <= 0;
-            result_out       <= 0;
-            reg_write_out    <= 1'b0;
-            valid_out        <= 1'b0;
+            instr_out           <= 32'h00000013;
+            pc_out              <= {ADDR_WIDTH{1'b0}};
+            pc_plus_4_out       <= 0;
+            regfile_we          <= 1'b0;
+            regfile_rd_addr     <= 0;
+            regfile_wr_data     <= 0;
+            rd_out              <= 0;
+            result_out          <= 0;
+            reg_write_out       <= 1'b0;
+            valid_out           <= 1'b0;
         end else if (!stall) begin
             // Normal pipeline operation
-            regfile_we       <= we;
-            regfile_rd_addr  <= rd_in;
-            regfile_wr_data  <= wr_data;
+            regfile_we          <= we;
+            regfile_rd_addr     <= rd_in;
+            regfile_wr_data     <= wr_data;
             
             // Outputs for forwarding and debug
-            rd_out           <= rd_in;
-            result_out       <= wr_data;
-            reg_write_out    <= reg_write_in && valid_in;
-            valid_out        <= valid_in;
+            instr_out           <= instr_in;
+            pc_out              <= pc_in;
+            pc_plus_4_out       <= pc_plus_4_in;
+            rd_out              <= rd_in;
+            result_out          <= wr_data;
+            reg_write_out       <= reg_write_in && valid_in;
+            valid_out           <= valid_in;
         end 
     end
 endmodule

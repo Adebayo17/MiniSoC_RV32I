@@ -23,6 +23,13 @@ module decode_stage #(
     input wire                              wb_reg_write,
     input wire [REGFILE_ADDR_WIDTH-1:0]     wb_rd_addr,
     input wire [DATA_WIDTH-1:0]             wb_data,
+
+    // NEW: Forwarding inputs for decode stage
+    // input wire                              forward_to_decode_rs1,
+    // input wire                              forward_to_decode_rs2,
+    // input wire [1:0]                        forward_to_decode_sel,
+    // input wire [DATA_WIDTH-1:0]             ex_alu_result,      // From execute stage
+    // input wire [DATA_WIDTH-1:0]             mem_alu_result,     // From memory stage
     
     // Pipeline outputs to Execute Stage
     output reg [ADDR_WIDTH-1:0]             pc_out,
@@ -147,6 +154,40 @@ module decode_stage #(
     );
 
     // -------------------------------------------
+    // Pipeline Forwarding Control Signals (NEW)
+    // -------------------------------------------
+    // reg forward_to_decode_rs1_reg;
+    // reg forward_to_decode_rs2_reg;
+    // reg [1:0] forward_to_decode_sel_reg;
+    
+    // always @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         forward_to_decode_rs1_reg <= 1'b0;
+    //         forward_to_decode_rs2_reg <= 1'b0;
+    //         forward_to_decode_sel_reg <= 2'b00;
+    //     end else if (!stall) begin
+    //         forward_to_decode_rs1_reg <= forward_to_decode_rs1;
+    //         forward_to_decode_rs2_reg <= forward_to_decode_rs2;
+    //         forward_to_decode_sel_reg <= forward_to_decode_sel;
+    //     end
+    // end
+
+    // // Use REGISTERED forwarding signals
+    // assign rs1_data_forwarded = 
+    //     forward_to_decode_rs1_reg ? 
+    //         ((forward_to_decode_sel_reg == 2'b01) ? ex_alu_result :   // From EX
+    //          (forward_to_decode_sel_reg == 2'b10) ? mem_alu_result :  // From MEM
+    //          rs1_data) :                                              // Fallback
+    //     rs1_data;                                                     // No forwarding
+
+    // assign rs2_data_forwarded = 
+    //     forward_to_decode_rs2_reg ? 
+    //         ((forward_to_decode_sel_reg == 2'b01) ? ex_alu_result :   // From EX
+    //          (forward_to_decode_sel_reg == 2'b10) ? mem_alu_result :  // From MEM
+    //          rs2_data) :                                              // Fallback
+    //     rs2_data;                                                     // No forwarding
+
+    // -------------------------------------------
     // Pipeline Register Update (Sequential)
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
@@ -180,7 +221,18 @@ module decode_stage #(
             mem_read_out    <= 0;
             branch_out      <= 0;
             jump_out        <= 0;
-        end else if (!stall) begin
+        end else if (stall) begin
+            // STALL: insert bubble, don't hold current instruction
+            valid_out       <= 1'b0;
+            instr_out       <= 32'h00000013; // NOP
+            reg_write_out   <= 1'b0;
+            mem_write_out   <= 1'b0;
+            mem_read_out    <= 1'b0;
+            branch_out      <= 0;
+            alu_src_out     <= 0;
+            alu_op_out      <= 0;
+            jump_out        <= 0;
+        end else begin
             // Normal pipeline operation
             valid_out <= valid_in;
             

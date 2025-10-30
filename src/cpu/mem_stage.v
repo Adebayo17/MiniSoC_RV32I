@@ -8,6 +8,8 @@ module mem_stage #(
     input wire                                  rst_n,
 
     // Pipeline inputs from execute stage
+    input wire [DATA_WIDTH-1:0]                 instr_in,
+    input wire [ADDR_WIDTH-1:0]                 pc_in,
     input wire [ADDR_WIDTH-1:0]                 pc_plus_4_in,
     input wire [DATA_WIDTH-1:0]                 alu_result_in,
     input wire [DATA_WIDTH-1:0]                 mem_data_in,  // Store data
@@ -23,8 +25,8 @@ module mem_stage #(
     output reg                                  wbm_dmem_cyc,
     output reg                                  wbm_dmem_stb,
     output reg                                  wbm_dmem_we,
-    output wire [ADDR_WIDTH-1:0]                 wbm_dmem_addr,
-    output wire [DATA_WIDTH-1:0]                 wbm_dmem_data_write,
+    output wire [ADDR_WIDTH-1:0]                wbm_dmem_addr,
+    output wire [DATA_WIDTH-1:0]                wbm_dmem_data_write,
     output reg [3:0]                            wbm_dmem_sel,
     input wire [DATA_WIDTH-1:0]                 wbm_dmem_data_read,
     input wire                                  wbm_dmem_ack,
@@ -34,6 +36,8 @@ module mem_stage #(
     output wire                                 mem_ack,
 
     // Pipeline outputs
+    output reg [DATA_WIDTH-1:0]                 instr_out,
+    output reg [ADDR_WIDTH-1:0]                 pc_out,
     output reg [ADDR_WIDTH-1:0]                 pc_plus_4_out,
     output reg [DATA_WIDTH-1:0]                 mem_result_out,
     output reg [DATA_WIDTH-1:0]                 alu_result_out,
@@ -65,7 +69,8 @@ module mem_stage #(
 
     // Internal signals
     wire is_mem_op          = (mem_read_in || mem_write_in) && valid_in;
-    wire mem_op_complete    = (state == REQUEST && wbm_dmem_ack);  //  || !is_mem_op
+    // wire mem_op_complete    = (state == REQUEST && wbm_dmem_ack);  //  || !is_mem_op
+    wire mem_op_complete    = (is_mem_op && wbm_dmem_ack) || !is_mem_op;
 
     // Memory status assignments
     assign mem_busy = (state != IDLE) && !wbm_dmem_ack;
@@ -214,20 +219,24 @@ module mem_stage #(
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pc_plus_4_out  <= 0;
-            mem_result_out <= 0;
-            alu_result_out <= 0;
-            rd_out         <= 0;
-            reg_write_out  <= 0;
-            mem_to_reg_out <= 0;
-            valid_out      <= 0;
+            instr_out       <= 32'h00000013;
+            pc_out          <= {ADDR_WIDTH{1'b0}};
+            pc_plus_4_out   <= 0;
+            mem_result_out  <= 0;
+            alu_result_out  <= 0;
+            rd_out          <= 0;
+            reg_write_out   <= 0;
+            mem_to_reg_out  <= 0;
+            valid_out       <= 0;
         end else begin
             // Normal pipeline operation
-            pc_plus_4_out  <= pc_plus_4_in;
-            alu_result_out <= alu_result_in;
-            rd_out         <= rd_in;
-            reg_write_out  <= reg_write_in && valid_in && !load_misaligned;
-            mem_to_reg_out <= mem_to_reg_in;
+            instr_out       <= instr_in;
+            pc_out          <= pc_in;
+            pc_plus_4_out   <= pc_plus_4_in;
+            alu_result_out  <= alu_result_in;
+            rd_out          <= rd_in;
+            reg_write_out   <= reg_write_in && valid_in && !load_misaligned;
+            mem_to_reg_out  <= mem_to_reg_in;
             
             // Memory result selection
             case (mem_to_reg_in)
@@ -238,7 +247,7 @@ module mem_stage #(
             endcase
             
             // Valid output: memory ops complete when ack received or not a memory op
-            valid_out <= valid_in && (mem_op_complete || !is_mem_op);
+            valid_out <= valid_in && mem_op_complete;
         end
     end
 endmodule

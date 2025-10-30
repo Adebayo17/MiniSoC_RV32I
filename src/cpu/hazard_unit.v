@@ -42,38 +42,23 @@ module hazard_unit #(
     // -------------------------------------------
     // Hazard Detection
     // -------------------------------------------
-    wire decode_use_hazard;
     wire load_use_hazard;
+    wire ex_to_id_hazard;
     wire mem_busy_hazard;
 
-    // assign decode_stage_hazard = (id_valid && ex_reg_write && ex_valid && // Instruction in decode uses register being written by instruction in execute
-    //                             ((id_rs1 == ex_rd && id_rs1 != 0)   || 
-    //                              (id_rs2 == ex_rd && id_rs2 != 0))) ||
-    //                              (id_valid && ex_mem_read && ex_valid &&  // Instruction in decode uses register being loaded by instruction in execute  
-    //                             ((id_rs1 == ex_rd && id_rs1 != 0) || 
-    //                              (id_rs2 == ex_rd && id_rs2 != 0)));
-                                
-    assign decode_stage_hazard = 
-                                // Case 1: Instruction in decode is LOAD and depends on load in execute
-                                (id_mem_read && id_valid && ex_mem_read && ex_valid &&
-                                ((id_rs1 == ex_rd && id_rs1 != 0) || (id_rs2 == ex_rd && id_rs2 != 0))) ||
-                                
-                                // Case 2: Instruction in decode is STORE and depends on load in execute
-                                (id_valid && !id_mem_read && ex_mem_read && ex_valid &&  // Store instruction
-                                ((id_rs1 == ex_rd && id_rs1 != 0) || (id_rs2 == ex_rd && id_rs2 != 0))) ||
-                                
-                                // Case 3: Critical ALU dependency that forwarding can't handle
-                                (id_valid && ex_mem_read && ex_valid &&  // Load in execute
-                                ((id_rs1 == ex_rd && id_rs1 != 0) || (id_rs2 == ex_rd && id_rs2 != 0)));
-
-
-    // Detect if decode stage needs result from current load instruction in execute
-    assign load_use_hazard =  ex_mem_read && ex_valid && 
-                              id_mem_read && id_valid && 
+    // True load-use hazard: instruction in decode needs result from load in execute
+    assign load_use_hazard = ex_mem_read && ex_valid && 
+                             id_mem_read && id_valid && 
+                            ((id_rs1 == ex_rd && id_rs1 != 0) || 
+                             (id_rs2 == ex_rd && id_rs2 != 0));
+    
+    // EX-to-ID hazard: instruction in ID needs result from instruction in EX
+    assign ex_to_id_hazard = ex_reg_write && ex_valid && 
                             ((id_rs1 == ex_rd && id_rs1 != 0) || 
                              (id_rs2 == ex_rd && id_rs2 != 0));
 
-    assign  mem_busy_hazard = ex_mem_read && mem_busy && !mem_ack;
+    // Memory busy hazard: multi-cycle memory operation
+    assign mem_busy_hazard = (ex_mem_read || mem_busy) && !mem_ack;
 
 
     // -------------------------------------------
@@ -90,33 +75,31 @@ module hazard_unit #(
         flush_decode    = 1'b0;
         flush_execute   = 1'b0;
 
-        // Priority 1: Load-use hazard: stall fetch and decode
-        if (decode_stage_hazard) begin
+        // Priority 1: Memory busy hazard (highest priority)
+        if (mem_busy_hazard) begin
             stall_fetch     = 1'b1;
             stall_decode    = 1'b1;
-            stall_execute   = 1'b0; // Let load instruction proceed
-            stall_writeback = 1'b0;
+            stall_execute   = 1'b1;
+            stall_writeback = 1'b1;
         end
+        // Priority 2: Load-use hazard (requires 1-cycle stall)
         else if (load_use_hazard) begin
             stall_fetch     = 1'b1;
             stall_decode    = 1'b1;
-            stall_execute   = 1'b0; // Let load instruction proceed
+            stall_execute   = 1'b0;
             stall_writeback = 1'b0;
         end
-        // Priority 2 - Multi-cycle memory operations
-        else if (mem_busy_hazard) begin
+        // Priority 3: EX-to-ID hazard (new - for auipc→addi case)
+        else if (ex_to_id_hazard) begin
             stall_fetch     = 1'b1;
             stall_decode    = 1'b1;
-            stall_execute   = 1'b1; // Stall execute until memory responds
-            stall_writeback = 1'b1; // Stall WB during memory ops
+            // Let EX instruction proceed to write result
         end
 
-
-        // Branch/Jump taken: flush wrong path instructions
+        // Branch/jump taken - flush wrong path instructions
         if (branch_taken) begin
             flush_fetch     = 1'b1;
             flush_decode    = 1'b1;
-            // Note: Execute stage contains the branch/jump it self, so no flush
         end
     end
 endmodule

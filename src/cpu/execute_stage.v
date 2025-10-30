@@ -40,6 +40,8 @@ module execute_stage #(
     input wire [1:0]                            forward_rs2,
 
     // Pipeline outputs to Memory Stage
+    output reg [DATA_WIDTH-1:0]                 instr_out,
+    output reg [ADDR_WIDTH-1:0]                 pc_out,
     output reg [ADDR_WIDTH-1:0]                 pc_plus_4_out,
     output reg [DATA_WIDTH-1:0]                 alu_result_out,
     output reg [DATA_WIDTH-1:0]                 mem_data_out,
@@ -102,18 +104,17 @@ module execute_stage #(
 
     // Forwarding selection codes
     localparam [1:0] FROM_REG  = 2'b00;
-    localparam [1:0] FROM_EX   = 2'b01;
-    localparam [1:0] FROM_MEM  = 2'b10;
-    localparam [1:0] FROM_WB   = 2'b11;
+    localparam [1:0] FROM_MEM  = 2'b01;
+    localparam [1:0] FROM_WB   = 2'b10;
 
     assign rs1_data_forwarded = 
-        (forward_rs1 == FROM_MEM) ? mem_alu_result :    // FROM_MEM: Forward from memory stage
-        (forward_rs1 == FROM_WB) ? wb_result :          // FROM_WB: Forward from writeback stage
+        (forward_rs1 == FROM_MEM) ? mem_alu_result  :   // FROM_MEM: Forward from memory stage
+        (forward_rs1 == FROM_WB)  ? wb_result       :   // FROM_WB: Forward from writeback stage
         rs1_data_in;                                    // FROM_REG: Use register file
 
     assign rs2_data_forwarded = 
-        (forward_rs2 == FROM_MEM) ? mem_alu_result :    // FROM_MEM
-        (forward_rs2 == FROM_WB) ? wb_result :          // FROM_WB
+        (forward_rs2 == FROM_MEM) ? mem_alu_result  :   // FROM_MEM
+        (forward_rs2 == FROM_WB)  ? wb_result       :   // FROM_WB
         rs2_data_in;                                    // FROM_REG
     
     // -------------------------------------------
@@ -168,6 +169,8 @@ module execute_stage #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset all outputs
+            instr_out           <= 32'h00000013;
+            pc_out              <= {ADDR_WIDTH{1'b0}};
             alu_result_out      <= 0;
             mem_data_out        <= 0;
             rd_out              <= 0;
@@ -182,6 +185,8 @@ module execute_stage #(
             branch_target_out   <= 0;
         end else if (flush) begin
             // Flush pipeline (insert bubble)
+            instr_out           <= 32'h00000013;
+            pc_out              <= {ADDR_WIDTH{1'b0}};
             valid_out           <= 0;
             reg_write_out       <= 0;
             mem_write_out       <= 0;
@@ -189,6 +194,8 @@ module execute_stage #(
             branch_taken_out    <= 0;
         end else if (!stall) begin
             // Normal pipeline operation
+            instr_out           <= instr_in;
+            pc_out              <= pc_in;
             alu_result_out      <= alu_result;
             mem_data_out        <= rs2_data_forwarded;  // Use forwarded data for stores
             rd_out              <= rd_in;

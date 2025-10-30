@@ -29,7 +29,7 @@
 
 _start:
     # Initialize stack pointer
-    la sp, _estack
+    la      sp, _estack
 
     /* --------------------------------------------------
      * Initialize .bss section to zero

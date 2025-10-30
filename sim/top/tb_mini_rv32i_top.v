@@ -39,6 +39,7 @@ module tb_mini_rv32i_top;
     
     // File handles for logging
     integer log_file;
+    integer cpu_trace_log;
     
     // Memory map addresses
     localparam IMEM_BASE  = 32'h0000_0000;
@@ -133,6 +134,15 @@ module tb_mini_rv32i_top;
         // Open log file
         log_file = $fopen("mini_rv32i_top.log", "w");
         $fdisplay(log_file, "Mini RV32I Top Test Log - %t", $time);
+
+        cpu_trace_log = $fopen("mini_rv32i_top_cpu_trace.log", "w");
+        $fdisplay(cpu_trace_log, "Mini RV32I Top CPU instruction trace Log - %t", $time);
+        $fdisplay(cpu_trace_log,
+            "===============================================================================================================================================");
+        $fdisplay(cpu_trace_log,
+            "  CYCLE        |   IF_PC    IF_INSTR   |   ID_PC    ID_INSTR   |   EX_PC    EX_INSTR   |   MEM_PC   MEM_INSTR      |   WB_PC    WB_INSTR");
+        $fdisplay(cpu_trace_log,
+            "===============================================================================================================================================");
         
         // Create VCD dump
         $dumpfile("mini_rv32i_top_tb.vcd");
@@ -208,7 +218,7 @@ module tb_mini_rv32i_top;
         
 
         // ===== FINAL SUMMARY =====
-        #5000000;
+        #1000000;
         $display("\n=== TOP-LEVEL Testbench Completed ===");
         $fdisplay(log_file, "\n=== TOP-LEVEL Testbench Completed ===");
         
@@ -475,12 +485,40 @@ module tb_mini_rv32i_top;
     reg [31:0] execute_pc;
     reg [31:0] mem_pc;
     reg [31:0] writeback_pc;
+
+    reg [31:0] fetch_instr;
+    reg [31:0] decode_instr;
+    reg [31:0] execute_instr;
+    reg [31:0] mem_instr;
+    reg [31:0] writeback_instr;
     always @(*) begin
         fetch_pc        = dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc;
         decode_pc       = dut.top_soc_inst.rv32i_core.decode_stage_inst.pc_in;
         execute_pc      = dut.top_soc_inst.rv32i_core.execute_stage_inst.pc_in;
-        mem_pc          = dut.top_soc_inst.rv32i_core.mem_stage_inst.pc_plus_4_in;
-        writeback_pc    = dut.top_soc_inst.rv32i_core.writeback_stage_inst.pc_plus_4_in;
+        mem_pc          = dut.top_soc_inst.rv32i_core.mem_stage_inst.pc_in;
+        writeback_pc    = dut.top_soc_inst.rv32i_core.writeback_stage_inst.pc_in;
+
+        fetch_instr        = dut.top_soc_inst.rv32i_core.fetch_stage_inst.wbm_imem_data_read;
+        decode_instr       = dut.top_soc_inst.rv32i_core.decode_stage_inst.instr_in;
+        execute_instr      = dut.top_soc_inst.rv32i_core.execute_stage_inst.instr_in;
+        mem_instr          = dut.top_soc_inst.rv32i_core.mem_stage_inst.instr_in;
+        writeback_instr    = dut.top_soc_inst.rv32i_core.writeback_stage_inst.instr_in;
+    end
+
+    always @(posedge clk) begin
+        if (cpu_trace_log && dut.top_soc_inst.cpu_rst_n) begin
+            $fdisplay(cpu_trace_log,
+                "%8d        | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h",
+                cycle_count,
+                fetch_pc    , fetch_instr     ,
+                decode_pc   , decode_instr    ,
+                execute_pc  , execute_instr   ,
+                mem_pc      , mem_instr       ,
+                writeback_pc, writeback_instr ,
+            );
+            $fdisplay(cpu_trace_log,
+                "-------------------------------------------------------------------------------------------------------------------------------------");
+        end
     end
 
 
@@ -557,43 +595,30 @@ module tb_mini_rv32i_top;
     //     end
     // end
 
-    always @(*) begin
-        if (test_num == 100) begin
-            $display("===============================================================================================");
-            $display("| [PIPELINE] Cycle %0d | PC = %h |", cycle_count, fetch_pc);
-            $display("|---------------------------------------------------------------------------------------------|");
-            $display("| [PIPELINE] IF  | %h |", fetch_pc);
-            $display("| [PIPELINE] ID  | %h |", decode_pc);
-            $display("| [PIPELINE] EX  | %h |", execute_pc);
-            $display("| [PIPELINE] MEM | %h |", mem_pc);
-            $display("| [PIPELINE] WB  | %h |", writeback_pc);
-            $display("|---------------------------------------------------------------------------------------------|");
-
-            $fdisplay(log_file, "%s", "===============================================================================================");
-            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] Cycle %0d | PC = %h |", cycle_count, fetch_pc));
-            $fdisplay(log_file, "%s", "|---------------------------------------------------------------------------------------------|");
-            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] IF  | %h |", fetch_pc));
-            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] ID  | %h |", decode_pc));
-            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] EX  | %h |", execute_pc));
-            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] MEM | %h |", mem_pc));
-            $fdisplay(log_file, "%s", $sformatf("| [PIPELINE] WB  | %h |", writeback_pc));
-            $fdisplay(log_file, "%s", "|---------------------------------------------------------------------------------------------|");
-        end
-    end
-
-    // HAZARD Monitor
-    // always @(*) begin
-    //     $display("[HAZARD_DETAIL]");
-    //     $display("  EX: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_valid);
-    //     $display("  ID: rs1=%d, rs2=%d, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs1, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs2, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_valid);
-    //     $display("  MEM: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_valid);
-    //     $display("  Hazards: load_use=%b, raw_data=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.load_use_hazard, dut.top_soc_inst.rv32i_core.hazard_unit_inst.data_hazard);
-
-    //     $fdisplay(log_file, "[HAZARD_DETAIL]");
-    //     $fdisplay(log_file, "  EX: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.ex_valid);
-    //     $fdisplay(log_file, "  ID: rs1=%d, rs2=%d, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs1, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_rs2, dut.top_soc_inst.rv32i_core.hazard_unit_inst.id_valid);
-    //     $fdisplay(log_file, "  MEM: rd=%d, reg_write=%b, valid=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_rd, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_reg_write, dut.top_soc_inst.rv32i_core.hazard_unit_inst.mem_valid);
-    //     $fdisplay(log_file, "  Hazards: load_use=%b, raw_data=%b", dut.top_soc_inst.rv32i_core.hazard_unit_inst.load_use_hazard, dut.top_soc_inst.rv32i_core.hazard_unit_inst.data_hazard);
+    // Add to testbench
+    // always @(posedge clk) begin
+    //     if (cycle_count >= 3250 && cycle_count <= 3300) begin
+    //         $display("[VALID_TRACE] Cycle %0d: IF_valid=%b, ID_valid=%b, EX_valid=%b, MEM_valid=%b, WB_valid=%b",
+    //                 cycle_count,
+    //                 dut.top_soc_inst.rv32i_core.fetch_stage_inst.valid_out,
+    //                 dut.top_soc_inst.rv32i_core.decode_stage_inst.valid_out,
+    //                 dut.top_soc_inst.rv32i_core.execute_stage_inst.valid_out,
+    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.valid_out,
+    //                 dut.top_soc_inst.rv32i_core.writeback_stage_inst.valid_out);
+    //     end
     // end
+
+    // Add to testbench
+    // always @(posedge clk) begin
+    //     if (dut.top_soc_inst.rv32i_core.mem_stage_inst.mem_read_in && 
+    //         dut.top_soc_inst.rv32i_core.mem_stage_inst.valid_in) begin
+    //         $display("[MEM_READ] Cycle %0d: addr=%h, data=%h, valid_out=%b",
+    //                 cycle_count,
+    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.wbm_dmem_addr,
+    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.wbm_dmem_data_read,
+    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.valid_out);
+    //     end
+    // end
+
 
 endmodule

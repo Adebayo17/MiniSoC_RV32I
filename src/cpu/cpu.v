@@ -62,6 +62,8 @@ module cpu #(
     wire                            ID_to_EX_valid              ;
 
     // EX to MEM (Memory)
+    wire [DATA_WIDTH-1:0]           EX_to_MEM_instr             ;
+    wire [ADDR_WIDTH-1:0]           EX_to_MEM_pc                ;
     wire [ADDR_WIDTH-1:0]           EX_to_MEM_pc_plus_4         ;
     wire [DATA_WIDTH-1:0]           EX_to_MEM_alu_result        ;
     wire [DATA_WIDTH-1:0]           EX_to_MEM_mem_data          ;
@@ -74,6 +76,8 @@ module cpu #(
     wire                            EX_to_MEM_valid             ;
 
     // MEM to WB
+    wire [DATA_WIDTH-1:0]           MEM_to_WB_instr             ;
+    wire [ADDR_WIDTH-1:0]           MEM_to_WB_pc                ;
     wire [ADDR_WIDTH-1:0]           MEM_to_WB_pc_plus_4         ;
     wire [DATA_WIDTH-1:0]           MEM_to_WB_mem_result        ;
     wire [DATA_WIDTH-1:0]           MEM_to_WB_alu_result        ;
@@ -81,6 +85,11 @@ module cpu #(
     wire                            MEM_to_WB_reg_write         ;
     wire [1:0]                      MEM_to_WB_mem_to_reg        ;
     wire                            MEM_to_WB_valid             ;
+
+    // WB debug
+    wire [DATA_WIDTH-1:0]           WB_debug_instr              ;
+    wire [ADDR_WIDTH-1:0]           WB_debug_pc                 ;
+    wire [ADDR_WIDTH-1:0]           WB_debug_pc_plus_4          ;
 
     // Special Pipeline
     // EX to IF
@@ -118,6 +127,10 @@ module cpu #(
     wire [REGFILE_ADDR_WIDTH-1:0]   forward_unit_wb_rd          ;
     wire                            forward_unit_wb_reg_write   ;
     wire                            forward_unit_wb_valid       ;
+    wire                            forward_to_decode_rs1       ;
+    wire                            forward_to_decode_rs2       ;
+    wire [1:0]                      forward_to_decode_sel       ;
+
 
     
     // -------------------------------------------
@@ -166,6 +179,11 @@ module cpu #(
         .wb_reg_write                           (WB_to_ID_reg_write         ),
         .wb_rd_addr                             (WB_to_ID_rd_addr           ),
         .wb_data                                (WB_to_ID_wr_dara           ),
+        // .forward_to_decode_rs1                  (forward_to_decode_rs1      ),  // NEW
+        // .forward_to_decode_rs2                  (forward_to_decode_rs2      ),  // NEW
+        // .forward_to_decode_sel                  (forward_to_decode_sel      ),  // NEW
+        // .ex_alu_result                          (EX_to_MEM_alu_result       ),  // NEW
+        // .mem_alu_result                         (MEM_to_WB_alu_result       ),  // NEW
         .pc_out                                 (ID_to_EX_pc                ),
         .instr_out                              (ID_to_EX_instr             ),
         .rs1_addr_out                           (ID_to_EX_rs1_addr          ),
@@ -222,6 +240,8 @@ module cpu #(
         .wb_result                              (WB_to_EX_result            ),
         .forward_rs1                            (forward_unit_forward_rs1   ),
         .forward_rs2                            (forward_unit_forward_rs2   ),
+        .instr_out                              (EX_to_MEM_instr            ),
+        .pc_out                                 (EX_to_MEM_pc               ),
         .pc_plus_4_out                          (EX_to_MEM_pc_plus_4        ),
         .alu_result_out                         (EX_to_MEM_alu_result       ),
         .mem_data_out                           (EX_to_MEM_mem_data         ),
@@ -244,6 +264,8 @@ module cpu #(
     ) mem_stage_inst (
         .clk                                    (clk                        ),
         .rst_n                                  (rst_n                      ),
+        .instr_in                               (EX_to_MEM_instr            ),
+        .pc_in                                  (EX_to_MEM_pc               ),
         .pc_plus_4_in                           (EX_to_MEM_pc_plus_4        ),
         .alu_result_in                          (EX_to_MEM_alu_result       ),
         .mem_data_in                            (EX_to_MEM_mem_data         ),
@@ -264,6 +286,8 @@ module cpu #(
         .wbm_dmem_ack                           (wbm_dmem_ack               ),
         .mem_busy                               (hazard_unit_mem_busy       ),
         .mem_ack                                (hazard_unit_mem_ack        ),
+        .instr_out                              (MEM_to_WB_instr            ),
+        .pc_out                                 (MEM_to_WB_pc               ),
         .pc_plus_4_out                          (MEM_to_WB_pc_plus_4        ),
         .mem_result_out                         (MEM_to_WB_mem_result       ),
         .alu_result_out                         (MEM_to_WB_alu_result       ),
@@ -285,6 +309,8 @@ module cpu #(
         .clk                                    (clk                        ),
         .rst_n                                  (rst_n                      ),
         .stall                                  (hazard_unit_stall_writeback),
+        .instr_in                               (MEM_to_WB_instr            ),
+        .pc_in                                  (MEM_to_WB_pc               ),
         .pc_plus_4_in                           (MEM_to_WB_pc_plus_4        ),
         .mem_result_in                          (MEM_to_WB_mem_result       ),
         .alu_result_in                          (MEM_to_WB_alu_result       ),
@@ -295,6 +321,9 @@ module cpu #(
         .regfile_we                             (WB_to_ID_reg_write         ),
         .regfile_rd_addr                        (WB_to_ID_rd_addr           ),
         .regfile_wr_data                        (WB_to_ID_wr_dara           ),
+        .instr_out                              (WB_debug_instr             ),
+        .pc_out                                 (WB_debug_pc                ),
+        .pc_plus_4_out                          (WB_debug_pc_plus_4         ),
         .rd_out                                 (forward_unit_wb_rd         ),
         .result_out                             (WB_to_EX_result            ),
         .reg_write_out                          (forward_unit_wb_reg_write  ),
@@ -348,7 +377,13 @@ module cpu #(
         .memory_rd                              (MEM_to_WB_rd               ),
         .memory_reg_write                       (MEM_to_WB_reg_write        ),
         .memory_valid                           (MEM_to_WB_valid            ),
+        .writeback_rd                           (forward_unit_wb_rd         ),
+        .writeback_reg_write                    (forward_unit_wb_reg_write  ),
+        .writeback_valid                        (forward_unit_wb_valid      ),
         .forward_rs1                            (forward_unit_forward_rs1   ),
         .forward_rs2                            (forward_unit_forward_rs2   )
+        // .forward_to_decode_rs1                  (forward_to_decode_rs1      ),  // NEW
+        // .forward_to_decode_rs2                  (forward_to_decode_rs2      ),  // NEW
+        // .forward_to_decode_sel                  (forward_to_decode_sel      )   // NEW
     );
 endmodule

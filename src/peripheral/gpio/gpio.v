@@ -38,6 +38,18 @@ module gpio #(
     reg [N_GPIO-1:0] out_reg;   // stores values written for outputs
     reg [N_GPIO-1:0] dir_reg;   // direction register (1=output, 0=input)
 
+    // reg [1:0]               ack_state;
+    // reg                     ack_pending;
+    // reg [ADDR_WIDTH-1:0]    pending_addr;
+    // reg                     pending_we;
+    // reg [3:0]               pending_sel;
+    // reg [DATA_WIDTH-1:0]    pending_data;
+
+    // // ACK State Machine
+    // localparam ACK_IDLE    = 2'b00;
+    // localparam ACK_DELAY   = 2'b01;
+    // localparam ACK_ASSERT  = 2'b10;
+
     // -------------------------------------------
     // Input Synchronizers (to avoid metastability)
     // -------------------------------------------
@@ -97,6 +109,21 @@ module gpio #(
         end
     end
 
+    // always @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         wbs_data_read <= {DATA_WIDTH{1'b0}};
+    //     end else begin
+    //         // Only update read data when we're about to ACK
+    //         if (ack_state == ACK_DELAY && !pending_we) begin
+    //             case (pending_addr[11:0])
+    //                 REG_GPIO_DATA:   wbs_data_read <= {{(DATA_WIDTH-N_GPIO){1'b0}}, data_reg};
+    //                 REG_GPIO_DIR:    wbs_data_read <= {{(DATA_WIDTH-N_GPIO){1'b0}}, dir_reg};
+    //                 default:         wbs_data_read <= {DATA_WIDTH{1'b0}};
+    //             endcase
+    //         end
+    //     end
+    // end
+
     // -------------------------------------------
     // Wishbone Write
     // -------------------------------------------
@@ -118,6 +145,24 @@ module gpio #(
         end
     end
 
+    // always @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         out_reg <= {N_GPIO{1'b0}};
+    //         dir_reg <= {N_GPIO{1'b0}};
+    //     end else begin
+    //         // Process writes when we're about to ACK
+    //         if (ack_state == ACK_DELAY && pending_we) begin
+    //             case (pending_addr[11:0])
+    //                 REG_GPIO_DATA:   if (pending_sel[0]) out_reg <= pending_data[N_GPIO-1:0];
+    //                 REG_GPIO_DIR:    if (pending_sel[0]) dir_reg <= pending_data[N_GPIO-1:0];
+    //                 REG_GPIO_SET:    if (pending_sel[0]) out_reg <= out_reg | pending_data[N_GPIO-1:0];
+    //                 REG_GPIO_CLEAR:  if (pending_sel[0]) out_reg <= out_reg & ~pending_data[N_GPIO-1:0];
+    //                 REG_GPIO_TOGGLE: if (pending_sel[0]) out_reg <= out_reg ^ pending_data[N_GPIO-1:0];
+    //             endcase
+    //         end
+    //     end
+    // end
+
     // -------------------------------------------
     // ACK generation
     // -------------------------------------------
@@ -127,6 +172,47 @@ module gpio #(
         else
             wbs_ack <= (wbs_cyc && wbs_stb);
     end
+
+    // always @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         ack_state <= ACK_IDLE;
+    //         wbs_ack <= 1'b0;
+    //         ack_pending <= 1'b0;
+    //         pending_addr <= 0;
+    //         pending_we <= 0;
+    //         pending_sel <= 0;
+    //         pending_data <= 0;
+    //     end else begin
+    //         case (ack_state)
+    //             ACK_IDLE: begin
+    //                 wbs_ack <= 1'b0;
+    //                 if (wbs_cyc && wbs_stb) begin
+    //                     // Latch request details
+    //                     pending_addr <= wbs_addr;
+    //                     pending_we <= wbs_we;
+    //                     pending_sel <= wbs_sel;
+    //                     pending_data <= wbs_data_write;
+    //                     ack_state <= ACK_DELAY;
+    //                     ack_pending <= 1'b1;
+    //                 end
+    //             end
+
+    //             ACK_DELAY: begin
+    //                 // Wait 1 cycle for synchronization/setup
+    //                 // For reads: wait for synchronized input data
+    //                 // For writes: wait for register update
+    //                 ack_state <= ACK_ASSERT;
+    //             end
+
+    //             ACK_ASSERT: begin
+    //                 // Assert ACK - data is now valid
+    //                 wbs_ack <= 1'b1;
+    //                 ack_state <= ACK_IDLE;
+    //                 ack_pending <= 1'b0;
+    //             end
+    //         endcase
+    //     end
+    // end
 
     // -------------------------------------------
     // GPIO Outputs
