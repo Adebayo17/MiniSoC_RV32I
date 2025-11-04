@@ -174,20 +174,6 @@ module mem_stage #(
     assign wbm_dmem_data_write = store_data_latched;
     assign wbm_dmem_addr       = mem_addr_latched;
 
-    // Use latched values while the FSM is busy
-    // assign wbm_dmem_data_write = (state == IDLE) ? store_data_latched : store_data_latched;
-    // assign wbm_dmem_addr       = (state == IDLE) ? alu_result_in      : mem_addr_latched;
-
-    // always @(*) begin
-    //     wbm_dmem_addr = alu_result_in;
-
-    //     case (funct3_in)
-    //         BYTE:  wbm_dmem_data_write = {4{mem_data_in[7:0]}};
-    //         HALF:  wbm_dmem_data_write = {2{mem_data_in[15:0]}};
-    //         default: wbm_dmem_data_write = mem_data_in;
-    //     endcase
-    // end
-
 
     // -------------------------------------------
     // Byte Select Generation
@@ -201,15 +187,6 @@ module mem_stage #(
         endcase
     end
 
-    // always @(*) begin
-    //     case (funct3_in)
-    //         BYTE, BYTEU:  wbm_dmem_sel = 4'b0001 << alu_result_in[1:0];
-    //         HALF, HALFU:  wbm_dmem_sel = 4'b0011 << {alu_result_in[1],1'b0};
-    //         WORD:         wbm_dmem_sel = 4'b1111;
-    //         default:      wbm_dmem_sel = 4'b0000;
-    //     endcase
-    // end
-
 
     // -------------------------------------------
     // Load Data Processing
@@ -219,9 +196,6 @@ module mem_stage #(
     wire [15:0] half_data;
 
     // Extract the relevant bytes based on address alignment
-    // assign byte_data = wbm_dmem_data_read >> (8 * alu_result_in[1:0]);
-    // assign half_data = wbm_dmem_data_read >> (8 * {alu_result_in[1], 1'b0});
-
     assign byte_data = wbm_dmem_data_read >> (8 * mem_addr_latched[1:0]);
     assign half_data = wbm_dmem_data_read >> (8 * {mem_addr_latched[1], 1'b0});
 

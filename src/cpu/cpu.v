@@ -127,12 +127,8 @@ module cpu #(
     wire [REGFILE_ADDR_WIDTH-1:0]   forward_unit_wb_rd          ;
     wire                            forward_unit_wb_reg_write   ;
     wire                            forward_unit_wb_valid       ;
-    wire                            forward_to_decode_rs1       ;
-    wire                            forward_to_decode_rs2       ;
-    wire [1:0]                      forward_to_decode_sel       ;
 
 
-    
     // -------------------------------------------
     // Pipeline Stages
     // -------------------------------------------
@@ -179,11 +175,6 @@ module cpu #(
         .wb_reg_write                           (WB_to_ID_reg_write         ),
         .wb_rd_addr                             (WB_to_ID_rd_addr           ),
         .wb_data                                (WB_to_ID_wr_dara           ),
-        // .forward_to_decode_rs1                  (forward_to_decode_rs1      ),  // NEW
-        // .forward_to_decode_rs2                  (forward_to_decode_rs2      ),  // NEW
-        // .forward_to_decode_sel                  (forward_to_decode_sel      ),  // NEW
-        // .ex_alu_result                          (EX_to_MEM_alu_result       ),  // NEW
-        // .mem_alu_result                         (MEM_to_WB_alu_result       ),  // NEW
         .pc_out                                 (ID_to_EX_pc                ),
         .instr_out                              (ID_to_EX_instr             ),
         .rs1_addr_out                           (ID_to_EX_rs1_addr          ),
@@ -382,8 +373,5 @@ module cpu #(
         .writeback_valid                        (forward_unit_wb_valid      ),
         .forward_rs1                            (forward_unit_forward_rs1   ),
         .forward_rs2                            (forward_unit_forward_rs2   )
-        // .forward_to_decode_rs1                  (forward_to_decode_rs1      ),  // NEW
-        // .forward_to_decode_rs2                  (forward_to_decode_rs2      ),  // NEW
-        // .forward_to_decode_sel                  (forward_to_decode_sel      )   // NEW
     );
 endmodule
