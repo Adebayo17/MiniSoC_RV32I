@@ -40,30 +40,15 @@ module imem #(
     wire [$clog2(DEPTH)-1:0] word_addr_if;
     wire [$clog2(DEPTH)-1:0] word_addr_ro;
     wire [$clog2(DEPTH)-1:0] init_word_addr;
+
     assign word_addr_if    = wbs_if_addr[$clog2(DEPTH)+1:2];
     assign word_addr_ro    = wbs_ro_addr[$clog2(DEPTH)+1:2];
     assign init_word_addr  = init_addr[$clog2(DEPTH)+1:2];
 
 
-
     // -------------------------------------------
     // Read Path (Synchronous)
     // -------------------------------------------
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         wbs_if_data_read <= {DATA_WIDTH{1'b0}};
-    //         wbs_ro_data_read <= {DATA_WIDTH{1'b0}};
-    //     end else begin
-    //         if (wbs_if_cyc && wbs_if_stb && !wbs_if_we) begin
-    //             wbs_if_data_read <= mem[word_addr_if];
-    //         end 
-    //         if (wbs_ro_cyc && wbs_ro_stb && !wbs_ro_we) begin
-    //             wbs_ro_data_read <= mem[word_addr_ro];
-    //         end 
-    //     end
-    // end
-
-
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wbs_if_data_read <= {DATA_WIDTH{1'b0}};
@@ -107,22 +92,11 @@ module imem #(
     // -------------------------------------------
     // Acknowledge Generation (1-cycle pulse)
     // -------------------------------------------
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         wbs_if_ack <= 0;
-    //         wbs_ro_ack <= 0;
-    //     end else begin
-    //         wbs_if_ack <= (wbs_if_cyc && wbs_if_stb);
-    //         wbs_ro_ack <= (wbs_ro_cyc && wbs_ro_stb);
-    //     end
-    // end  
-
-
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wbs_if_ack <= 0;
         end else begin
-            wbs_if_ack <= (wbs_if_cyc && wbs_if_stb);
+            wbs_if_ack <= wbs_if_cyc && wbs_if_stb;
         end
     end  
 
@@ -130,7 +104,7 @@ module imem #(
         if (!rst_n) begin
             wbs_ro_ack <= 0;
         end else begin
-            wbs_ro_ack <= (wbs_ro_cyc && wbs_ro_stb);
+            wbs_ro_ack <= wbs_ro_cyc && wbs_ro_stb;
         end
     end  
 endmodule

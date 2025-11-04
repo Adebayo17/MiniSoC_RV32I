@@ -69,11 +69,10 @@ module mem_stage #(
 
     // Internal signals
     wire is_mem_op          = (mem_read_in || mem_write_in) && valid_in;
-    // wire mem_op_complete    = (state == REQUEST && wbm_dmem_ack);  //  || !is_mem_op
     wire mem_op_complete    = (is_mem_op && wbm_dmem_ack) || !is_mem_op;
 
     // Memory status assignments
-    assign mem_busy = (state != IDLE) && !wbm_dmem_ack;
+    assign mem_busy = (state != IDLE);
     assign mem_ack  = wbm_dmem_ack;
 
     // -------------------------------------------
@@ -97,6 +96,7 @@ module mem_stage #(
                            load_misaligned  = is_load;
                            store_misaligned = is_store;
                        end
+                // BYTE/BYTEU are always aligned
             endcase
         end
     end
@@ -144,42 +144,39 @@ module mem_stage #(
 
 
     // -------------------------------------------
-    // Byte Select Generation
-    // -------------------------------------------
-    always @(*) begin
-        case (funct3_in)
-            BYTE, BYTEU:  wbm_dmem_sel = 4'b0001 << alu_result_in[1:0];
-            HALF, HALFU:  wbm_dmem_sel = 4'b0011 << {alu_result_in[1],1'b0};
-            WORD:         wbm_dmem_sel = 4'b1111;
-            default:      wbm_dmem_sel = 4'b0000;
-        endcase
-    end
-
-    // -------------------------------------------
     // Store Data Preparation
     // -------------------------------------------
     reg [DATA_WIDTH-1:0] store_data_latched;
-    reg [ADDR_WIDTH-1:0] store_addr_latched;
+    reg [ADDR_WIDTH-1:0] mem_addr_latched;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             store_data_latched <= 0;
-            store_addr_latched <= 0;
+            mem_addr_latched <= 0;
         end
-        else if (valid_in && mem_write_in && state == IDLE) begin
-            // Latch data and address only when a new store starts
-            case (funct3_in)
-                BYTE:  store_data_latched <= {4{mem_data_in[7:0]}};
-                HALF:  store_data_latched <= {2{mem_data_in[15:0]}};
-                default: store_data_latched <= mem_data_in;
-            endcase
-            store_addr_latched <= alu_result_in;
+        // Latch only when a new, valid op arrives and FSM is ready
+        else if (valid_in && is_mem_op && state == IDLE) begin
+            // Latch address for both load and store
+            mem_addr_latched <= alu_result_in;
+
+            // Prepare store data
+            if (mem_write_in) begin
+                case (funct3_in)
+                    BYTE:  store_data_latched <= {4{mem_data_in[7:0]}};
+                    HALF:  store_data_latched <= {2{mem_data_in[15:0]}};
+                    default: store_data_latched <= mem_data_in;
+                endcase
+            end
         end
     end
 
+    // Always drive Wishbone outputs from registered values for timing
+    assign wbm_dmem_data_write = store_data_latched;
+    assign wbm_dmem_addr       = mem_addr_latched;
+
     // Use latched values while the FSM is busy
-    assign wbm_dmem_data_write = (state == IDLE) ? store_data_latched : store_data_latched;
-    assign wbm_dmem_addr       = (state == IDLE) ? alu_result_in      : store_addr_latched;
+    // assign wbm_dmem_data_write = (state == IDLE) ? store_data_latched : store_data_latched;
+    // assign wbm_dmem_addr       = (state == IDLE) ? alu_result_in      : mem_addr_latched;
 
     // always @(*) begin
     //     wbm_dmem_addr = alu_result_in;
@@ -193,6 +190,28 @@ module mem_stage #(
 
 
     // -------------------------------------------
+    // Byte Select Generation
+    // -------------------------------------------
+    always @(*) begin
+        case (funct3_in)
+            BYTE, BYTEU:  wbm_dmem_sel = 4'b0001 << mem_addr_latched[1:0];
+            HALF, HALFU:  wbm_dmem_sel = 4'b0011 << {mem_addr_latched[1],1'b0};
+            WORD:         wbm_dmem_sel = 4'b1111;
+            default:      wbm_dmem_sel = 4'b0000;
+        endcase
+    end
+
+    // always @(*) begin
+    //     case (funct3_in)
+    //         BYTE, BYTEU:  wbm_dmem_sel = 4'b0001 << alu_result_in[1:0];
+    //         HALF, HALFU:  wbm_dmem_sel = 4'b0011 << {alu_result_in[1],1'b0};
+    //         WORD:         wbm_dmem_sel = 4'b1111;
+    //         default:      wbm_dmem_sel = 4'b0000;
+    //     endcase
+    // end
+
+
+    // -------------------------------------------
     // Load Data Processing
     // -------------------------------------------
     reg [DATA_WIDTH-1:0] load_data;
@@ -200,8 +219,11 @@ module mem_stage #(
     wire [15:0] half_data;
 
     // Extract the relevant bytes based on address alignment
-    assign byte_data = wbm_dmem_data_read >> (8 * alu_result_in[1:0]);
-    assign half_data = wbm_dmem_data_read >> (8 * {alu_result_in[1], 1'b0});
+    // assign byte_data = wbm_dmem_data_read >> (8 * alu_result_in[1:0]);
+    // assign half_data = wbm_dmem_data_read >> (8 * {alu_result_in[1], 1'b0});
+
+    assign byte_data = wbm_dmem_data_read >> (8 * mem_addr_latched[1:0]);
+    assign half_data = wbm_dmem_data_read >> (8 * {mem_addr_latched[1], 1'b0});
 
     always @(*) begin
         case (funct3_in)
@@ -235,7 +257,8 @@ module mem_stage #(
             pc_plus_4_out   <= pc_plus_4_in;
             alu_result_out  <= alu_result_in;
             rd_out          <= rd_in;
-            reg_write_out   <= reg_write_in && valid_in && !load_misaligned;
+
+            reg_write_out   <= reg_write_in && valid_in && !load_misaligned && !store_misaligned;
             mem_to_reg_out  <= mem_to_reg_in;
             
             // Memory result selection
@@ -247,7 +270,7 @@ module mem_stage #(
             endcase
             
             // Valid output: memory ops complete when ack received or not a memory op
-            valid_out <= valid_in && mem_op_complete;
+            valid_out <= valid_in;
         end
     end
 endmodule

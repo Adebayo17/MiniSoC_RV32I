@@ -12,6 +12,11 @@ module tb_mini_rv32i_top;
     parameter DATA_SIZE_KB  = 4;
     parameter BAUD_DIV_RST  = 16'd104;  // 115200 baud @ 12MHz
     parameter N_GPIO        = 8;
+
+    // Parameters for firmware pass/fail
+    localparam SIM_CTRL_BASE    = 32'h50000000;
+    localparam TEST_PASS_CODE   = 32'h1234ABCD;
+    localparam TEST_TIMEOUT_CYCLES = 2000000; // 2M cycles (was 1M)
     
     // Clock and reset
     reg clk;
@@ -33,6 +38,9 @@ module tb_mini_rv32i_top;
     reg [7:0]    previous_gpio;
     reg          test_complete;
     reg [31:0]   test_result;
+
+    reg firmware_finished_pass; // Becomes 1 when pass code is seen
+    reg test_timeout;           // Becomes 1 if the test takes too long
     
     reg timeout_occurred;
     
@@ -196,7 +204,7 @@ module tb_mini_rv32i_top;
         $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Peripheral Access: Starting", test_num);
 
         // Wait for firmware to initialize peripherals
-        #(CLK_PERIOD * 100);
+        #(CLK_PERIOD * 10000);
         
         // Check that peripherals are being accessed
         verify_peripheral_access();
@@ -218,7 +226,7 @@ module tb_mini_rv32i_top;
         
 
         // ===== FINAL SUMMARY =====
-        #1000000;
+        #5000000;
         $display("\n=== TOP-LEVEL Testbench Completed ===");
         $fdisplay(log_file, "\n=== TOP-LEVEL Testbench Completed ===");
         
@@ -235,6 +243,26 @@ module tb_mini_rv32i_top;
         
         $fclose(log_file);
         $finish;
+    end
+
+
+    initial begin
+        firmware_finished_pass = 0;
+        test_timeout = 0;
+        
+        // Wait for a long time
+        #(TEST_TIMEOUT_CYCLES * CLK_PERIOD);
+        
+        if (!firmware_finished_pass) begin
+            $display("---------------------------------------------------------");
+            $display("[TESTBENCH] ❌ ERROR: Test timed out after %d cycles.", TEST_TIMEOUT_CYCLES);
+            $fdisplay(log_file, "[TESTBENCH] ❌ ERROR: Test timed out after %d cycles.", TEST_TIMEOUT_CYCLES);
+            $display("[TESTBENCH] ❌ Firmware never wrote the PASS code.", $time);
+            $fdisplay(log_file, "[TESTBENCH] ❌ Firmware never wrote the PASS code.", $time);
+            $display("---------------------------------------------------------");
+            test_timeout = 1;
+            test_fail = test_fail + 1;
+        end
     end
 
 
@@ -265,6 +293,7 @@ module tb_mini_rv32i_top;
             $fdisplay(log_file, "  ✅ Memory initialization test passed");
         end
     endtask
+
 
     task verify_firmware_loaded;
         begin
@@ -298,7 +327,8 @@ module tb_mini_rv32i_top;
             end
         end
     endtask
-    
+
+
     task test_cpu_reset;
         begin
             $display("  - Waiting for CPU reset release...");
@@ -328,6 +358,7 @@ module tb_mini_rv32i_top;
             $fdisplay(log_file, "  ✅ CPU reset test passed");
         end
     endtask
+
 
     task monitor_instruction_fetch;
         integer fetch_cycles;
@@ -521,6 +552,31 @@ module tb_mini_rv32i_top;
         end
     end
 
+    // -------------------------------------------
+    // --- Firmware Pass/Fail Monitor ---
+    // -------------------------------------------
+
+    // Monitor for the "Test Pass" write from the firmware
+    always @(posedge clk) begin
+        if (rst_n && !firmware_finished_pass && !test_timeout &&
+            // Check for a write access on the CPU's data bus
+            dut.top_soc_inst.wbs_cpu_cyc && 
+            dut.top_soc_inst.wbs_cpu_stb &&
+            dut.top_soc_inst.wbs_cpu_we &&
+            // Check for the specific pass address and code
+            dut.top_soc_inst.wbs_cpu_addr == SIM_CTRL_BASE &&
+            dut.top_soc_inst.wbs_cpu_data_write == TEST_PASS_CODE) 
+        begin
+            $display("---------------------------------------------------------");
+            $display("[TESTBENCH] ✅ FIRMWARE TEST PASS code (0x%h) write detected at cycle %d!", 
+                     TEST_PASS_CODE, cycle_count);
+            $fdisplay(log_file, "[TESTBENCH] ✅ FIRMWARE TEST PASS code (0x%h) write detected at cycle %d!", 
+                     TEST_PASS_CODE, cycle_count);
+            $display("---------------------------------------------------------");
+            firmware_finished_pass <= 1; // Signal that the test has passed
+        end
+    end
+
 
     // Check Firmware stage reached
     // always @(*) begin
@@ -596,29 +652,6 @@ module tb_mini_rv32i_top;
     // end
 
     // Add to testbench
-    // always @(posedge clk) begin
-    //     if (cycle_count >= 3250 && cycle_count <= 3300) begin
-    //         $display("[VALID_TRACE] Cycle %0d: IF_valid=%b, ID_valid=%b, EX_valid=%b, MEM_valid=%b, WB_valid=%b",
-    //                 cycle_count,
-    //                 dut.top_soc_inst.rv32i_core.fetch_stage_inst.valid_out,
-    //                 dut.top_soc_inst.rv32i_core.decode_stage_inst.valid_out,
-    //                 dut.top_soc_inst.rv32i_core.execute_stage_inst.valid_out,
-    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.valid_out,
-    //                 dut.top_soc_inst.rv32i_core.writeback_stage_inst.valid_out);
-    //     end
-    // end
-
-    // Add to testbench
-    // always @(posedge clk) begin
-    //     if (dut.top_soc_inst.rv32i_core.mem_stage_inst.mem_read_in && 
-    //         dut.top_soc_inst.rv32i_core.mem_stage_inst.valid_in) begin
-    //         $display("[MEM_READ] Cycle %0d: addr=%h, data=%h, valid_out=%b",
-    //                 cycle_count,
-    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.wbm_dmem_addr,
-    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.wbm_dmem_data_read,
-    //                 dut.top_soc_inst.rv32i_core.mem_stage_inst.valid_out);
-    //     end
-    // end
 
 
 endmodule

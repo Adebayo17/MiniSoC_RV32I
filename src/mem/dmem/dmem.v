@@ -33,6 +33,7 @@ module dmem #(
 
     wire [$clog2(DEPTH)-1:0] word_addr;
     wire [$clog2(DEPTH)-1:0] init_word_addr;
+    
     assign word_addr      = wbs_addr[$clog2(DEPTH)+1:2];
     assign init_word_addr = init_addr[$clog2(DEPTH)+1:2];
 
@@ -67,8 +68,7 @@ module dmem #(
             if (wbs_sel[1])   mem[word_addr][15:8]   <= wbs_data_write[15:8] ;
             if (wbs_sel[2])   mem[word_addr][23:16]  <= wbs_data_write[23:16];
             if (wbs_sel[3])   mem[word_addr][31:24]  <= wbs_data_write[31:24];
-        end else begin
-        end
+        end 
     end
 
 
