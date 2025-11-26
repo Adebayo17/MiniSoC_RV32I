@@ -98,6 +98,8 @@ module execute_stage #(
     localparam OP_AUIPC   = 7'b0010111;
     localparam OP_SYSTEM  = 7'b1110011;
 
+    localparam NOP_INSTR  = 32'h00000013;
+
     // -------------------------------------------
     // Forwarding Logic (Fixed)
     // -------------------------------------------
@@ -140,27 +142,32 @@ module execute_stage #(
     // -------------------------------------------
     // Branch/Jump Logic
     // -------------------------------------------
+    reg comb_branch_taken;
+    reg [DATA_WIDTH-1:0] comb_branch_target;
+
     always @(*) begin
-        branch_taken_out  = 1'b0;
-        branch_target_out = pc_in + imm_in;
-        
-        if (branch_in && valid_in) begin
-            case (funct3_in)
-                BR_BEQ:  branch_taken_out = alu_zero;  // BEQ: rs1 == rs2
-                BR_BNE:  branch_taken_out = !alu_zero; // BNE: rs1 != rs2
-                BR_BLT:  branch_taken_out = alu_lt;    // BLT: rs1 < rs2 (signed)
-                BR_BGE:  branch_taken_out = !alu_lt;   // BGE: rs1 >= rs2 (signed)
-                BR_BLTU: branch_taken_out = alu_ltu;   // BLTU: rs1 < rs2 (unsigned)
-                BR_BGEU: branch_taken_out = !alu_ltu;  // BGEU: rs1 >= rs2 (unsigned)
-                default: branch_taken_out = 1'b0;      // Invalid branch type
-            endcase
-        end
-        else if (jump_in && valid_in) begin
-            branch_taken_out = 1'b1;
-            if (opcode_in == OP_JALR) begin // JALR
-                branch_target_out = (rs1_data_forwarded + imm_in) & ~32'h1;
+        comb_branch_taken  = 1'b0;
+        comb_branch_target = pc_in + imm_in;
+
+        if (valid_in) begin
+            if (branch_in) begin
+                case (funct3_in)
+                    BR_BEQ:  comb_branch_taken = alu_zero;
+                    BR_BNE:  comb_branch_taken = !alu_zero;
+                    BR_BLT:  comb_branch_taken = alu_lt;
+                    BR_BGE:  comb_branch_taken = !alu_lt;
+                    BR_BLTU: comb_branch_taken = alu_ltu;
+                    BR_BGEU: comb_branch_taken = !alu_ltu;
+                    default: comb_branch_taken = 1'b0;
+                endcase
+            end else if (jump_in) begin
+                comb_branch_taken = 1'b1;
+                if (opcode_in == OP_JALR) begin
+                    comb_branch_target = (rs1_data_forwarded + imm_in) & ~32'h1;
+                end
             end
         end
+        // if not valid_in, comb signals remain default (not taken)
     end
 
     // -------------------------------------------
@@ -169,8 +176,9 @@ module execute_stage #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset all outputs
-            instr_out           <= 32'h00000013;
+            instr_out           <= NOP_INSTR;
             pc_out              <= {ADDR_WIDTH{1'b0}};
+            pc_plus_4_out       <= 0;
             alu_result_out      <= 0;
             mem_data_out        <= 0;
             rd_out              <= 0;
@@ -180,39 +188,67 @@ module execute_stage #(
             mem_to_reg_out      <= 2'b00;
             funct3_out          <= 0;
             valid_out           <= 0;
-            pc_plus_4_out       <= 0;
             branch_taken_out    <= 0;
-            branch_target_out   <= 0;
+            branch_target_out   <= {DATA_WIDTH{1'b0}};
         end else if (flush) begin
             // Flush pipeline (insert bubble)
-            instr_out           <= 32'h00000013;
+            instr_out           <= NOP_INSTR;
             pc_out              <= {ADDR_WIDTH{1'b0}};
-            valid_out           <= 0;
+            pc_plus_4_out       <= 0;
+            alu_result_out      <= 0;
+            mem_data_out        <= 0;
+            rd_out              <= 0;
             reg_write_out       <= 0;
             mem_write_out       <= 0;
             mem_read_out        <= 0;
+            mem_to_reg_out      <= 2'b00;
+            funct3_out          <= 0;
+            valid_out           <= 0;
             branch_taken_out    <= 0;
-        end else if (!stall) begin
-            // Normal pipeline operation
-            instr_out           <= instr_in;
-            pc_out              <= pc_in;
-            alu_result_out      <= alu_result;
-            mem_data_out        <= rs2_data_forwarded;  // Use forwarded data for stores
-            rd_out              <= rd_in;
-            reg_write_out       <= reg_write_in && valid_in;
-            mem_write_out       <= mem_write_in && valid_in;
-            mem_read_out        <= mem_read_in && valid_in;
-            mem_to_reg_out      <= mem_to_reg_in;
-            funct3_out          <= funct3_in;
-            valid_out           <= valid_in;
-            pc_plus_4_out       <= pc_in + 4;
-            
-            // Branch/jump signals (registered to avoid combinational paths)
-            branch_taken_out    <= (branch_in || jump_in) && valid_in ? branch_taken_out : 1'b0;
-            branch_target_out   <= branch_target_out;
-        end
-        // When stalled, registers maintain their values
-    end
-    
+            branch_target_out   <= {DATA_WIDTH{1'b0}};
+        end else if (stall) begin
+            // HOLD everything -- do nothing
+            // This preserves valid_out and all pipeline outputs
+            // valid_out           <= 0;
+        end else begin
+            // Normal operation (no stall, no flush)
+            if (valid_in) begin
+                valid_out           <= 1'b1;
+                instr_out           <= instr_in;
+                pc_out              <= pc_in;
+                pc_plus_4_out       <= pc_in + 4;
 
+                alu_result_out      <= alu_result;
+                mem_data_out        <= rs2_data_forwarded;  // Use forwarded data for stores
+                rd_out              <= rd_in;
+
+                reg_write_out       <= reg_write_in && valid_in;
+                mem_write_out       <= mem_write_in && valid_in;
+                mem_read_out        <= mem_read_in && valid_in;
+                mem_to_reg_out      <= mem_to_reg_in;
+                funct3_out          <= funct3_in;
+                
+                
+                // Branch/jump signals (registered to avoid combinational paths)
+                branch_taken_out    <= comb_branch_taken;
+                branch_target_out   <= comb_branch_target;
+            end else begin
+                // Input is bubble -> produce bubble
+                instr_out           <= NOP_INSTR;
+                pc_out              <= {ADDR_WIDTH{1'b0}};
+                pc_plus_4_out       <= 0;
+                alu_result_out      <= 0;
+                mem_data_out        <= 0;
+                rd_out              <= 0;
+                reg_write_out       <= 0;
+                mem_write_out       <= 0;
+                mem_read_out        <= 0;
+                mem_to_reg_out      <= 2'b00;
+                funct3_out          <= 0;
+                valid_out           <= 0;
+                branch_taken_out    <= 0;
+                branch_target_out   <= {DATA_WIDTH{1'b0}};
+            end
+        end 
+    end
 endmodule

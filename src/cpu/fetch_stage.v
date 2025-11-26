@@ -31,6 +31,8 @@ module fetch_stage #(
     // -------------------------------------------
     // Internal State
     // -------------------------------------------
+    localparam NOP_INSTR = 32'h00000013;
+
     reg [ADDR_WIDTH-1:0]    pc, next_pc;
     reg                     fetch_pending;
     reg                     flush_pending;
@@ -117,20 +119,27 @@ module fetch_stage #(
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            instr_out <= 32'h00000013;
+            instr_out <= NOP_INSTR;
             pc_out    <= {ADDR_WIDTH{1'b0}};
             valid_out <= 1'b0;
-        end else if (flush || flush_pending) begin
-            instr_out <= 32'h00000013;
+        end 
+        else if (flush || flush_pending) begin
+            instr_out <= NOP_INSTR;
             pc_out    <= {ADDR_WIDTH{1'b0}};
             valid_out <= 1'b0;
-        end else if (!stall && wbm_imem_ack && !flush_pending) begin
+        end 
+        else if (stall) begin
+            // HOLD everything during stall
+            // Nothing to do
+        end
+        else if (!stall && wbm_imem_ack && !flush_pending && !fetch_pending) begin
             instr_out <= wbm_imem_data_read;
             pc_out    <= pc;
             valid_out <= 1'b1;
-        end else begin
-            valid_out <= 1'b0; // No new instruction this cycle
+        end 
+        else begin
+            // No new instruction this cycle
+            valid_out <= 1'b0; 
         end
     end
-    
 endmodule

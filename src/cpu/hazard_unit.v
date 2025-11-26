@@ -3,23 +3,19 @@ module hazard_unit #(
     parameter DATA_WIDTH         = 32,
     parameter REGFILE_ADDR_WIDTH = 5
 ) (
-    // From Fetch Stage
-    input wire                              fetch_valid,
-    input wire [DATA_WIDTH-1:0]             if_instr_out,
-
-    // From Decode Stage
+    // From Decode Stage (ID)
     input wire [REGFILE_ADDR_WIDTH-1:0]     id_rs1,         // rs1 field from instruction in decode
     input wire [REGFILE_ADDR_WIDTH-1:0]     id_rs2,         // rs2 field from instruction in decode
     input wire                              id_mem_read,    // Load instruction in decode  
     input wire                              id_valid,                
     
-    // From Execute Stage
+    // From Execute Stage (EX)
     input wire [REGFILE_ADDR_WIDTH-1:0]     ex_rd,          // Destination register of EX stage instruction
     input wire                              ex_reg_write,   // RegWrite signal from EX stage
     input wire                              ex_mem_read,    // MemRead signal from EX stage (load instruction)
     input wire                              ex_valid,
     
-    // From Memory Stage  
+    // From Memory Stage (MEM) 
     input wire [REGFILE_ADDR_WIDTH-1:0]     mem_rd,         // Destination register of MEM stage instruction
     input wire                              mem_reg_write,  // RegWrite signal from MEM stage
     input wire                              mem_valid,
@@ -29,14 +25,15 @@ module hazard_unit #(
     // Control Flow
     input                                   branch_taken,    // From execute stage branch unit
 
-    // Outputs
-    output reg                              stall_fetch,     // Pipeline stall signal
-    output reg                              stall_decode,    // Pipeline stall signal
-    output reg                              stall_execute,   // Pipeline stall signal
-    output reg                              stall_writeback, // Pipeline stall signal
-    output reg                              flush_fetch,     // Pipeline flush signal
-    output reg                              flush_decode,    // Pipeline flush signal
-    output reg                              flush_execute    // Pipeline flush signal
+    // Outputs (Stall and Flush)
+    output reg                              stall_fetch,     
+    output reg                              stall_decode,    
+    output reg                              stall_execute,   
+    output reg                              stall_writeback, 
+
+    output reg                              flush_fetch,     
+    output reg                              flush_decode,
+    output reg                              flush_execute 
 );
     
     // -------------------------------------------
@@ -47,18 +44,28 @@ module hazard_unit #(
     wire mem_busy_hazard;
 
     // True load-use hazard: instruction in decode needs result from load in execute
+    // Example 1: Load → ALU operation
+    //      lw  x1, 0(x2)       # EX stage - loading to x1
+    //      add x3, x1, x4      # ID stage - needs x1 (NOT a load!)
+    // Example 2: Load → Store  
+    //      lw  x1, 0(x2)       # EX stage - loading to x1  
+    //      sw  x1, 0(x3)       # ID stage - needs x1 for store (NOT a load!)
+    // Example 3: Load → Branch
+    //      lw  x1, 0(x2)       # EX stage - loading to x1
+    //      beq x1, x0, label   # ID stage - needs x1 for branch
     assign load_use_hazard = ex_mem_read && ex_valid && 
-                             id_mem_read && id_valid && 
                             ((id_rs1 == ex_rd && id_rs1 != 0) || 
                              (id_rs2 == ex_rd && id_rs2 != 0));
     
     // EX-to-ID hazard: instruction in ID needs result from instruction in EX
+    // Cycle 1: ADD x1, x2, x3  (in EX stage) - computing x1 NOW
+    // Cycle 1: SUB x4, x1, x5  (in ID stage) - needs x1 NOW
     assign ex_to_id_hazard = ex_reg_write && ex_valid && 
                             ((id_rs1 == ex_rd && id_rs1 != 0) || 
                              (id_rs2 == ex_rd && id_rs2 != 0));
 
     // Memory busy hazard: multi-cycle memory operation
-    assign mem_busy_hazard = (ex_mem_read || mem_busy) && !mem_ack;
+    assign mem_busy_hazard = mem_busy && !mem_ack;
 
 
     // -------------------------------------------
@@ -86,8 +93,7 @@ module hazard_unit #(
         else if (load_use_hazard) begin
             stall_fetch     = 1'b1;
             stall_decode    = 1'b1;
-            stall_execute   = 1'b0;
-            stall_writeback = 1'b0;
+            // EX advances (bubble inserted from decode stage)
         end
         // Priority 3: EX-to-ID hazard (new - for auipc→addi case)
         else if (ex_to_id_hazard) begin

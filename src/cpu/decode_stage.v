@@ -15,14 +15,12 @@ module decode_stage #(
     input wire [DATA_WIDTH-1:0]             instr_in,
     input wire [ADDR_WIDTH-1:0]             pc_in,
     input wire                              valid_in,
-
-    // From Hazard Unit
-    input wire                              hazard_decode_detected,
     
     // From Writeback Stage (for register writeback)
     input wire                              wb_reg_write,
     input wire [REGFILE_ADDR_WIDTH-1:0]     wb_rd_addr,
     input wire [DATA_WIDTH-1:0]             wb_data,
+    input wire                              wb_valid,
     
     // Pipeline outputs to Execute Stage
     output reg [ADDR_WIDTH-1:0]             pc_out,
@@ -85,6 +83,8 @@ module decode_stage #(
     localparam OP_AUIPC   = 7'b0010111;
     localparam OP_SYSTEM  = 7'b1110011;
 
+    localparam NOP_INSTR  = 32'h00000013;
+
     // -------------------------------------------
     // Instruction Decode Logic (Combinational)
     // -------------------------------------------
@@ -135,15 +135,15 @@ module decode_stage #(
         .DATA_WIDTH     (DATA_WIDTH),
         .ADDR_WIDTH     (REGFILE_ADDR_WIDTH)
     ) reg_file (
-        .clk(clk),
-        .rst_n(rst_n),
-        .rs1_addr(rs1_addr),
-        .rs2_addr(rs2_addr),
-        .rs1_data(rs1_data),
-        .rs2_data(rs2_data),
-        .wr_en(wb_reg_write),
-        .wr_addr(wb_rd_addr),
-        .wr_data(wb_data)
+        .clk            (clk                        ),
+        .rst_n          (rst_n                      ),
+        .rs1_addr       (rs1_addr                   ),
+        .rs2_addr       (rs2_addr                   ),
+        .rs1_data       (rs1_data                   ),
+        .rs2_data       (rs2_data                   ),
+        .wr_en          (wb_reg_write && wb_valid   ),
+        .wr_addr        (wb_rd_addr                 ),
+        .wr_data        (wb_data                    )
     );
 
 
@@ -154,7 +154,7 @@ module decode_stage #(
         if (!rst_n) begin
             // Reset all pipeline registers
             pc_out          <= 0;
-            instr_out       <= 32'h00000013;
+            instr_out       <= NOP_INSTR;
             rs1_addr_out    <= 0;
             rs2_addr_out    <= 0;
             rd_addr_out     <= 0;
@@ -173,64 +173,83 @@ module decode_stage #(
             alu_op_out      <= 0;
             jump_out        <= 0;
             valid_out       <= 0;
-        end else if (flush || hazard_decode_detected) begin
+        end 
+        else if (flush) begin
             // Flush pipeline (insert bubble)
+            instr_out       <= NOP_INSTR;
             valid_out       <= 0;
             reg_write_out   <= 0;
             mem_write_out   <= 0;
             mem_read_out    <= 0;
             branch_out      <= 0;
             jump_out        <= 0;
-        end else if (stall) begin
-            // STALL: insert bubble, don't hold current instruction
-            valid_out       <= 1'b0;
-            instr_out       <= 32'h00000013; // NOP
-            reg_write_out   <= 1'b0;
-            mem_write_out   <= 1'b0;
-            mem_read_out    <= 1'b0;
-            branch_out      <= 0;
             alu_src_out     <= 0;
             alu_op_out      <= 0;
-            jump_out        <= 0;
-        end else begin
+        end 
+        else if (stall) begin
+            // STALL: HOLD Registers value
+            // valid_out       <= 1'b0;
+            // instr_out       <= NOP_INSTR;
+            // reg_write_out   <= 1'b0;
+            // mem_write_out   <= 1'b0;
+            // mem_read_out    <= 1'b0;
+            // branch_out      <= 0;
+            // jump_out        <= 0;
+            // alu_src_out     <= 0;
+            // alu_op_out      <= 0;
+        end 
+        else begin
             // Normal pipeline operation
-            valid_out <= valid_in;
             
             if (valid_in) begin
-                // Pass through instruction and control signals
-                pc_out        <= pc_in;
-                instr_out     <= instr_in;
-                rs1_addr_out  <= rs1_addr;
-                rs2_addr_out  <= rs2_addr;
-                rd_addr_out   <= rd_addr;
-                rs1_data_out  <= rs1_data;
-                rs2_data_out  <= rs2_data;
-                imm_out       <= imm;
-                opcode_out    <= opcode;
-                funct3_out    <= funct3;
-                funct7_out    <= funct7;
+                valid_out       <= 1'b1;
+                pc_out          <= pc_in;
+                instr_out       <= instr_in;
+
+                rs1_addr_out    <= rs1_addr;
+                rs2_addr_out    <= rs2_addr;
+                rd_addr_out     <= rd_addr;
+                rs1_data_out    <= rs1_data;
+                rs2_data_out    <= rs2_data;
+                imm_out         <= imm;
+                opcode_out      <= opcode;
+                funct3_out      <= funct3;
+                funct7_out      <= funct7;
                 
                 // Control signals
-                reg_write_out  <= reg_write;
-                mem_write_out  <= mem_write;
-                mem_read_out   <= mem_read;
-                mem_to_reg_out <= mem_to_reg;
-                branch_out     <= branch;
-                alu_src_out    <= alu_src;
-                alu_op_out     <= alu_op;
-                jump_out       <= jump;
-            end else begin
+                reg_write_out   <= reg_write;
+                mem_write_out   <= mem_write;
+                mem_read_out    <= mem_read;
+                mem_to_reg_out  <= mem_to_reg;
+                branch_out      <= branch;
+                jump_out        <= jump;
+                alu_src_out     <= alu_src;
+                alu_op_out      <= alu_op;
+            end 
+            else begin
                 // Insert NOP when invalid
-                valid_out     <= 0;
-                instr_out     <= 32'h00000013; // NOP instruction
-                reg_write_out <= 0;
-                mem_write_out <= 0;
-                mem_read_out  <= 0;
-                branch_out    <= 0;
-                jump_out      <= 0;
+                valid_out       <= 0;
+                //instr_out       <= NOP_INSTR;
+
+                rs1_addr_out    <= 0;
+                rs2_addr_out    <= 0;
+                rd_addr_out     <= 0;
+                rs1_data_out    <= 0;
+                rs2_data_out    <= 0;
+                imm_out         <= 0;
+                opcode_out      <= 0;
+                funct3_out      <= 0;
+                funct7_out      <= 0;
+
+                reg_write_out   <= 0;
+                mem_write_out   <= 0;
+                mem_read_out    <= 0;
+                mem_to_reg_out  <= 0;
+                branch_out      <= 0;
+                jump_out        <= 0;
+                alu_src_out     <= 0;
+                alu_op_out      <= 0;
             end
         end
-        // When stalled, keep current values (implicit)
     end
-
 endmodule

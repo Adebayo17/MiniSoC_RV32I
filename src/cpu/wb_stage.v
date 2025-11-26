@@ -54,7 +54,8 @@ module writeback_stage #(
         endcase
 
         // Generate write enable
-        we = reg_write_in && valid_in && (rd_in != 0);
+        // we = reg_write_in && valid_in && (rd_in != 0);
+        we = reg_write_in && valid_in;
     end
 
     // -------------------------------------------

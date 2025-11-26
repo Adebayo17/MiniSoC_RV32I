@@ -90,6 +90,7 @@ module cpu #(
     wire [DATA_WIDTH-1:0]           WB_debug_instr              ;
     wire [ADDR_WIDTH-1:0]           WB_debug_pc                 ;
     wire [ADDR_WIDTH-1:0]           WB_debug_pc_plus_4          ;
+    wire                            WB_valid_out                ;
 
     // Special Pipeline
     // EX to IF
@@ -126,7 +127,6 @@ module cpu #(
     wire [1:0]                      forward_unit_forward_rs2    ;
     wire [REGFILE_ADDR_WIDTH-1:0]   forward_unit_wb_rd          ;
     wire                            forward_unit_wb_reg_write   ;
-    wire                            forward_unit_wb_valid       ;
 
 
     // -------------------------------------------
@@ -175,6 +175,7 @@ module cpu #(
         .wb_reg_write                           (WB_to_ID_reg_write         ),
         .wb_rd_addr                             (WB_to_ID_rd_addr           ),
         .wb_data                                (WB_to_ID_wr_dara           ),
+        .wb_valid                               (WB_valid_out               ),
         .pc_out                                 (ID_to_EX_pc                ),
         .instr_out                              (ID_to_EX_instr             ),
         .rs1_addr_out                           (ID_to_EX_rs1_addr          ),
@@ -318,7 +319,7 @@ module cpu #(
         .rd_out                                 (forward_unit_wb_rd         ),
         .result_out                             (WB_to_EX_result            ),
         .reg_write_out                          (forward_unit_wb_reg_write  ),
-        .valid_out                              (forward_unit_wb_valid      )
+        .valid_out                              (WB_valid_out               )
     );
 
     // -------------------------------------------
@@ -331,8 +332,6 @@ module cpu #(
         .DATA_WIDTH         (DATA_WIDTH         ),
         .REGFILE_ADDR_WIDTH (REGFILE_ADDR_WIDTH )
     ) hazard_unit_inst (
-        .fetch_valid                            (IF_to_ID_valid             ),
-        .if_instr_out                           (IF_to_ID_instr             ),
         .id_rs1                                 (ID_to_EX_rs1_addr          ),       
         .id_rs2                                 (ID_to_EX_rs2_addr          ),       
         .id_mem_read                            (ID_to_EX_mem_read          ),  
@@ -370,7 +369,7 @@ module cpu #(
         .memory_valid                           (MEM_to_WB_valid            ),
         .writeback_rd                           (forward_unit_wb_rd         ),
         .writeback_reg_write                    (forward_unit_wb_reg_write  ),
-        .writeback_valid                        (forward_unit_wb_valid      ),
+        .writeback_valid                        (WB_valid_out               ),
         .forward_rs1                            (forward_unit_forward_rs1   ),
         .forward_rs2                            (forward_unit_forward_rs2   )
     );

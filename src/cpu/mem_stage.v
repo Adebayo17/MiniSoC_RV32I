@@ -7,6 +7,9 @@ module mem_stage #(
     input wire                                  clk,
     input wire                                  rst_n,
 
+    // Pipeline control
+    input wire                                  stall,
+
     // Pipeline inputs from execute stage
     input wire [DATA_WIDTH-1:0]                 instr_in,
     input wire [ADDR_WIDTH-1:0]                 pc_in,
@@ -56,7 +59,6 @@ module mem_stage #(
     // -------------------------------------------
     localparam [1:0]  IDLE     = 2'b00;
     localparam [1:0]  REQUEST  = 2'b01;
-    localparam [1:0]  WAIT     = 2'b10;
     
     reg [1:0] state, next_state;
 
@@ -69,7 +71,7 @@ module mem_stage #(
 
     // Internal signals
     wire is_mem_op          = (mem_read_in || mem_write_in) && valid_in;
-    wire mem_op_complete    = (is_mem_op && wbm_dmem_ack) || !is_mem_op;
+    wire mem_op_complete    = (is_mem_op && wbm_dmem_ack) || (!is_mem_op);
 
     // Memory status assignments
     assign mem_busy = (state != IDLE);
@@ -116,15 +118,15 @@ module mem_stage #(
         next_state   = state;
         wbm_dmem_cyc = 1'b0;
         wbm_dmem_stb = 1'b0;
-        wbm_dmem_we  = 1'b0;
+        wbm_dmem_we  = wbm_dmem_we_latched;
 
         case (state)
             IDLE: begin
-                if (valid_in && is_mem_op && !load_misaligned && !store_misaligned) begin
+                if (is_mem_op && !load_misaligned && !store_misaligned) begin
                     wbm_dmem_cyc = 1'b1;
                     wbm_dmem_stb = 1'b1;
-                    wbm_dmem_we  = mem_write_in;
-                    next_state = REQUEST;
+                    // wbm_dmem_we  = wbm_dmem_we_latched;
+                    next_state   = REQUEST;
                 end
             end
 
@@ -134,7 +136,7 @@ module mem_stage #(
                     next_state = IDLE;
                 end else begin
                     wbm_dmem_stb = 1'b1;
-                    wbm_dmem_we  = mem_write_in;
+                    // wbm_dmem_we  = wbm_dmem_we_latched;
                 end
             end
 
@@ -146,18 +148,23 @@ module mem_stage #(
     // -------------------------------------------
     // Store Data Preparation
     // -------------------------------------------
-    reg [DATA_WIDTH-1:0] store_data_latched;
-    reg [ADDR_WIDTH-1:0] mem_addr_latched;
+    reg [DATA_WIDTH-1:0]    store_data_latched;
+    reg [ADDR_WIDTH-1:0]    mem_addr_latched;
+    reg                     wbm_dmem_we_latched;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            store_data_latched <= 0;
-            mem_addr_latched <= 0;
+            store_data_latched  <= 0;
+            mem_addr_latched    <= 0;
+            wbm_dmem_we_latched <= 0;
         end
         // Latch only when a new, valid op arrives and FSM is ready
-        else if (valid_in && is_mem_op && state == IDLE) begin
+        else if (is_mem_op && state == IDLE) begin
             // Latch address for both load and store
             mem_addr_latched <= alu_result_in;
+
+            // Latch WE for entire memory transaction
+            wbm_dmem_we_latched <= mem_write_in;
 
             // Prepare store data
             if (mem_write_in) begin
@@ -167,7 +174,7 @@ module mem_stage #(
                     default: store_data_latched <= mem_data_in;
                 endcase
             end
-        end
+        end 
     end
 
     // Always drive Wishbone outputs from registered values for timing
@@ -224,17 +231,19 @@ module mem_stage #(
             reg_write_out   <= 0;
             mem_to_reg_out  <= 0;
             valid_out       <= 0;
-        end else begin
+        end else if (stall) begin
+            // FREEZE
+        end
+        else begin
+
             // Normal pipeline operation
             instr_out       <= instr_in;
             pc_out          <= pc_in;
             pc_plus_4_out   <= pc_plus_4_in;
             alu_result_out  <= alu_result_in;
             rd_out          <= rd_in;
-
-            reg_write_out   <= reg_write_in && valid_in && !load_misaligned && !store_misaligned;
             mem_to_reg_out  <= mem_to_reg_in;
-            
+
             // Memory result selection
             case (mem_to_reg_in)
                 2'b00:   mem_result_out <= alu_result_in;    // ALU result
@@ -242,9 +251,40 @@ module mem_stage #(
                 2'b10:   mem_result_out <= pc_plus_4_in;     // JAL/JALR
                 default: mem_result_out <= alu_result_in;
             endcase
+
+            // Valid output logic
+            if (state == REQUEST && wbm_dmem_ack) begin
+                // Memory operation just completed
+                valid_out <= 1;
+                reg_write_out <= reg_write_in && mem_read_in;  // Only for loads
+            end else if (valid_in && !is_mem_op) begin
+                // Non-memory operation
+                valid_out <= 1;
+                reg_write_out <= reg_write_in;
+            end else begin
+                // Memory operation in progress or no valid input
+                valid_out <= 0;
+                reg_write_out <= 0;
+            end
+
+
+
+            // reg_write_out   <= reg_write_in && valid_in && !load_misaligned && !store_misaligned;
+
+            // if (is_load && !load_misaligned) begin
+            //     // Load instruction - only write register when memory completes
+            //     reg_write_out <= reg_write_in && mem_op_complete;
+            // end else begin
+            //     // Other instructions - use normal logic
+            //     reg_write_out <= reg_write_in && valid_in && !load_misaligned && !store_misaligned;
+            // end
             
-            // Valid output: memory ops complete when ack received or not a memory op
-            valid_out <= valid_in;
+            // // Valid output: memory ops complete when ack received or not a memory op
+            // if (is_mem_op) begin
+            //     valid_out <= valid_latched && wbm_dmem_ack;
+            // end else begin
+            //     valid_out <= valid_in;
+            // end
         end
     end
 endmodule
