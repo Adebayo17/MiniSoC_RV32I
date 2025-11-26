@@ -115,6 +115,7 @@ module cpu #(
     wire                            hazard_unit_stall_fetch     ;
     wire                            hazard_unit_stall_decode    ; 
     wire                            hazard_unit_stall_execute   ;
+    wire                            hazard_unit_stall_mem       ;
     wire                            hazard_unit_stall_writeback ;
     wire                            hazard_unit_flush_fetch     ;
     wire                            hazard_unit_flush_decode    ; 
@@ -256,6 +257,7 @@ module cpu #(
     ) mem_stage_inst (
         .clk                                    (clk                        ),
         .rst_n                                  (rst_n                      ),
+        .stall                                  (hazard_unit_stall_mem      ),
         .instr_in                               (EX_to_MEM_instr            ),
         .pc_in                                  (EX_to_MEM_pc               ),
         .pc_plus_4_in                           (EX_to_MEM_pc_plus_4        ),
@@ -349,6 +351,7 @@ module cpu #(
         .stall_fetch                            (hazard_unit_stall_fetch    ),  
         .stall_decode                           (hazard_unit_stall_decode   ), 
         .stall_execute                          (hazard_unit_stall_execute  ),
+        .stall_mem                              (hazard_unit_stall_mem      ),
         .stall_writeback                        (hazard_unit_stall_writeback),
         .flush_fetch                            (hazard_unit_flush_fetch    ),  
         .flush_decode                           (hazard_unit_flush_decode   ), 

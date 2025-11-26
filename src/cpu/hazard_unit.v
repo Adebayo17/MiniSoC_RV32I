@@ -28,7 +28,8 @@ module hazard_unit #(
     // Outputs (Stall and Flush)
     output reg                              stall_fetch,     
     output reg                              stall_decode,    
-    output reg                              stall_execute,   
+    output reg                              stall_execute,
+    output reg                              stall_mem,   
     output reg                              stall_writeback, 
 
     output reg                              flush_fetch,     
@@ -76,6 +77,7 @@ module hazard_unit #(
         stall_fetch     = 1'b0;
         stall_decode    = 1'b0;
         stall_execute   = 1'b0;
+        stall_mem       = 1'b0;
         stall_writeback = 1'b0;
 
         flush_fetch     = 1'b0;
@@ -87,6 +89,7 @@ module hazard_unit #(
             stall_fetch     = 1'b1;
             stall_decode    = 1'b1;
             stall_execute   = 1'b1;
+            stall_mem       = 1'b1;
             stall_writeback = 1'b1;
         end
         // Priority 2: Load-use hazard (requires 1-cycle stall)
