@@ -78,7 +78,7 @@ module mem_stage #(
 
     // Memory status assignments
     assign mem_busy = (state != IDLE);
-    assign mem_ack  = wbm_dmem_ack;
+    assign mem_ack  = mem_ack_reg;
 
     // -------------------------------------------
     // Address Alignment Checking
@@ -172,6 +172,34 @@ module mem_stage #(
     // -------------------------------------------
     // Wishbone Bus Interface
     // -------------------------------------------
+    reg ack_seen;
+    wire ack_rising_edge;
+    wire ack_falling_edge;
+
+    // Detect rising edge of ack
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            ack_seen <= 1'b0;
+        end else begin
+            ack_seen <= wbm_dmem_ack;
+        end
+    end 
+
+    assign ack_rising_edge  = wbm_dmem_ack && !ack_seen;
+    assign ack_falling_edge = !wbm_dmem_ack && ack_seen;
+
+
+    reg mem_ack_reg; 
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            mem_ack_reg <= 1'b0;
+        else if (state == REQUEST && wbm_dmem_ack)
+            mem_ack_reg <= 1'b1;       // ack for THIS instruction
+        else if (state == IDLE)
+            mem_ack_reg <= 1'b0;       // clear once instruction retires
+    end
+
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
@@ -189,17 +217,15 @@ module mem_stage #(
         case (state)
             IDLE: begin
                 if (is_mem_op && !load_misaligned && !store_misaligned) begin
-                    wbm_dmem_cyc = 1'b1;
-                    wbm_dmem_stb = 1'b1;
                     next_state   = REQUEST;
                 end
             end
 
             REQUEST: begin
-                wbm_dmem_cyc = 1'b1;
                 if (wbm_dmem_ack) begin
                     next_state = IDLE;
                 end else begin
+                    wbm_dmem_cyc = 1'b1;
                     wbm_dmem_stb = 1'b1;
                 end
             end

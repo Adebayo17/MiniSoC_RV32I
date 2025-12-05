@@ -188,15 +188,6 @@ module decode_stage #(
         end 
         else if (stall) begin
             // STALL: HOLD Registers value
-            // valid_out       <= 1'b0;
-            // instr_out       <= NOP_INSTR;
-            // reg_write_out   <= 1'b0;
-            // mem_write_out   <= 1'b0;
-            // mem_read_out    <= 1'b0;
-            // branch_out      <= 0;
-            // jump_out        <= 0;
-            // alu_src_out     <= 0;
-            // alu_op_out      <= 0;
         end 
         else begin
             // Normal pipeline operation
@@ -252,4 +243,13 @@ module decode_stage #(
             end
         end
     end
+
+    // debug
+    // always @(posedge clk) begin
+    //     if (rs1_addr == 5'd9) begin  // When reading s1
+    //         $display("[S1_DEBUG] Time %0t: pc_in=0x%h, reading s1=0x%h", 
+    //                 $time, pc_in, rs1_data);
+    //     end
+    // end
+    
 endmodule

@@ -59,4 +59,13 @@ module forward_unit #(
             end
         end
     end
+
+    // debug
+    // always @(*) begin
+    //     if (decode_rs1 == 5'd9) begin
+    //         $display("[FORWARD_S1] Time %0t: forward_rs1=%b, memory_rd=%0d, memory_reg_write=%b", 
+    //                 $time, forward_rs1, memory_rd, memory_reg_write);
+    //     end
+    // end
+
 endmodule

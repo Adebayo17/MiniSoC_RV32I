@@ -209,7 +209,6 @@ module execute_stage #(
         end else if (stall) begin
             // HOLD everything -- do nothing
             // This preserves valid_out and all pipeline outputs
-            // valid_out           <= 0;
         end else begin
             // Normal operation (no stall, no flush)
             if (valid_in) begin

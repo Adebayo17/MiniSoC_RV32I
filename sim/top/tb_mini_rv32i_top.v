@@ -223,10 +223,13 @@ module tb_mini_rv32i_top;
 
         $display("[TESTBENCH TOP-LEVEL][TEST %0d] Pipeline Progression: ✅ PASS", test_num);
         $fdisplay(log_file, "[TESTBENCH TOP-LEVEL][TEST %0d] Pipeline Progression: ✅ PASS", test_num);
+
+        // Wait for firmware to execute
+        #20000000;
         
 
         // ===== FINAL SUMMARY =====
-        #5000000;
+        #50000;
         $display("\n=== TOP-LEVEL Testbench Completed ===");
         $fdisplay(log_file, "\n=== TOP-LEVEL Testbench Completed ===");
         
@@ -459,6 +462,7 @@ module tb_mini_rv32i_top;
     endtask
 
 
+
     // -------------------------------------------
     // Monitoring Process
     // -------------------------------------------
@@ -484,28 +488,20 @@ module tb_mini_rv32i_top;
 
         if (dut.top_soc_inst.dmem_inst.mem_select) begin
             dmem_selected = 1'b1;
-            // $display("[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
-            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ DMEM select activity detected at Cycle %0d", cycle_count);
         end
 
         if (dut.top_soc_inst.uart_inst.uart_select) begin
             uart_selected = 1'b1;
             is_uart_selected = 1'b1;
-            // $display("[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
-            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ UART select activity detected at Cycle %0d", cycle_count);
         end
 
         if (dut.top_soc_inst.timer_inst.timer_select) begin
             timer_selected = 1'b1;
-            // $display("[MONITOR][PIPELINE] ✅ TIMER select activity detected at Cycle %0d", cycle_count);
-            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ TIMER select activity detected at Cycle %0d", cycle_count);
         end
 
         if (dut.top_soc_inst.gpio_inst.gpio_select) begin
             gpio_selected = 1'b1;
             is_gpio_selected = 1'b1;
-            // $display("[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
-            // $fdisplay(log_file, "[MONITOR][PIPELINE] ✅ GPIO select activity detected at Cycle %0d", cycle_count);
         end
     end
 
@@ -567,7 +563,7 @@ module tb_mini_rv32i_top;
             dut.top_soc_inst.wbs_cpu_addr == SIM_CTRL_BASE &&
             dut.top_soc_inst.wbs_cpu_data_write == TEST_PASS_CODE) 
         begin
-            $display("---------------------------------------------------------");
+            $display("\n---------------------------------------------------------");
             $display("[TESTBENCH] ✅ FIRMWARE TEST PASS code (0x%h) write detected at cycle %d!", 
                      TEST_PASS_CODE, cycle_count);
             $fdisplay(log_file, "[TESTBENCH] ✅ FIRMWARE TEST PASS code (0x%h) write detected at cycle %d!", 
@@ -577,81 +573,6 @@ module tb_mini_rv32i_top;
         end
     end
 
-
-    // Check Firmware stage reached
-    // always @(*) begin
-    //     if (fetch_pc == 32'h00000000) begin
-    //         $display("[FIRMWARE] Reached : <_start>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <_start>");
-    //     end
-
-    //     if (fetch_pc == 32'h00000030) begin
-    //         $display("[FIRMWARE] Reached : <main_loop>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <main_loop>");
-    //     end
-
-    //     if (fetch_pc == 32'h00000044) begin
-    //         $display("[FIRMWARE] Reached : <skip_uart>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <skip_uart>");
-    //     end
-
-    //     if (fetch_pc == 32'h0000004C) begin
-    //         $display("[FIRMWARE] Reached : <delay_loop>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <delay_loop>");
-    //     end
-
-    //     if (fetch_pc == 32'h00000070) begin
-    //         $display("[FIRMWARE] Reached : <uart_send_boot_msg>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_boot_msg>");
-    //     end
-
-    //     if (fetch_pc == 32'h00000090) begin
-    //         $display("[FIRMWARE] Reached : <uart_send_string>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_string>");
-    //     end
-
-    //     if (fetch_pc == 32'h000000A8) begin
-    //         $display("[FIRMWARE] Reached : <uart_string_loop>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_string_loop>");
-    //     end
-
-    //     if (fetch_pc == 32'h000000BC) begin
-    //         $display("[FIRMWARE] Reached : <uart_string_done>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_string_done>");
-    //     end
-
-    //     if (fetch_pc == 32'h000000D0) begin
-    //         $display("[FIRMWARE] Reached : <uart_send_char>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_char>");
-    //     end
-
-    //     if (fetch_pc == 32'h000000E0) begin
-    //         $display("[FIRMWARE] Reached : <uart_wait_tx>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_wait_tx>");
-    //     end
-
-    //     if (fetch_pc == 32'h00000100) begin
-    //         $display("[FIRMWARE] Reached : <uart_send_hex>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <uart_send_hex>");
-    //     end
-
-    //     if (decode_pc == 32'h00000128) begin
-    //         $display("[FIRMWARE] Reached : <hex_loop>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <hex_loop>");
-    //     end
-
-    //     if (decode_pc == 32'h00000140) begin
-    //         $display("[FIRMWARE] Reached : <hex_digit>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <hex_digit>");
-    //     end
-
-    //     if (decode_pc == 32'h00000144) begin
-    //         $display("[FIRMWARE] Reached : <hex_send>");
-    //         $fdisplay(log_file, "[FIRMWARE] Reached : <hex_send>");
-    //     end
-    // end
-
-    // Add to testbench
 
 
 endmodule

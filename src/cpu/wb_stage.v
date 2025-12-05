@@ -54,8 +54,8 @@ module writeback_stage #(
         endcase
 
         // Generate write enable
-        // we = reg_write_in && valid_in && (rd_in != 0);
-        we = reg_write_in && valid_in;
+        we = reg_write_in && valid_in && (rd_in != 0);
+        //we = reg_write_in && valid_in;
     end
 
     // -------------------------------------------
@@ -74,20 +74,28 @@ module writeback_stage #(
             result_out          <= 0;
             reg_write_out       <= 1'b0;
             valid_out           <= 1'b0;
-        end else if (!stall) begin
-            // Normal pipeline operation
-            regfile_we          <= we;
-            regfile_rd_addr     <= rd_in;
-            regfile_wr_data     <= wr_data;
+        end else if (stall) begin
+            // HOLD Register value
+        end
+        else if (!stall) begin
+            if (valid_in) begin
+                // Normal pipeline operation
+                regfile_we          <= we;
+                regfile_rd_addr     <= rd_in;
+                regfile_wr_data     <= wr_data;
+                
+                // Outputs for forwarding and debug
+                instr_out           <= instr_in;
+                pc_out              <= pc_in;
+                pc_plus_4_out       <= pc_plus_4_in;
+                rd_out              <= rd_in;
+                result_out          <= wr_data;
+                reg_write_out       <= reg_write_in && valid_in;
+                valid_out           <= 1'b1;
+            end else begin
+                valid_out           <= 1'b0;
+            end 
             
-            // Outputs for forwarding and debug
-            instr_out           <= instr_in;
-            pc_out              <= pc_in;
-            pc_plus_4_out       <= pc_plus_4_in;
-            rd_out              <= rd_in;
-            result_out          <= wr_data;
-            reg_write_out       <= reg_write_in && valid_in;
-            valid_out           <= valid_in;
         end 
     end
 endmodule
