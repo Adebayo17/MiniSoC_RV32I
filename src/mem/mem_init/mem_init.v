@@ -26,19 +26,56 @@ module mem_init #(
     output reg [DATA_WIDTH-1:0]     dmem_init_data
 );
     // -------------------------------------------
-    // Memory for firmware data
+    // Memory Parameters
     // -------------------------------------------
     localparam DMEM_DEPTH = DMEM_SIZE_KB * 1024 / 4;
     localparam IMEM_DEPTH = IMEM_SIZE_KB * 1024 / 4;
+
+
+    // -------------------------------------------
+    // Memory for firmware data
+    // -------------------------------------------
     reg [DATA_WIDTH-1:0] firmware_mem [0:IMEM_DEPTH-1];  
 
+    // Counter for loaded instructions
+    integer loaded_instructions;
 
+    // NOP Instruction (addi x0, x0, 0)
+    localparam [DATA_WIDTH-1:0] NOP_INSTRUCTION = 32'h00000013;
+
+
+    // -------------------------------------------
+    // Load firmware and fill with NOPs
+    // -------------------------------------------
     initial begin
+        // Initialize all memory to NOP first
+        for (integer i = 0; i < IMEM_DEPTH; i = i + 1) begin
+            firmware_mem[i] = NOP_INSTRUCTION;
+        end
+
+        // Load firmware from file
         if (INIT_FILE != "") begin
+            // Try to read the file
+            loaded_instructions = 0;
             $readmemh(INIT_FILE, firmware_mem);
+
+            // Count actual loaded instructions
+            for (integer i = 0; i < IMEM_DEPTH; i = i + 1) begin
+                if (firmware_mem[i] !== 32'hxxxxxxxx) begin
+                    loaded_instructions = loaded_instructions + 1;
+                end else begin
+                    // Fill uninitialized locations with NOP
+                    firmware_mem[i] = NOP_INSTRUCTION;
+                end
+            end
+
+
             $display("[MEM_INIT] Loaded firmware from %s", INIT_FILE);
+            $display("[MEM_INIT] Loaded %0d instructions, remaining %0d words filled with NOPs", 
+                    loaded_instructions, IMEM_DEPTH - loaded_instructions);
         end else begin
             $display("[MEM_INIT] No firmware file specified");
+            loaded_instructions = 0;
         end
     end
 

@@ -97,7 +97,7 @@ int main(void) {
     print_string("================================\r\n");
     print_string("System Clock: 50 MHz\r\n");
     print_string("UART Baud: 115200\r\n");
-    print_string("Memory: 4KB IMEM + 4KB DMEM\r\n");
+    print_string("Memory: 8KB IMEM + 4KB DMEM\r\n");
     print_string("================================\r\n\r\n");
     
     /* Run demos */

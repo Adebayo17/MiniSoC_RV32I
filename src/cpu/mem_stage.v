@@ -74,7 +74,7 @@ module mem_stage #(
     wire is_load        = mem_read_in && valid_in;
     wire is_store       = mem_write_in && valid_in;
 
-    wire mem_op_complete    = (is_mem_op && wbm_dmem_ack) || (!is_mem_op);
+    wire mem_op_complete = wbm_dmem_ack;
 
     // Memory status assignments
     assign mem_busy = (state != IDLE);
@@ -172,23 +172,6 @@ module mem_stage #(
     // -------------------------------------------
     // Wishbone Bus Interface
     // -------------------------------------------
-    reg ack_seen;
-    wire ack_rising_edge;
-    wire ack_falling_edge;
-
-    // Detect rising edge of ack
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            ack_seen <= 1'b0;
-        end else begin
-            ack_seen <= wbm_dmem_ack;
-        end
-    end 
-
-    assign ack_rising_edge  = wbm_dmem_ack && !ack_seen;
-    assign ack_falling_edge = !wbm_dmem_ack && ack_seen;
-
-
     reg mem_ack_reg; 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)

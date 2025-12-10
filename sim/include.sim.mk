@@ -18,6 +18,7 @@ SIM_FIRMWARE_DIR := $(MINISOC_BUILD_DIR)
 IVERILOG 		?= iverilog 
 VVP 			?= vvp 
 GTKWAVE 		?= gtkwave 
+export IVERILOG VVP GTKWAVE
 
 
 # -------------------------------------------

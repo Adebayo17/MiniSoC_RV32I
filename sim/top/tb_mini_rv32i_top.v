@@ -265,7 +265,10 @@ module tb_mini_rv32i_top;
             $display("---------------------------------------------------------");
             test_timeout = 1;
             test_fail = test_fail + 1;
-        end
+        end 
+
+        // $fclose(log_file);
+        // $finish;
     end
 
 

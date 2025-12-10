@@ -448,23 +448,23 @@ module top_soc #(
     // ---------------------------------------------------------------------------------------------
     // PAD I/O
     // ---------------------------------------------------------------------------------------------
-    
+
     // ----------------------------
     // GPIO 0 Pad
     // ----------------------------
     io_pad gpio_pad_0 (
-        .pad_in(gpio_in[0]),
-        .pad_out(gpio_out[0]),
-        .pad_oe(gpio_oe[0]),
-        .pad_io(gpio0_io)
+        .pad_in(gpio_out[0]),      // Data from GPIO core to drive the pad
+        .pad_out(gpio_in[0]),      // Data from pad to GPIO core
+        .pad_oe(gpio_oe[0]),       // Direction control from GPIO core
+        .pad_io(gpio0_io)          // Physical bidirectional pin
     );
 
     // ----------------------------
     // GPIO 1 Pad
     // ----------------------------
     io_pad gpio_pad_1 (
-        .pad_in(gpio_in[1]),
-        .pad_out(gpio_out[1]),
+        .pad_in(gpio_out[1]),
+        .pad_out(gpio_in[1]),
         .pad_oe(gpio_oe[1]),
         .pad_io(gpio1_io)
     );
@@ -473,8 +473,8 @@ module top_soc #(
     // GPIO 2 Pad
     // ----------------------------
     io_pad gpio_pad_2 (
-        .pad_in(gpio_in[2]),
-        .pad_out(gpio_out[2]),
+        .pad_in(gpio_out[2]),
+        .pad_out(gpio_in[2]),
         .pad_oe(gpio_oe[2]),
         .pad_io(gpio2_io)
     );
@@ -483,8 +483,8 @@ module top_soc #(
     // GPIO 3 Pad
     // ----------------------------
     io_pad gpio_pad_3 (
-        .pad_in(gpio_in[3]),
-        .pad_out(gpio_out[3]),
+        .pad_in(gpio_out[3]),
+        .pad_out(gpio_in[3]),
         .pad_oe(gpio_oe[3]),
         .pad_io(gpio3_io)
     );
@@ -493,8 +493,8 @@ module top_soc #(
     // GPIO 4 Pad
     // ----------------------------
     io_pad gpio_pad_4 (
-        .pad_in(gpio_in[4]),
-        .pad_out(gpio_out[4]),
+        .pad_in(gpio_out[4]),
+        .pad_out(gpio_in[4]),
         .pad_oe(gpio_oe[4]),
         .pad_io(gpio4_io)
     );
@@ -503,8 +503,8 @@ module top_soc #(
     // GPIO 5 Pad
     // ----------------------------
     io_pad gpio_pad_5 (
-        .pad_in(gpio_in[5]),
-        .pad_out(gpio_out[5]),
+        .pad_in(gpio_out[5]),
+        .pad_out(gpio_in[5]),
         .pad_oe(gpio_oe[5]),
         .pad_io(gpio5_io)
     );
@@ -513,8 +513,8 @@ module top_soc #(
     // GPIO 6 Pad
     // ----------------------------
     io_pad gpio_pad_6 (
-        .pad_in(gpio_in[6]),
-        .pad_out(gpio_out[6]),
+        .pad_in(gpio_out[6]),
+        .pad_out(gpio_in[6]),
         .pad_oe(gpio_oe[6]),
         .pad_io(gpio6_io)
     );
@@ -523,11 +523,10 @@ module top_soc #(
     // GPIO 7 Pad
     // ----------------------------
     io_pad gpio_pad_7 (
-        .pad_in(gpio_in[7]),
-        .pad_out(gpio_out[7]),
+        .pad_in(gpio_out[7]),
+        .pad_out(gpio_in[7]),
         .pad_oe(gpio_oe[7]),
         .pad_io(gpio7_io)
     );
-
-
+    
 endmodule

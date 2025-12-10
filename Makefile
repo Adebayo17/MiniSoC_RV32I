@@ -18,6 +18,7 @@ include src/include.src.mk
 include sim/include.sim.mk 
 include sw/include.sw.mk
 include synth/include.synth.mk
+include sim_minisoc/include.sim_minisoc.mk
 
 
 # -------------------------------------------
@@ -39,6 +40,7 @@ check_env:
 	@mkdir -p $(SIM_BUILD_DIR)
 	@mkdir -p $(SW_BUILD_DIR)
 	@mkdir -p $(SYNTH_BUILD_DIR)
+	@mkdir -p $(SIM_MINISOC_BUILD_DIR)
 	@echo "[Makefile] Environment check complete"
 	@echo ""
 
@@ -57,7 +59,7 @@ firmware.copy: sw.firmware
 	@cp $(SW_BUILD_DIR)/firmware.bin $(MINISOC_BUILD_DIR)/
 	@cp $(SW_BUILD_DIR)/firmware.hex $(MINISOC_BUILD_DIR)/
 	@cp $(SW_BUILD_DIR)/firmware.disasm $(MINISOC_BUILD_DIR)/
-	@CP $(SW_BUILD_DIR)/firmware.mem $(MINISOC_BUILD_DIR)/
+	@cp $(SW_BUILD_DIR)/firmware.mem $(MINISOC_BUILD_DIR)/
 	@echo "[MiniSoC] Firmware ready for simulation/synthesis"
 	@echo ""
 
