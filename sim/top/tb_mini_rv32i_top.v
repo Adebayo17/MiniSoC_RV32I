@@ -128,6 +128,7 @@ module tb_mini_rv32i_top;
 
         is_gpio_selected = 0;
         is_uart_selected = 0;
+        is_timer_selected = 0;
 
         #(CLK_PERIOD*10);
         rst_n = 1;
@@ -204,7 +205,7 @@ module tb_mini_rv32i_top;
         $fdisplay(log_file, "\n[TESTBENCH TOP-LEVEL][TEST %0d] Peripheral Access: Starting", test_num);
 
         // Wait for firmware to initialize peripherals
-        #(CLK_PERIOD * 10000);
+        #(CLK_PERIOD * 100000);
         
         // Check that peripherals are being accessed
         verify_peripheral_access();
@@ -425,6 +426,25 @@ module tb_mini_rv32i_top;
                 $fdisplay(log_file, "  [PERIPHERAL] ❌ UART not accessed");
                 test_fail = test_fail + 1;
             end
+
+            if (is_timer_selected) begin
+                $display("  [PERIPHERAL] ✅ TIMER select activity detected"); 
+                $fdisplay(log_file, "  [PERIPHERAL] ✅ TIMER select activity detected");
+                test_pass = test_pass + 1;
+
+                // Check if timer is counting
+                if (dut.top_soc_inst.timer_inst.timer_inst.count_reg > 0) begin
+                    $display("  [PERIPHERAL] ✅ Timer is counting (value: %d)", 
+                            dut.top_soc_inst.timer_inst.timer_inst.count_reg);
+                    $fdisplay(log_file, "  [PERIPHERAL] ✅ Timer is counting (value: %d)",
+                            dut.top_soc_inst.timer_inst.timer_inst.count_reg);
+                    test_pass = test_pass + 1;
+                end
+            end else begin
+                $display("  [PERIPHERAL] ❌ TIMER not accessed");
+                $fdisplay(log_file, "  [PERIPHERAL] ❌ TIMER not accessed");
+                test_fail = test_fail + 1;
+            end
         end
     endtask
 
@@ -483,6 +503,7 @@ module tb_mini_rv32i_top;
 
     reg is_gpio_selected;
     reg is_uart_selected;
+    reg is_timer_selected;
     always @(*) begin
         dmem_selected   = 0;
         gpio_selected   = 0;
@@ -500,6 +521,7 @@ module tb_mini_rv32i_top;
 
         if (dut.top_soc_inst.timer_inst.timer_select) begin
             timer_selected = 1'b1;
+            is_timer_selected = 1'b1;
         end
 
         if (dut.top_soc_inst.gpio_inst.gpio_select) begin
