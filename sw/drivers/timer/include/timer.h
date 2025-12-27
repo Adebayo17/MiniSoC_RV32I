@@ -6,9 +6,9 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include "system.h"
-#include <stddef.h>
-
+#include "system.h"        /* Memory map, macros */
+#include "peripheral.h"    /* peripheral_t structure */
+#include "errors.h"        /* Error codes */
 
 /* ========================================================================== */
 /* TIMER Memory Map Definitions                                               */

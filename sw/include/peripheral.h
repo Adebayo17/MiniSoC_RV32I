@@ -6,6 +6,7 @@
 #ifndef PERIPHERAL_H
 #define PERIPHERAL_H
 
+#include "system.h"  /* For uint32_t */
 
 /* ========================================================================== */
 /* Base Peripheral Structure                                                  */

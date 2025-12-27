@@ -6,6 +6,9 @@
 #ifndef MATH_H
 #define MATH_H
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 /* ========================================================================== */
 /* Fast Math Helpers (for common cases)                                       */

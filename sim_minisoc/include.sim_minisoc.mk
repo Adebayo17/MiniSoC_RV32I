@@ -82,7 +82,7 @@ check_firmware:
 
 
 # Main simulation build
-$(SIM_MINISOC_OUTPUT): check_firmware $(SIM_MINISOC_TB_SOURCE) $(SIM_MINISOC_HW_SOURCES) $(SIM_MINISOC_INCLUDE_FILES)
+$(SIM_MINISOC_OUTPUT): minisoc check_firmware $(SIM_MINISOC_TB_SOURCE) $(SIM_MINISOC_HW_SOURCES) $(SIM_MINISOC_INCLUDE_FILES)
 	@echo "=================================================="
 	@echo "Building MiniSoC with C Firmware Simulation"
 	@echo "=================================================="

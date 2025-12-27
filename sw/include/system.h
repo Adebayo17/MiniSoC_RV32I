@@ -13,6 +13,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+/* Essential headers */
+#include "peripheral.h"    /* Base peripheral structure */
+#include "errors.h"        /* Error codes */
+#include "memory.h"        /* Memory access */
+
 typedef struct timer_system timer_t;
 
 /* ========================================================================== */

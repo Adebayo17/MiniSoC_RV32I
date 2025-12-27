@@ -145,6 +145,18 @@ module tb_minisoc_c_firmware;
         
         $display("\n[TB] Starting C firmware execution...");
         $display("==================================================\n");
+
+        // TEST INIT : Check Memory Initialization and CPU Reset
+        $display("==================================================");
+        $fdisplay(log_file, "==================================================");
+        $display("[TB][TEST_INIT] Check Memory Initialization and CPU Reset: Starting\n");
+        $fdisplay(log_file, "[TB][TEST_INIT] Check Memory Initialization and CPU Reset: Starting\n");
+        test_init();
+        $display("\n[TB][TEST_INIT] Check Memory Initialization and CPU Reset: ✅ Completed");
+        $fdisplay(log_file, "\n[TB][TEST_INIT] Check Memory Initialization and CPU Reset: ✅ Completed");
+        $display("==================================================\n");
+        $fdisplay(log_file, "==================================================\n");
+
     end
 
     // ------------------------------------------------------------------------
@@ -196,5 +208,75 @@ module tb_minisoc_c_firmware;
         mem_instr           = dut.top_soc_inst.rv32i_core.mem_stage_inst.instr_in;
         writeback_instr     = dut.top_soc_inst.rv32i_core.writeback_stage_inst.instr_in;
     end
+
+
+    // ------------------------------------------------------------------------
+    // TEST INIT
+    // ------------------------------------------------------------------------
+    task test_init;
+        begin
+            $display("[TB][TEST_INIT] -- Waiting for memory reset...");
+            $fdisplay(log_file, "[TB][TEST_INIT] -- Waiting for memory reset...");
+
+            // Wait for memory reset to complete
+            wait(dut.top_soc_inst.memory_rst_n);
+            $display("[TB][TEST_INIT] -- Memory reset released at %t", $time);
+            $fdisplay(log_file, "[TB][TEST_INIT] -- Memory reset released at %t", $time);
+
+            // Wait for initialization to complete
+            wait(dut.top_soc_inst.init_done == 1);
+            $display("[TB][TEST_INIT] -- Memory initialization complete at %t", $time);
+            $fdisplay(log_file, "[TB][TEST_INIT] -- Memory initialization complete at %t", $time);
+
+            // Verify firmware loaded correctly
+            $display("[TB][TEST_INIT] -- Verifying firmware loaded correctly...");
+            $fdisplay(log_file, "[TB][TEST_INIT] -- Verifying firmware loaded correctly...");
+            verify_firmware_loaded();
+
+            // Wait for CPU reset to be released
+            wait(dut.top_soc_inst.cpu_rst_n);
+            $display("[TB][TEST_INIT] -- CPU reset released at %t", $time);
+            $fdisplay(log_file, "[TB][TEST_INIT] -- CPU reset released at %t", $time);
+
+            // Verify CPU starts at reset PC
+            if (dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc === 32'h00000000) begin
+                $display("[TB][TEST_INIT] -- CPU PC at reset vector: ✅ 0x00000000");
+                $fdisplay(log_file, "[TB][TEST_INIT] -- CPU PC at reset vector: ✅ 0x00000000");
+            end else begin
+                $display("[TB][TEST_INIT] -- CPU PC incorrect: ❌ Expected 0x00000000, Got %h", 
+                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+                $fdisplay(log_file, "[TB][TEST_INIT] -- CPU PC incorrect: ❌ Expected 0x00000000, Got %h", 
+                        dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc);
+            end
+        end
+    endtask
+
+    task verify_firmware_loaded;
+        begin
+            // Check first few instructions in IMEM
+            $display("[FIRMWARE_VERIFY] IMEM[0] = %h (should be first instruction)", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
+            $display("[FIRMWARE_VERIFY] IMEM[1] = %h", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
+            $display("[FIRMWARE_VERIFY] IMEM[2] = %h", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[2]);
+            
+            $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM[0] = %h", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
+            $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM[1] = %h", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
+            $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM[2] = %h", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[2]);
+            
+            // Check if instructions look valid
+            if (dut.top_soc_inst.imem_inst.imem_inst.mem[0] === 32'hxxxxxxxx) begin
+                $display("[FIRMWARE_VERIFY] ERROR: ❌ IMEM[0] is uninitialized!");
+                $fdisplay(log_file, "[FIRMWARE_VERIFY] ERROR: ❌ IMEM[0] is uninitialized!");
+            end else begin
+                $display("[FIRMWARE_VERIFY] ✅ IMEM appears to be initialized");
+                $fdisplay(log_file, "[FIRMWARE_VERIFY] ✅ IMEM appears to be initialized");
+            end
+        end
+    endtask
     
 endmodule

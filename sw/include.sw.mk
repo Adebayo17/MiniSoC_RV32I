@@ -47,6 +47,9 @@ export CFLAGS ASFLAGS LDFLAGS
 # Main application
 SW_MAIN_SRCS := $(SW_SRC_DIR)/startup.S
 SW_MAIN_SRCS += $(SW_SRC_DIR)/system.c
+SW_MAIN_SRCS += $(SW_SRC_DIR)/memory.c
+SW_MAIN_SRCS += $(SW_SRC_DIR)/peripheral.c
+SW_MAIN_SRCS += $(SW_SRC_DIR)/math.c
 SW_MAIN_SRCS += $(SW_SRC_DIR)/main.c
 
 # Driver sources

@@ -3,7 +3,11 @@
  * @brief Mini RV32I SoC Firmware Main Application
  */
 
+/* System Headers */
 #include "system.h"
+#include "math.h"
+
+/* Peripheral Headers */
 #include "uart.h"
 #include "timer.h"
 #include "gpio.h"
