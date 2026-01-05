@@ -10,7 +10,7 @@ module tb_cpu;
     parameter IMEM_BASE_ADDR        = 32'h0000_0000;
     parameter DMEM_BASE_ADDR        = 32'h0000_0000;
     parameter SIZE_KB               = 4;
-    parameter INIT_FILE             = "firmware.mem"
+    parameter INIT_FILE             = "firmware.mem";
     
     // Clock and reset
     reg clk;
@@ -26,14 +26,23 @@ module tb_cpu;
     integer      print_mem_init;
     
     // Wishbone interfaces
-    wire                    wbm_imem_cyc;
-    wire                    wbm_imem_stb;
-    wire                    wbm_imem_we;
-    wire [ADDR_WIDTH-1:0]   wbm_imem_addr;
-    wire [DATA_WIDTH-1:0]   wbm_imem_data_write;
-    wire [3:0]              wbm_imem_sel;
-    wire [DATA_WIDTH-1:0]   wbm_imem_data_read;
-    wire                    wbm_imem_ack;
+    wire                    wbm_imem_if_cyc;
+    wire                    wbm_imem_if_stb;
+    wire                    wbm_imem_if_we;
+    wire [ADDR_WIDTH-1:0]   wbm_imem_if_addr;
+    wire [DATA_WIDTH-1:0]   wbm_imem_if_data_write;
+    wire [3:0]              wbm_imem_if_sel;
+    wire [DATA_WIDTH-1:0]   wbm_imem_if_data_read;
+    wire                    wbm_imem_if_ack;
+
+    wire                    wbm_imem_ro_cyc;
+    wire                    wbm_imem_ro_stb;
+    wire                    wbm_imem_ro_we;
+    wire [ADDR_WIDTH-1:0]   wbm_imem_ro_addr;
+    wire [DATA_WIDTH-1:0]   wbm_imem_ro_data_write;
+    wire [3:0]              wbm_imem_ro_sel;
+    wire [DATA_WIDTH-1:0]   wbm_imem_ro_data_read;
+    wire                    wbm_imem_ro_ack;
     
     wire                    wbm_dmem_cyc;
     wire                    wbm_dmem_stb;
@@ -67,14 +76,14 @@ module tb_cpu;
     ) dut (
         .clk                    (clk                    ),
         .rst_n                  (rst_n && mem_init_done ),
-        .wbm_imem_cyc           (wbm_imem_cyc           ),
-        .wbm_imem_stb           (wbm_imem_stb           ),
-        .wbm_imem_we            (wbm_imem_we            ),
-        .wbm_imem_addr          (wbm_imem_addr          ),
-        .wbm_imem_data_write    (wbm_imem_data_write    ),
-        .wbm_imem_sel           (wbm_imem_sel           ),
-        .wbm_imem_data_read     (wbm_imem_data_read     ),
-        .wbm_imem_ack           (wbm_imem_ack           ),
+        .wbm_imem_cyc           (wbm_imem_if_cyc        ),
+        .wbm_imem_stb           (wbm_imem_if_stb        ),
+        .wbm_imem_we            (wbm_imem_if_we         ),
+        .wbm_imem_addr          (wbm_imem_if_addr       ),
+        .wbm_imem_data_write    (wbm_imem_if_data_write ),
+        .wbm_imem_sel           (wbm_imem_if_sel        ),
+        .wbm_imem_data_read     (wbm_imem_if_data_read  ),
+        .wbm_imem_ack           (wbm_imem_if_ack        ),
         .wbm_dmem_cyc           (wbm_dmem_cyc           ),
         .wbm_dmem_stb           (wbm_dmem_stb           ),
         .wbm_dmem_we            (wbm_dmem_we            ),
@@ -114,14 +123,22 @@ module tb_cpu;
     ) imem_inst (
         .clk                    (clk                    ),
         .rst_n                  (rst_n                  ),
-        .wbs_cyc                (wbm_imem_cyc           ),
-        .wbs_stb                (wbm_imem_stb           ),
-        .wbs_we                 (wbm_imem_we            ),
-        .wbs_addr               (wbm_imem_addr          ),
-        .wbs_data_write         (wbm_imem_data_write    ),
-        .wbs_sel                (wbm_imem_sel           ),
-        .wbs_data_read          (wbm_imem_data_read     ),
-        .wbs_ack                (wbm_imem_ack           ),
+        .wbs_if_cyc             (wbm_imem_if_cyc        ),
+        .wbs_if_stb             (wbm_imem_if_stb        ),
+        .wbs_if_we              (wbm_imem_if_we         ),
+        .wbs_if_addr            (wbm_imem_if_addr       ),
+        .wbs_if_data_write      (wbm_imem_if_data_write ),
+        .wbs_if_sel             (wbm_imem_if_sel        ),
+        .wbs_if_data_read       (wbm_imem_if_data_read  ),
+        .wbs_if_ack             (wbm_imem_if_ack        ),
+        .wbs_ro_cyc             (wbm_imem_ro_cyc        ),
+        .wbs_ro_stb             (wbm_imem_ro_stb        ),
+        .wbs_ro_we              (wbm_imem_ro_we         ),
+        .wbs_ro_addr            (wbm_imem_ro_addr       ),
+        .wbs_ro_data_write      (wbm_imem_ro_data_write ),
+        .wbs_ro_sel             (wbm_imem_ro_sel        ),
+        .wbs_ro_data_read       (wbm_imem_ro_data_read  ),
+        .wbs_ro_ack             (wbm_imem_ro_ack        ),
         .init_en                (imem_init_en           ),
         .init_addr              (imem_init_addr         ),
         .init_data              (imem_init_data         )
@@ -284,7 +301,7 @@ module tb_cpu;
             end
             
             // Check for test completion (infinite loop)
-            if (wbm_imem_addr == 32'h0000001C) begin // PC at instruction 7
+            if (wbm_imem_if_addr == 32'h0000001C) begin // PC at instruction 7
                 test_complete <= 1'b1;
                 // Allow some time for the store to complete
                 #(CLK_PERIOD * 5);
@@ -307,8 +324,8 @@ module tb_cpu;
     always @(posedge clk) begin
         if (rst_n && mem_initialized) begin
             // Log instruction fetches
-            if (wbm_imem_cyc && wbm_imem_stb && !wbm_imem_we) begin
-                $display("IFetch: PC=%h, Instruction=%h", wbm_imem_addr, wbm_imem_data_read);
+            if (wbm_imem_if_cyc && wbm_imem_if_stb && !wbm_imem_if_we) begin
+                $display("IFetch: PC=%h, Instruction=%h", wbm_imem_if_addr, wbm_imem_if_data_read);
             end
             
             // Log memory accesses

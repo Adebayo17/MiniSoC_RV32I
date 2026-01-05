@@ -76,7 +76,7 @@ module wishbone_interconnect #(
 ## 5. Pipeline Architecture
 ### 5.1 Three-Stage Pipeline
 
-![Three-Stage Pipeline](./images/wishbone_pipeline.png)
+![Three-Stage Pipeline](../diagrams/wishbone_pipeline.png)
 
 
 ### 5.2 Stage 1: Combinational Address Decode

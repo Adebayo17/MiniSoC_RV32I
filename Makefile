@@ -67,11 +67,7 @@ firmware.copy: sw.firmware
 # -------------------------------------------
 # Simulation Targets
 # -------------------------------------------
-sim: check_env minisoc
-	$(MAKE) -C sim.all
 
-sim-run: check_env minisoc
-	$(MAKE) sim.run.all
 
 
 # -------------------------------------------

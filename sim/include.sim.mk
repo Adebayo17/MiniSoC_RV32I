@@ -40,7 +40,7 @@ include $(SIM_DIR)/top/include.sim.top.mk
 # -------------------------------------------
 # Simulation Variables
 # -------------------------------------------
-SIM_TARGETS := sim.bus sim.mem sim.peripheral sim.cpu sim.pad sim.top
+SIM_TARGETS := sim.bus sim.mem sim.peripheral sim.cpu sim.pad 
 
 
 # -------------------------------------------
@@ -49,12 +49,12 @@ SIM_TARGETS := sim.bus sim.mem sim.peripheral sim.cpu sim.pad sim.top
 .PHONY: sim.all sim.clean $(SIM_TARGETS)
 
 # Main simulation target
-sim.all: $(SIM_TARGETS)
+sim.all: $(SIM_TARGETS) sim.top.firmware debug-firmware sim.top
 	@echo "[SIM] All simulation components built successfully"
 
 
 # Run all simulations
-sim.run.all: $(SIM_TARGETS:%=%.run)
+sim.run.all: $(SIM_TARGETS:%=%.run) sim.top.run
 	@echo "[SIM] All simulations completed"
 
 # Clean all simulation files

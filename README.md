@@ -10,7 +10,13 @@ The project is focused on **learning and experimentation** in VLSI/ASIC/FPGA des
 - Integrate basic peripherals: **UART, Timer, GPIO**.
 - Use **Wishbone** as the interconnect fabric.
 - Provide software toolchain integration with a linker script and test programs.
-- Allow simulation, synthesis, and FPGA prototyping.
+- Allow simulation and program execution.
+
+### SoC Architecture
+![SoC Architecture](./docs/diagrams/soc_architecture.png)
+
+### RISC-V CPU Architecture
+![RISC-V CPU Architecture](./docs/diagrams/cpu_architecture.png)
 
 ---
 
@@ -20,6 +26,7 @@ The project is focused on **learning and experimentation** in VLSI/ASIC/FPGA des
 ├── docs                                # Documentation folder
 ├── scripts                             # Utils scripts (setup)
 ├── sim                                 # Simulation Environment + Testbenches
+├── sim_minisoc                         # MiniSoC Complete System Simulation (use C-generated firmware)
 ├── src                                 # RTL Source Code (Verilog)
 │   ├── bus
 │   ├── common
@@ -38,7 +45,7 @@ The project is focused on **learning and experimentation** in VLSI/ASIC/FPGA des
 ## 🧩 Memory Map
 | Region       | Base Address | Size   | Notes                       |
 |--------------|--------------|--------|-----------------------------|
-| IMEM         | `0x0000_0000`| 4 KB   | Instruction memory          |
+| IMEM         | `0x0000_0000`| 8 KB   | Instruction memory          |
 | DMEM         | `0x1000_0000`| 4 KB   | Data memory                 |
 | UART         | `0x2000_0000`| 4 KB   | UART registers              |
 | TIMER        | `0x3000_0000`| 4 KB   | Timer registers             |
