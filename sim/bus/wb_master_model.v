@@ -1,3 +1,12 @@
+/*
+ * Note: In this system, SEL signals are only meaningful for write operations.
+ * For read operations, the CPU extracts the needed bytes from the full word.
+ * Therefore, slaves should ignore SEL on reads and return the full 32-bit word.
+ */
+ 
+// The master still needs to drive SEL on reads for protocol compliance,
+// but slaves will ignore it.
+
 module wb_master_model #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32

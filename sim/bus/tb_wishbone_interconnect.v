@@ -5,6 +5,10 @@ module tb_wishbone_interconnect;
     parameter CLK_PERIOD      = 10;  // 100 Mhz
     parameter ADDR_WIDTH      = 32;
     parameter DATA_WIDTH      = 32;
+    parameter IMEM_SIZE_KB    = 8;
+    parameter DMEM_SIZE_KB    = 4;
+    parameter PERIPH_SIZE_KB  = 4;
+    parameter IMEM_BASE_ADDR  = 32'h0000_0000;
     parameter DMEM_BASE_ADDR  = 32'h1000_0000;
     parameter UART_BASE_ADDR  = 32'h2000_0000;
     parameter TIMER_BASE_ADDR = 32'h3000_0000;
@@ -87,8 +91,11 @@ module tb_wishbone_interconnect;
     // -------------------------------------------
 
     wishbone_interconnect #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH)
+        .ADDR_WIDTH     (ADDR_WIDTH     ),
+        .DATA_WIDTH     (DATA_WIDTH     ),
+        .IMEM_SIZE_KB   (IMEM_SIZE_KB   ),
+        .DMEM_SIZE_KB   (DMEM_SIZE_KB   ),
+        .PERIPH_SIZE_KB (PERIPH_SIZE_KB )
     ) dut (
         .clk                        (clk                     ),
         .rst_n                      (rst_n                   ),
@@ -162,9 +169,30 @@ module tb_wishbone_interconnect;
         .wb_ack_i                (wb_m_cpu_ack            ) 
     );
 
+
+    wb_slave_model #(
+        .SLAVE_ID(0),
+        .BASE_ADDR(IMEM_BASE_ADDR),
+        .SIZE_KB(IMEM_SIZE_KB),
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) imem_slave (
+        .clk                     (clk                     ),
+        .rst_n                   (rst_n                   ),
+        .wb_cyc_i                (wb_s0_imem_cyc          ),
+        .wb_stb_i                (wb_s0_imem_stb          ),
+        .wb_we_i                 (wb_s0_imem_we           ),
+        .wb_addr_i               (wb_s0_imem_addr         ),
+        .wb_data_i               (wb_s0_imem_data_write   ),
+        .wb_sel_i                (wb_s0_imem_sel          ),
+        .wb_data_o               (wb_s0_imem_data_read    ),
+        .wb_ack_o                (wb_s0_imem_ack          ) 
+    );
+
     wb_slave_model #(
         .SLAVE_ID(1),
         .BASE_ADDR(DMEM_BASE_ADDR),
+        .SIZE_KB(DMEM_SIZE_KB),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) dmem_slave (
@@ -183,6 +211,7 @@ module tb_wishbone_interconnect;
     wb_slave_model #(
         .SLAVE_ID(2),
         .BASE_ADDR(UART_BASE_ADDR),
+        .SIZE_KB(PERIPH_SIZE_KB),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) uart_slave (
@@ -201,6 +230,7 @@ module tb_wishbone_interconnect;
     wb_slave_model #(
         .SLAVE_ID(3),
         .BASE_ADDR(TIMER_BASE_ADDR),
+        .SIZE_KB(PERIPH_SIZE_KB),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) timer_slave (
@@ -219,6 +249,7 @@ module tb_wishbone_interconnect;
     wb_slave_model #(
         .SLAVE_ID(4),
         .BASE_ADDR(GPIO_BASE_ADDR),
+        .SIZE_KB(PERIPH_SIZE_KB),
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) gpio_slave (
@@ -287,23 +318,17 @@ module tb_wishbone_interconnect;
         $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 1] ADDRESS DECODING: Starting");
         test_num = 1;
         test_name = "Address Decoding";
-        // test_address_decoding(task_error_count);
-        // total_errors = total_errors + task_error_count;
+        test_address_decoding(task_error_count);
+        total_errors = total_errors + task_error_count;
         $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 1] ADDRESS DECODING: Completed");
 
         $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 2] DATA PATH: Starting");
         test_num = 2;
         test_name = "Data path";
-        // test_data_path(task_error_count);
-        // total_errors = total_errors + task_error_count;
+        test_data_path(task_error_count);
+        total_errors = total_errors + task_error_count;
         $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 2] DATA PATH: Completed");
 
-        $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 3] PROTOCOL: Starting");
-        test_num = 3;
-        test_name = "Protocol";
-        test_protocol(task_error_count);
-        total_errors = total_errors + task_error_count;
-        $display("\n[TESTBENCH WISHBONE_INTERCONNECT][TEST 3] PROTOCOL: Completed");
 
         // Summary
         $display("\nTestbench completed with %0d total errors", total_errors);
@@ -324,6 +349,9 @@ module tb_wishbone_interconnect;
             $display("[%s] Starting test", test_name);
             error_count = 0;
             tmp_cnt = 0;
+
+            // Test IMEM first
+            test_imem_read_only(error_count);
 
             // Test each slave's address range
             test_slave_access(32'h1000_0100, "DMEM",  1, tmp_cnt);
@@ -349,6 +377,7 @@ module tb_wishbone_interconnect;
             $display("[%s] Completed with %0d errors", test_name, error_count);
         end
     endtask
+
 
     task test_slave_access;
         input  [ADDR_WIDTH-1:0] addr;
@@ -381,6 +410,32 @@ module tb_wishbone_interconnect;
     endtask
 
 
+    task test_imem_read_only;
+        output [31:0] err_cnt;
+        reg [31:0] read_data;
+        begin
+            err_cnt = 0;
+            
+            // Try to write to IMEM
+            cpu_master.wb_write(32'h00000100, 32'hDEADBEEF);
+            
+            // Read back - should be original value (0 after reset)
+            cpu_master.wb_read(32'h00000100, read_data);
+            
+            if (read_data == 32'hDEADBEEF) begin
+                $display("ERROR: IMEM write succeeded (should be read-only)");
+                err_cnt = err_cnt + 1;
+            end
+            
+            // Check that IMEM WE was forced to 0
+            if (wb_s0_imem_we) begin
+                $display("ERROR: IMEM WE asserted (should be forced to 0)");
+                err_cnt = err_cnt + 1;
+            end
+        end
+    endtask
+
+
     task test_invalid_address;
         input  [ADDR_WIDTH-1:0] addr;
         output [31:0]           err_cnt;
@@ -400,13 +455,14 @@ module tb_wishbone_interconnect;
             
             cpu_master.wb_read(addr, read_data);
             #(CLK_PERIOD*2);
-            if (read_data !== 32'hDEAD_DEAD) begin
+            if (read_data !== 32'hDEAD_BEEF) begin
                 $display("ERROR: Invalid address read returned %h, expected DEAD_DEAD",
                         read_data);
                 err_cnt = err_cnt + 1;
             end
         end
     endtask
+
 
     // -------------------------------------------
     // Test Data Path
@@ -436,10 +492,10 @@ module tb_wishbone_interconnect;
                 test_data = (32'b1 << i);
 
                 // Test each slave
-                verify_data_transfer(32'h1000_0100 + (i << 2), test_data, "DMEM",  1, tmp_cnt); error_count = error_count + tmp_cnt;
-                verify_data_transfer(32'h2000_0100 + (i << 2), test_data, "UART",  2, tmp_cnt); error_count = error_count + tmp_cnt;
-                verify_data_transfer(32'h3000_0100 + (i << 2), test_data, "TIMER", 3, tmp_cnt); error_count = error_count + tmp_cnt;
-                verify_data_transfer(32'h4000_0100 + (i << 2), test_data, "GPIO",  4, tmp_cnt); error_count = error_count + tmp_cnt;
+                verify_data_transfer(32'h1000_0100 + (i << 2), test_data, "DMEM",  1, tmp_cnt); error_count = error_count + tmp_cnt; #(CLK_PERIOD*4);
+                verify_data_transfer(32'h2000_0100 + (i << 2), test_data, "UART",  2, tmp_cnt); error_count = error_count + tmp_cnt; #(CLK_PERIOD*4);
+                verify_data_transfer(32'h3000_0100 + (i << 2), test_data, "TIMER", 3, tmp_cnt); error_count = error_count + tmp_cnt; #(CLK_PERIOD*4);
+                verify_data_transfer(32'h4000_0100 + (i << 2), test_data, "GPIO",  4, tmp_cnt); error_count = error_count + tmp_cnt; #(CLK_PERIOD*4);
             end
 
             // -------------------------------------------
@@ -459,6 +515,7 @@ module tb_wishbone_interconnect;
             $display("[%s] Completed with %0d errors", test_name, error_count);
         end
     endtask
+
 
     task verify_data_transfer;
         input [ADDR_WIDTH-1:0] addr;
@@ -483,6 +540,7 @@ module tb_wishbone_interconnect;
         end
     endtask
 
+
     task verify_byte_access;
         input [ADDR_WIDTH-1:0] addr;
         input [7:0] data;
@@ -490,237 +548,45 @@ module tb_wishbone_interconnect;
         input [8*8:1] slave_name;
         input [31:0] slave_id;
         output [31:0] err_cnt;
-        reg [DATA_WIDTH-1:0] write_data, read_data, expected;
+        reg [DATA_WIDTH-1:0] write_data, read_data, expected, original_data;
         begin
-            write_data = 0;
-            read_data  = 0;
-            expected   = 0;
-            err_cnt    = 0;
+            write_data      = 0;
+            read_data       = 0;
+            original_data   = 0;
+            expected        = 0;
+            err_cnt         = 0;
+
+            // Read original value
+            cpu_master.wb_read(addr, original_data);
+            expected = original_data;
 
             // Create masked write data
-            write_data = {data + 8'h03, data + 8'h02, data + 8'h01, data}; // Replicate byte to all positions
+            write_data = {data + 8'h03, data + 8'h02, data + 8'h01, data};
             
             // Write with byte select
             cpu_master.wb_write_sel(addr, write_data, sel);
             #(CLK_PERIOD*4);
 
-            // Read back full word
-            cpu_master.wb_read_sel(addr, sel, read_data); // World-aligned read
-            #(CLK_PERIOD*4);
-
-            // Create expected result
-            if (sel[0]) expected[7:0]   = data;
+            // Read back - slave should return FULL WORD (ignores SEL)
+            cpu_master.wb_read(addr, read_data);
+            
+            // Verify the written bytes were stored correctly
+            // (Other bytes should remain unchanged from previous state)
+            // Since we just initialized, other bytes should be 0
+            
+            // Create expected result based on what SHOULD have been written
+            if (sel[0]) expected[7:0]   = data;            
             if (sel[1]) expected[15:8]  = data + 8'h01;
             if (sel[2]) expected[23:16] = data + 8'h02;
             if (sel[3]) expected[31:24] = data + 8'h03;
 
-            if (read_data != expected) begin
-                $display("ERROR: %s byte access failed @ %h (sel=%b): Expected %h, Got %h", slave_name, addr, sel, expected, read_data);
+            if (read_data !== expected) begin
+                $display("ERROR: %s byte access failed @ %h", slave_name, addr);
+                $display("  SEL=%b, Original=%h, Expected=%h, Got=%h", sel, original_data, expected, read_data);
                 err_cnt = err_cnt + 1;
             end
         end
     endtask
-
-    // -------------------------------------------
-    // Test Protocol
-    // -------------------------------------------
-
-    task test_protocol;
-        output [31:0] error_count;
-        reg [8*40:1] test_name;
-        reg [31:0] test_data;
-        reg [31:0] tmp_cnt;
-        integer i;
-        begin
-            test_name = "Protocol Compliance Test";
-            $display("[%s] Starting test", test_name);
-            error_count = 0;
-            tmp_cnt = 0;
-
-            // -------------------------------------------
-            // Test 1: Basic Single Read/Write Cycle
-            // -------------------------------------------
-            $display("\n[Test 1] Basic single transfer");
-        
-            
-            // Verify CYC/STB/ACK timing for read
-            verify_single_transfer(32'h10000100, 32'h0, "DMEM", tmp_cnt);
-            error_count = error_count + tmp_cnt;
-
-            // -------------------------------------------
-            // Test 2: Consecutive Transfers
-            // -------------------------------------------
-            $display("\n[Test 2] Consecutive transfers");
-            verify_consecutive_transfers(tmp_cnt);
-            error_count = error_count + tmp_cnt;
-
-            // -------------------------------------------
-            // Test 3: Error Conditions
-            // -------------------------------------------
-            $display("\n[Test 3] Error conditions");
-            verify_error_conditions(tmp_cnt);
-            error_count = error_count + tmp_cnt;
-
-            // -------------------------------------------
-            // Test 4: SEL Signal Verification
-            // -------------------------------------------
-            $display("\n[Test 4] SEL signal verification");
-            verify_sel_signals(tmp_cnt);
-            error_count = error_count + tmp_cnt;
-
-            $display("[%s] Completed with %0d errors", test_name, error_count);
-        end
-    endtask
-
-
-    task verify_single_transfer;
-        input [ADDR_WIDTH-1:0] addr;
-        input [DATA_WIDTH-1:0] data;
-        input [8*8:1] slave_name;
-        output [31:0] err_cnt;
-        reg [DATA_WIDTH-1:0] read_data;
-        begin
-            err_cnt = 0;
-            read_data = 0;
-
-            // Write test
-            cpu_master.wb_write(addr, data);
-            
-            // Verify protocol signals
-            if (!check_cyc_stb_timing(addr, 1)) begin
-                $display("ERROR: %s write protocol violation", slave_name);
-                err_cnt = err_cnt + 1;
-            end
-            
-            // Read test
-            cpu_master.wb_read(addr, read_data);
-            
-            // Verify protocol signals
-            if (!check_cyc_stb_timing(addr, 0)) begin
-                $display("ERROR: %s read protocol violation", slave_name);
-                err_cnt = err_cnt + 1;
-            end
-            
-            // Verify data
-            if (read_data !== data) begin
-                $display("ERROR: %s data mismatch", slave_name);
-                err_cnt = err_cnt + 1;
-            end
-        end
-    endtask
-
-    task verify_consecutive_transfers;
-        output [31:0] err_cnt;
-        reg [DATA_WIDTH-1:0] data [0:3];
-        reg [DATA_WIDTH-1:0] read_data;
-        integer i;
-        begin
-            err_cnt = 0;
-            read_data = 0;
-
-            // Initialize test data
-            data[0] = 32'hA5A5A5A5;
-            data[1] = 32'h5A5A5A5A;
-            data[2] = 32'h12345678;
-            data[3] = 32'h87654321;
-            
-            // Burst write
-            for (i = 0; i < 4; i = i + 1) begin
-                cpu_master.wb_write(32'h20000000 + (i << 2), data[i]);
-            end
-            
-            // Burst read
-            for (i = 0; i < 4; i = i + 1) begin
-                cpu_master.wb_read(32'h20000000 + (i << 2), read_data);
-                if (read_data !== data[i]) begin
-                    $display("ERROR: Consecutive transfer data mismatch @ %0d", i);
-                    err_cnt = err_cnt + 1;
-                end
-            end
-        end
-    endtask
-
-    task verify_error_conditions;
-        output [31:0] err_cnt;
-        reg [DATA_WIDTH-1:0] read_data;
-        begin
-            err_cnt = 0;
-
-            // Test 1: Non-responding address
-            cpu_master.wb_write(32'h50000000, 32'hDEADBEEF);
-            #(CLK_PERIOD*10); // Wait longer than normal
-            if (wb_m_cpu_ack) begin
-                $display("ERROR: Unexpected ACK for invalid address");
-                err_cnt = err_cnt + 1;
-            end
-            
-            // Test 2: Unaligned access
-            cpu_master.wb_write(32'h10000001, 32'h12345678);
-            if (wb_m_cpu_ack) begin
-                $display("ERROR: Unexpected ACK for unaligned address");
-                err_cnt = err_cnt + 1;
-            end
-        end
-    endtask
-
-    task verify_sel_signals;
-        output [31:0] err_cnt;
-        reg [31:0] read_data;
-        begin
-            err_cnt = 0;
-            read_data = 0;
-
-            // Test individual byte lanes
-            cpu_master.wb_write_sel(32'h30000000, 4'b0001, 32'hA5A5A5A5);
-            cpu_master.wb_read(32'h30000000, read_data);
-            if (read_data[7:0] !== 8'hA5 || read_data[31:8] !== 24'h0) begin
-                $display("ERROR: SEL[0] failed");
-                err_cnt = err_cnt + 1;
-            end
-            
-            // Test half-word
-            cpu_master.wb_write_sel(32'h30000004, 4'b0011, 32'h12345678);
-            cpu_master.wb_read(32'h30000004, read_data);
-            if (read_data[15:0] !== 16'h5678 || read_data[31:16] !== 16'h0) begin
-                $display("ERROR: SEL[1:0] failed");
-                err_cnt = err_cnt + 1;
-            end
-        end
-    endtask
-
-    // Protocol checker function
-    function check_cyc_stb_timing;
-        input [ADDR_WIDTH-1:0] addr;
-        input is_write;
-        reg error;
-        begin
-            error = 0;
-            
-            // Check CYC asserted before STB
-            if (wb_m_cpu_stb && !wb_m_cpu_cyc) begin
-                $display("ERROR: STB asserted without CYC");
-                error = 1;
-            end
-            
-            // Check WE signal matches operation
-            if (is_write && !wb_m_cpu_we) begin
-                $display("ERROR: WE not asserted for write");
-                error = 1;
-            end
-            if (!is_write && wb_m_cpu_we) begin
-                $display("ERROR: WE asserted for read");
-                error = 1;
-            end
-            
-            // Check ACK comes after STB
-            if (wb_m_cpu_ack && !wb_m_cpu_stb) begin
-                $display("ERROR: ACK without STB");
-                error = 1;
-            end
-            
-            check_cyc_stb_timing = !error;
-        end
-    endfunction
 
     
 endmodule

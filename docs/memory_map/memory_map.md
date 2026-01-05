@@ -8,7 +8,7 @@ This document defines the memory layout of the MiniSoC-RV32I system. All address
 
 |Name           |Base Address   |Size   |Access |Description                     |
 |---------------|---------------|-------|-------|--------------------------------|
-| **IMEM**      | `0x0000_0000` | 4 KB  | R     | Instruction memory (read-only) |
+| **IMEM**      | `0x0000_0000` | 8 KB  | R     | Instruction memory (read-only) |
 | **DMEM**      | `0x1000_0000` | 4 KB  | R/W   | Data Memory                    |
 | **UART**      | `0x2000_0000` | 4 KB  | R/W   | UART base register address     |
 | **TIMER**     | `0x3000_0000` | 4 KB  | R/W   | TIMER base register address    |
