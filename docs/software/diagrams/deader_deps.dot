@@ -1,0 +1,17 @@
+digraph header_deps {
+    node [shape=rectangle, style=filled];
+    
+    main_c -> {uart_h gpio_h timer_h system_h};
+    uart_c -> {uart_h system_h};
+    gpio_c -> {gpio_h system_h};
+    
+    uart_h -> {system_h peripheral_h errors_h};
+    gpio_h -> {system_h peripheral_h errors_h};
+    
+    system_h -> {peripheral_h errors_h memory_h math_h};
+    
+    peripheral_h [fillcolor=lightgreen];
+    errors_h [fillcolor=lightcoral];
+    memory_h [fillcolor=lightyellow];
+    math_h [fillcolor=lightpink];
+}
