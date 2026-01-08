@@ -1,6 +1,6 @@
 /*
- * @file peripheral.h
- * @brief Peripheral functions prototypes for Mini RV32I SoC
+ * @file errors.h
+ * @brief System Error Codes
 */
 
 #ifndef ERRORS_H

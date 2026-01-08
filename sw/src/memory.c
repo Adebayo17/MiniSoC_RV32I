@@ -10,6 +10,7 @@
 /* Memory Access Functions Implementation                                     */
 /* ========================================================================== */
 
+
 uint8_t system_read_byte(uint32_t addr)
 {
     uint32_t word_addr = addr & ~0x3;  // Align to word boundary
@@ -18,6 +19,7 @@ uint8_t system_read_byte(uint32_t addr)
     
     return (word >> (byte_offset * 8)) & 0xFF;
 }
+
 
 void system_write_byte(uint32_t addr, uint8_t value)
 {
@@ -29,6 +31,7 @@ void system_write_byte(uint32_t addr, uint8_t value)
     word = (word & ~mask) | ((uint32_t)value << (byte_offset * 8));
     WRITE_REG(word_addr, word);
 }
+
 
 uint16_t system_read_halfword(uint32_t addr)
 {
@@ -47,6 +50,7 @@ uint16_t system_read_halfword(uint32_t addr)
         return (byte1 << 8) | byte0;
     }
 }
+
 
 void system_write_halfword(uint32_t addr, uint16_t value)
 {
@@ -67,6 +71,7 @@ void system_write_halfword(uint32_t addr, uint16_t value)
     }
 }
 
+
 uint32_t system_read_word(uint32_t addr)
 {
     // Address must be word-aligned
@@ -82,6 +87,7 @@ uint32_t system_read_word(uint32_t addr)
     return READ_REG(addr);
 }
 
+
 void system_write_word(uint32_t addr, uint32_t value)
 {
     // Address must be word-aligned
@@ -96,6 +102,41 @@ void system_write_word(uint32_t addr, uint32_t value)
     
     WRITE_REG(addr, value);
 }
+
+
+system_error_t system_read_word_safe(uint32_t addr, uint32_t *value)
+{
+    if (value == NULL) {
+        return SYSTEM_ERROR_INVALID_PARAM;
+    }
+
+    system_error_t err = system_validate_address(addr, false);
+    if (IS_ERROR(err)) {
+        return err;
+    }
+    
+    *value = system_read_word(addr);
+    
+    /* Check for hardware error patterns */
+    if (IS_HARDWARE_ERROR(*value)) {
+        return HARDWARE_ERROR_TO_SYSTEM_ERROR(*value);
+    }
+    
+    return SYSTEM_SUCCESS;
+}
+
+
+system_error_t system_write_word_safe(uint32_t addr, uint32_t value)
+{
+    system_error_t err = system_validate_address(addr, true);
+    if (IS_ERROR(err)) {
+        return err;
+    }
+    
+    system_write_word(addr, value);
+    return SYSTEM_SUCCESS;
+}
+
 
 void system_memcpy(void *dest, const void *src, size_t n)
 {

@@ -6,9 +6,7 @@
 #ifndef GPIO_H
 #define GPIO_H
 
-#include "system.h"        /* Memory map, macros */
 #include "peripheral.h"    /* peripheral_t structure */
-#include "errors.h"        /* Error codes */
 
 
 /* ========================================================================== */

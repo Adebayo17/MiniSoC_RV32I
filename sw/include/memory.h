@@ -11,6 +11,8 @@
 #include <stddef.h>
 
 
+#include "errors.h"
+
 /* ========================================================================== */
 /* Memory Access Functions                                                    */
 /* ========================================================================== */
@@ -61,6 +63,24 @@ uint32_t system_read_word(uint32_t addr);
  * @param value 32-bit value to write
  */
 void system_write_word(uint32_t addr, uint32_t value);
+
+
+/**
+ * @brief Read a word (32-bit) from memory with error checking
+ * @param addr Memory address (must be 4-byte aligned)
+ * @param value Pointer to variable where the read 32-bit value will be stored
+ * @return System Error Code (0=success)
+ */
+system_error_t system_read_word_safe(uint32_t addr, uint32_t *value);
+
+
+/**
+ * @brief Write a word (32-bit) to memory with error checking
+ * @param addr Memory address (must be 4-byte aligned)
+ * @param value 32-bit value to write
+ * @return System Error Code (0=success)
+ */
+system_error_t system_write_word_safe(uint32_t addr, uint32_t value);
 
 
 /**
