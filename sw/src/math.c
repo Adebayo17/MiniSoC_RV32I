@@ -3,7 +3,7 @@
  * @brief Software math functions for Mini RV32I SoC implementation
  */
 
-#include "math.h"
+#include "../include/math.h"
 
 /* ========================================================================== */
 /* Software Math Functions Implementation                                     */

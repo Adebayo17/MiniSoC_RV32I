@@ -43,13 +43,13 @@ The project is focused on **learning and experimentation** in VLSI/ASIC/FPGA des
 ---
 
 ## 🧩 Memory Map
-| Region       | Base Address | Size   | Notes                       |
-|--------------|--------------|--------|-----------------------------|
-| IMEM         | `0x0000_0000`| 8 KB   | Instruction memory          |
-| DMEM         | `0x1000_0000`| 4 KB   | Data memory                 |
-| UART         | `0x2000_0000`| 4 KB   | UART registers              |
-| TIMER        | `0x3000_0000`| 4 KB   | Timer registers             |
-| GPIO         | `0x4000_0000`| 4 KB   | General-purpose I/O         |
+| Region       | Base Address | Size    | Notes                       |
+|--------------|--------------|---------|-----------------------------|
+| IMEM         | `0x0000_0000`| 32 KB   | Instruction memory          |
+| DMEM         | `0x1000_0000`| 16 KB   | Data memory                 |
+| UART         | `0x2000_0000`| 4 KB    | UART registers              |
+| TIMER        | `0x3000_0000`| 4 KB    | Timer registers             |
+| GPIO         | `0x4000_0000`| 4 KB    | General-purpose I/O         |
 
 ---
 

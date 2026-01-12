@@ -16,6 +16,13 @@ module tb_minisoc_c_firmware;
     parameter SIM_TIME_US   = 1000;    // Simulation time in microseconds
     parameter MAX_CYCLES    = 1000000; // Safety timeout
     parameter FIRMWARE_FILE = "firmware.mem";
+    parameter ADDR_WIDTH    = 32;
+    parameter DATA_WIDTH    = 32;
+    parameter IMEM_SIZE_KB  = 32;
+    parameter DMEM_SIZE_KB  = 16;
+    parameter DATA_SIZE_KB  = 4;
+    parameter BAUD_DIV_RST  = 16'd868;          // 115200 baud @ 100MHz
+    parameter N_GPIO        = 8;
     
 
     // ------------------------------------------------------------------------
@@ -42,7 +49,14 @@ module tb_minisoc_c_firmware;
     // MiniSoC Instance
     // ------------------------------------------------------------------------
     mini_rv32i_top #(
-        .FIRMWARE_FILE  (FIRMWARE_FILE )
+        .FIRMWARE_FILE  (FIRMWARE_FILE  ),
+        .ADDR_WIDTH     (ADDR_WIDTH     ),
+        .DATA_WIDTH     (DATA_WIDTH     ),
+        .IMEM_SIZE_KB   (IMEM_SIZE_KB   ),
+        .DMEM_SIZE_KB   (DMEM_SIZE_KB   ),
+        .DATA_SIZE_KB   (DATA_SIZE_KB   ),
+        .BAUD_DIV_RST   (BAUD_DIV_RST   ),
+        .N_GPIO         (N_GPIO         )
     ) dut (
         .clk        (clk),
         .rst_n      (rst_n),

@@ -216,8 +216,11 @@ module top_soc #(
     // WISHBONE INTERCONNECT Instance
     // ----------------------------
     wishbone_interconnect #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH)
+        .ADDR_WIDTH     (ADDR_WIDTH     ),
+        .DATA_WIDTH     (DATA_WIDTH     ),
+        .IMEM_SIZE_KB   (IMEM_SIZE_KB   ),
+        .DMEM_SIZE_KB   (DMEM_SIZE_KB   ),
+        .PERIPH_SIZE_KB (DATA_SIZE_KB   )
     ) wishbone_interconnect_inst (
         .clk                    (clk                     ),
         .rst_n                  (peripheral_rst_n        ),

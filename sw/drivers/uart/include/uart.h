@@ -6,7 +6,8 @@
 #ifndef UART_H
 #define UART_H
 
-#include "peripheral.h"    /* peripheral_t structure */
+#include "../../../include/peripheral.h"       /* peripheral_t structure */
+#include "../../../include/errors.h"           /* system_error_t */
 
 
 /* ========================================================================== */
@@ -107,11 +108,39 @@
 
 
 /**
- * @brief UART Device Structute
+ * @brief UART Status structure
  */
-typedef struct {
-    peripheral_t base;
+typedef struct
+{
+    bool tx_ready;          /* Transmitter ready for new data */
+    bool tx_busy;           /* Transmitter busy sending */
+    bool rx_ready;          /* Receiver has data available */
+    bool rx_overrun;        /* Receiver overrun error occurred */
+    bool rx_frame_error;    /* Receiver frame error occurred */
+} uart_status_t; 
+
+
+/**
+ * @brief UART Configuration structure
+ */
+typedef struct 
+{
+    uint32_t    baudrate;       /* Desired baud rate */
+    bool        enable_tx;      /* Enable transmitter */
+    bool        enable_rx;      /* Enable receiver */
+} uart_config_t;
+
+
+/**
+ * @brief UART Device Structure
+ */
+typedef struct 
+{
+    peripheral_t    base;       /* Base peripheral structure */
+    uart_config_t   config;     /* Current configuration */
+    uart_status_t   status;     /* Current status */
 } uart_t;
+
 
 
 /* ========================================================================== */
@@ -142,164 +171,181 @@ static inline uart_t *peripheral_to_uart(peripheral_t *periph) {
 /* Functions Prototypes                                                       */
 /* ========================================================================== */
 
+/* With error checking */
+
 /**
  * @brief Initialize UART driver
  * @param dev Pointer to UART structure
  * @param base_addr Base address of the UART peripheral
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_init(uart_t *dev, uint32_t base_addr);
-
+system_error_t uart_init(uart_t *dev, uint32_t base_addr);
 
 /**
- * @brief Set baud rate divisor
+ * @brief Deinitialize UART driver
  * @param dev Pointer to UART structure
- * @param divisor Baud rate divisor value
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_set_baud_divisor(uart_t *dev, uint16_t divisor);
+system_error_t uart_deinit(uart_t *dev);
 
 /**
- * @brief Get baud rate divisor
+ * @brief Configure UART with specified parameters
  * @param dev Pointer to UART structure
- * @return Current Baud rate divisor 
+ * @param config Pointer to configuration structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-uint16_t uart_get_baud_divisor(uart_t *dev);
-
+system_error_t uart_configure(uart_t *dev, const uart_config_t *config);
 
 /**
- * @brief Set baud rate divisor
+ * @brief Get current UART configuration
+ * @param dev Pointer to UART structure
+ * @param config Pointer to store configuration
+ * @return SYSTEM_SUCCESS on success, error code on failure
+ */
+system_error_t uart_get_config(uart_t *dev, uart_config_t *config);
+
+/**
+ * @brief Set baud rate
  * @param dev Pointer to UART structure
  * @param clk_freq UART clock frequency
  * @param baudrate Baud rate value
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudrate);
-
+system_error_t uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudrate);
 
 /**
- * @brief Get baud rate divisor
+ * @brief Get current baud rate
  * @param dev Pointer to UART structure
  * @param clk_freq UART clock frequency
- * @return Current Baud rate  
+ * @param baudrate Pointer to store baud rate
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-uint32_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq);
+system_error_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t *baudrate);
 
 /**
  * @brief Enable transmitter
  * @param dev Pointer to UART structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_enable_tx(uart_t *dev);
+system_error_t uart_enable_tx(uart_t *dev);
 
 /**
  * @brief Disable transmitter
  * @param dev Pointer to UART structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_disable_tx(uart_t *dev);
-
+system_error_t uart_disable_tx(uart_t *dev);
 
 /**
  * @brief Enable receiver
  * @param dev Pointer to UART structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_enable_rx(uart_t *dev);
+system_error_t uart_enable_rx(uart_t *dev);
 
 /**
  * @brief Disable receiver
  * @param dev Pointer to UART structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_disable_rx(uart_t *dev);
-
+system_error_t uart_disable_rx(uart_t *dev);
 
 /**
  * @brief Enable both transmitter and receiver
  * @param dev Pointer to UART structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_enable(uart_t *dev);
-
+system_error_t uart_enable(uart_t *dev);
 
 /**
  * @brief Disable both transmitter and receiver
  * @param dev Pointer to UART structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_disable(uart_t *dev);
+system_error_t uart_disable(uart_t *dev);
 
+/**
+ * @brief Get UART status
+ * @param dev Pointer to UART structure
+ * @param status Pointer to store status information
+ * @return SYSTEM_SUCCESS on success, error code on failure
+ */
+system_error_t uart_get_status(uart_t *dev, uart_status_t *status);
 
 /**
  * @brief Check if transmitter is ready for new data
  * @param dev Pointer to UART structure
- * @return true if transmitter is ready, false otherwise
+ * @param is_ready Pointer to store result
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-bool uart_tx_ready(uart_t *dev);
+system_error_t uart_is_tx_ready(uart_t *dev, bool *is_ready);
 
 /**
  * @brief Check if transmitter is busy
  * @param dev Pointer to UART structure
- * @return true if transmitter is busy, false otherwise
+ * @param is_busy Pointer to store result
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-bool uart_tx_busy(uart_t *dev);
-
+system_error_t uart_is_tx_busy(uart_t *dev, bool *is_busy);
 
 /**
  * @brief Check if receive data is available
  * @param dev Pointer to UART structure
- * @return true if data is available, false otherwise
+ * @param is_ready Pointer to store result
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-bool uart_rx_ready(uart_t *dev);
+system_error_t uart_is_rx_ready(uart_t *dev, bool *is_ready);
 
 /**
- * @brief Check if receive overrun error
- * @param dev Pointer to UART structure
- * @return true if overrun error occured, false otherwise
- */
-bool uart_rx_overrun(uart_t *dev);
-
-/**
- * @brief Check for frame error
- * @param dev Pointer to UART structure
- * @return true if frame error occured, false otherwise
- */
-bool uart_rx_frame_error(uart_t *dev);
-
-
-/**
- * @brief Transmit a single byte
+ * @brief Transmit a single byte with timeout
  * @param dev Pointer to UART structure
  * @param data Data byte to transmit
- * @return true if data was queued for transmission, false if transmitter is busy
+ * @param timeout_ms Timeout in milliseconds (0 for no timeout)
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-bool uart_transmit_byte(uart_t *dev, uint8_t data);
-
+system_error_t uart_transmit_byte(uart_t *dev, uint8_t data, uint32_t timeout_ms);
 
 /**
- * @brief Receive a single byte
+ * @brief Receive a single byte with timeout
  * @param dev Pointer to UART structure
- * @param data Pointer to store received Data 
- * @return true if data was received, false if data is not available
+ * @param data Pointer to store received data
+ * @param timeout_ms Timeout in milliseconds (0 for no timeout)
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-bool uart_receive_byte(uart_t *dev, uint8_t *data);
-
+system_error_t uart_receive_byte(uart_t *dev, uint8_t *data, uint32_t timeout_ms);
 
 /**
  * @brief Transmit a string (Blocking)
  * @param dev Pointer to UART structure
  * @param str Null-terminated string to transmit
+ * @param timeout_ms Timeout in milliseconds per character (0 for no timeout)
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_transmit_string(uart_t *dev, const char *str);
-
+system_error_t uart_transmit_string(uart_t *dev, const char *str, uint32_t timeout_ms);
 
 /**
  * @brief Transmit data buffer (Blocking)
  * @param dev Pointer to UART structure
  * @param data Pointer to data buffer
  * @param length Number of bytes to transmit
+ * @param timeout_ms Timeout in milliseconds per byte (0 for no timeout)
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_transmit_data(uart_t *dev, const uint8_t *str, uint32_t length);
-
+system_error_t uart_transmit_data(uart_t *dev, const uint8_t *data, uint32_t length, uint32_t timeout_ms);
 
 /**
  * @brief Clear status flags
  * @param dev Pointer to UART structure
- * @note Reading RX_DATA clears RX_READY flag automatically
+ * @return SYSTEM_SUCCESS on success, error code on failure
  */
-void uart_clear_status(uart_t *dev);
+system_error_t uart_clear_status(uart_t *dev);
+
+/**
+ * @brief Reset UART to default state
+ * @param dev Pointer to UART structure
+ * @return SYSTEM_SUCCESS on success, error code on failure
+ */
+system_error_t uart_reset(uart_t *dev);
 
 
 #endif /* UART_H */

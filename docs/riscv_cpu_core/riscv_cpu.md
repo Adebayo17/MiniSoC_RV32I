@@ -1,34 +1,6 @@
 # 1. Core Architecture Overview
 
-```text
-        +-------------------+
-        |    CPU Core       |
-        |                   |
-        |  +-------------+  |
-        |  | Fetch       |  |
-        |  +-------------+  |
-        |  | Decode      |  |
-        |  +-------------+  |
-        |  | Execute     |  |
-        |  +-------------+  |
-        |  | Memory      |  |
-        |  +-------------+  |
-        |  | Writeback   |  |
-        |  +-------------+  |
-        +-------------------+
-               |      ^
-               v      |
-        +-------------------+
-        |  Wishbone        |
-        |  Interface       |
-        +-------------------+
-               |
-               v
-        +-------------------+
-        |  System Bus      |
-        |  (Wishbone)      |
-        +-------------------+
-```
+![RISC-V CPU Architecture](../diagrams/cpu_architecture.png)
 
 # 2. File structure
 

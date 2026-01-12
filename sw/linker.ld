@@ -1,12 +1,12 @@
 /* ==================================================
  * MiniSoc-RV32I Linker Script
- *   IMEM = 8 KB @ 0x0000_0000 (instructions, constants)
- *   DMEM = 4 KB @ 0x1000_0000 (data, heap, stack)
+ *   IMEM = 32 KB @ 0x0000_0000 (instructions, constants)
+ *   DMEM = 16 KB @ 0x1000_0000 (data, heap, stack)
  *
  * DMEM partitioning:
- *   [0x1000_0000 - 0x1000_07FF]  2 KB = .data + .bss
- *   [0x1000_0800 - 0x1000_0BFF]  1 KB = .heap
- *   [0x1000_0C00 - 0x1000_0FFF]  1 KB = .stack (grows downward)
+ *   [0x1000_0000 - 0x1000_1FFF]  8 KB = .data + .bss
+ *   [0x1000_2000 - 0x1000_2FFF]  4 KB = .heap
+ *   [0x1000_3000 - 0x1000_3FFF]  4 KB = .stack (grows downward)
  * ================================================== */
 
 /* ---------------------------------------------------
@@ -22,8 +22,8 @@ OUTPUT_ARCH(riscv)
  * --------------------------------------------------- */
 MEMORY 
 {
-    IMEM  (rx)      : ORIGIN = 0x00000000, LENGTH = 8K    /* Instruction Memory */
-    DMEM  (rwx)     : ORIGIN = 0x10000000, LENGTH = 4K    /* Data Memory */
+    IMEM  (rx)      : ORIGIN = 0x00000000, LENGTH = 32K    /* Instruction Memory */
+    DMEM  (rwx)     : ORIGIN = 0x10000000, LENGTH = 16K    /* Data Memory */
 
     /* Peripherals (not used for section placement, only for reference) */
     UART  (rw)      : ORIGIN = 0x20000000, LENGTH = 4K
@@ -90,7 +90,7 @@ SECTIONS
     } > DMEM
 
     /* Force . = start of heap region (0x1000_0800) */
-    . = ORIGIN(DMEM) + 0x800;
+    . = ORIGIN(DMEM) + 0x2000;
 
 
     /* ==================================================
@@ -99,7 +99,7 @@ SECTIONS
     .heap (NOLOAD) : ALIGN(8)
     {
         _heap_start = .;                    /* Start of heap */
-        . += 0x400;                         /* 1KB = 0x400 bytes */
+        . += 0x1000;                        /* 4KB = 0x1000 bytes */
         _heap_end   = .;                    /* End of heap */
     } > DMEM
 
@@ -110,8 +110,8 @@ SECTIONS
     .stack (NOLOAD) : ALIGN(8)
     {   
         _sstack = .;                        /* Stack bottom: 0x10000C00 */
-        . += 0x400;                         /* Reserve 1KB stack */
-        _estack = .;                        /* Stack top: 0x10001000 (just past DMEM) */
+        . += 0x1000;                        /* Reserve 4KB stack */
+        _estack = .;                        /* Stack top: 0x10004000 (just past DMEM) */
     } > DMEM
 
     /* ==================================================
@@ -119,7 +119,7 @@ SECTIONS
      * ================================================== */
     
     /* Check heap doesn't exceed available space */
-    _heap_max = _estack - 0x400;  /* Leave 1KB for stack minimum */
+    _heap_max = _estack - 0x1000;  /* Leave 4KB for stack minimum */
     ASSERT(_heap_end <= _heap_max, "Error: Heap too large!")
     
     /* Calculate total used DMEM */
