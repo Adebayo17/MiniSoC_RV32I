@@ -19,6 +19,7 @@ CROSS_COMPILE ?= riscv32-unknown-elf-
 CC := $(CROSS_COMPILE)gcc
 AS := $(CROSS_COMPILE)as
 LD := $(CROSS_COMPILE)ld
+NM := $(CROSS_COMPILE)nm
 OBJCOPY := $(CROSS_COMPILE)objcopy
 OBJDUMP := $(CROSS_COMPILE)objdump
 SIZE := $(CROSS_COMPILE)size
@@ -87,6 +88,7 @@ FIRMWARE_HEX 	:= $(SW_BUILD_DIR)/firmware.hex
 FIRMWARE_MAP 	:= $(SW_BUILD_DIR)/firmware.map
 FIRMWARE_DISASM := $(SW_BUILD_DIR)/firmware.disasm
 FIRMWARE_MEM 	:= $(SW_BUILD_DIR)/firmware.mem
+FIRMWARE_SYM    := $(SW_BUILD_DIR)/firmware.sym
 
 # Test programs
 GPIO_TEST_ELF := $(SW_BUILD_DIR)/tests/gpio/gpio_test.elf
@@ -128,6 +130,11 @@ $(FIRMWARE_MEM): $(FIRMWARE_HEX)
 	@python3 $(TOP_DIR)/scripts/convert/hex2mem.py $< $@
 	@echo ""
 
+$(FIRMWARE_SYM): $(FIRMWARE_ELF)
+	@echo "[SW] Generating symbol table: $@"
+	$(NM) -n $< > $@
+	@echo ""
+
 # Test program builds
 $(GPIO_TEST_ELF): $(SW_BUILD_DIR)/tests/gpio/gpio_usage.o $(SW_DRIVER_OBJS) $(SW_DIR)/linker.ld
 	@mkdir -p $(dir $@)
@@ -165,12 +172,13 @@ $(SW_BUILD_DIR)/%.o: $(SW_DIR)/%.S
 
 sw.all: sw.firmware sw.test
 
-sw.firmware: $(FIRMWARE_BIN) $(FIRMWARE_HEX) $(FIRMWARE_DISASM) $(FIRMWARE_MEM)
+sw.firmware: $(FIRMWARE_BIN) $(FIRMWARE_HEX) $(FIRMWARE_DISASM) $(FIRMWARE_MEM) $(FIRMWARE_SYM)
 	@echo "[SW] Firmware build complete"
 	@echo "    Binary: $(FIRMWARE_BIN)"
 	@echo "    Hex:    $(FIRMWARE_HEX)"
 	@echo "    ELF:    $(FIRMWARE_ELF)"
 	@echo "    Mem:    $(FIRMWARE_MEM)"
+	@echo "    SYM:    $(FIRMWARE_SYM)"
 	@echo ""
 
 sw.test: $(TEST_ELFS)

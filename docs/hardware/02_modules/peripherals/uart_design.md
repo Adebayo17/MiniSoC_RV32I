@@ -3,6 +3,7 @@
 ## Overview
 The UART (Universal Asynchronous Receiver/Transmitter) module provides serial communication capabilities for the MiniSoC-RV32I. It implements a standard UART interface with configurable baud rate, 8 data bits, 1 stop bit, and no parity.
 
+
 ## Module Structure
 
 ```text
@@ -21,23 +22,58 @@ src/peripheral/uart/
 - **Error Detection**: Overrun and frame error detection
 - **Memory Mapped**: Wishbone bus interface
 
-## Transmitter Design (uart_tx.v)
 
-### Operation
+## Design Implementation
+
+### Block Diagram
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│                    UART Module                           │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌─────────────┐       ┌─────────────────┐               │
+│  │             │       │    Register     │               │
+│  │  Wishbone   │◄─────►│      File       │               │
+│  │  Interface  │       │  • TX_DATA      │               │
+│  │             │       │  • RX_DATA      │               │
+│  └─────────────┘       │  • BAUD_DIV     │               │
+│                        │  • CTRL         │               │
+│                        │  • STATUS       │               │
+│                        └────────┬────────┘               │
+│                                 │                        │
+│         ┌───────────────────┼───────────────────┐        │
+│         │                   │                   │        │
+│  ┌─────▼─────┐       ┌──────▼─────┐       ┌─────▼─────┐  │
+│  │           │       │    Baud    │       │           │  │
+│  │  UART TX  │       │ Generator  │       │  UART RX  │  │
+│  │           │       │            │       │           │  │
+│  └─────┬─────┘       └────────────┘       └──────┬────┘  │
+│        │                                         │       │
+│        ▼                                         ▼       │
+│  uart_tx (output)                        uart_rx (input) │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Transmitter Design (uart_tx.v)
+
+#### Operation
 The transmitter uses a state machine with four states:
 1. **IDLE**: Waiting for data, output high (idle state)
 2. **START**: Send start bit (low) for one baud period
 3. **DATA**: Send 8 data bits (LSB first)
 4. **STOP**: Send stop bit (high) for one baud period
 
-### Key Characteristics
+#### Key Characteristics
 - **LSB First**: Transmits least significant bit first (UART standard)
 - **Blocking**: Only one transmission at a time
 - **Status Flags**: Provides TX_EMPTY and TX_BUSY status
 
-## Receiver Design (uart_rx.v)
 
-### Metastability Protection: uart_rx_prev and uart_rx_sync
+### Receiver Design (uart_rx.v)
+
+#### Metastability Protection: uart_rx_prev and uart_rx_sync
 
 The receiver includes **double synchronization flip-flops** to prevent metastability:
 
@@ -66,7 +102,7 @@ end
     wire rx_falling_edge = uart_rx_prev && !uart_rx_sync;
     ```
 
-### Receiver Operation
+#### Receiver Operation
 1. **Start Bit Detection:** Falling edge detection on synchronized RX signal
 
 2. **Data Sampling:** Samples at middle of each bit period for stability
@@ -75,7 +111,7 @@ end
 
 4. **Error Detection:** Frame errors and overrun detection
 
-### Bit Order Handling
+#### Bit Order Handling
 - **Receives LSB first** (UART standard)
 
 - **Shifts in MSB** first to reconstruct original byte:
@@ -84,9 +120,10 @@ end
     ```
     This ensures the first received bit (LSB) becomes the LSB of the reconstructed byte.
 
-## Baud Rate Generation
 
-### Implementation
+### Baud Rate Generation
+
+#### Implementation
 ```verilog
 // Baud rate generator
 always @(posedge clk or negedge rst_n) begin
@@ -105,13 +142,13 @@ always @(posedge clk or negedge rst_n) begin
 end
 ```
 
-### Calculation
+#### Calculation
 - **Baud divisor** = `clock_frequency / desired_baud_rate`
 - **Example:** 12MHz clock, 115200 baud &rarr; 12_000_000 / 115200 &asymp; 104
 
-## Wishbone Interface
+### Wishbone Interface
 
-### Register Map
+#### Register Map
 
 | Address       | Register    | Width | Access | Description             |
 |---------------|-------------|-------|--------|-------------------------|
@@ -121,7 +158,7 @@ end
 | `BASE + 0x0C` | CTRL        | 8     | R/W    | Control Register        |
 | `BASE + 0x10` | STATUS      | 8     | Read   | Status Register         |
 
-### Operation
+#### Operation
 - **Transmit:** Write to TX_DATA register starts transmission
 
 - **Receive:** Read RX_DATA register to get received data and clear RX_READY flag

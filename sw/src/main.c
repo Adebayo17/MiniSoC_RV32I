@@ -14,6 +14,10 @@
 #include "../drivers/timer/include/timer.h"
 
 
+// Witness variable to force the creation of a .data section
+// volatile to prevent the compiler from optimizing it
+volatile uint32_t verification_canary = 0xCAFEBABE;
+
 /* ========================================================================== */
 /* Global Peripheral Instances                                                */
 /* ========================================================================== */
@@ -280,6 +284,12 @@ static void handle_critical_error(system_error_t err)
  * @brief Main application entry point
  */
 int main(void) {
+
+    if (verification_canary != 0xCAFEBABE)
+    {
+        /* code */
+    }
+    
 
     system_error_t err;
     

@@ -60,6 +60,7 @@ firmware.copy: sw.firmware
 	@cp $(SW_BUILD_DIR)/firmware.hex $(MINISOC_BUILD_DIR)/
 	@cp $(SW_BUILD_DIR)/firmware.disasm $(MINISOC_BUILD_DIR)/
 	@cp $(SW_BUILD_DIR)/firmware.mem $(MINISOC_BUILD_DIR)/
+	@cp $(SW_BUILD_DIR)/firmware.sym $(MINISOC_BUILD_DIR)/
 	@echo "[MiniSoC] Firmware ready for simulation/synthesis"
 	@echo ""
 

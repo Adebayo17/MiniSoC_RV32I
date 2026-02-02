@@ -11,6 +11,13 @@ SIM_MINISOC_DIR       := $(TOP_DIR)/sim_minisoc
 SIM_MINISOC_BUILD_DIR := $(BUILD_DIR)/minisoc/sim
 export SIM_MINISOC_DIR SIM_MINISOC_BUILD_DIR
 
+
+TRACER_SCRIPT         := $(TOP_DIR)/scripts/convert/gen_tracer.py
+TRACER_OUTPUT         := $(SIM_MINISOC_BUILD_DIR)/firmware_tracer.v
+FIRMWARE_DISASM_FILE  := $(MINISOC_BUILD_DIR)/firmware.disasm
+FIRMWARE_SYM_FILE     := $(MINISOC_BUILD_DIR)/firmware.sym
+
+
 # ----------------------------------------------------------------------------
 # Source Files
 # ----------------------------------------------------------------------------
@@ -26,7 +33,8 @@ SIM_MINISOC_HW_SOURCES := \
     $(TOP_DIR)/src/bus/*.v \
     $(TOP_DIR)/src/mem/**/*.v \
     $(TOP_DIR)/src/peripheral/**/*.v \
-    $(TOP_DIR)/src/pad/*.v
+    $(TOP_DIR)/src/pad/*.v \
+	$(TRACER_OUTPUT)
 
 # Testbench include files
 SIM_MINISOC_INCLUDE_FILES := \
@@ -81,8 +89,23 @@ check_firmware:
 	@cp $(FIRMWARE_MEM_FILE) $(SIM_MINISOC_BUILD_DIR)/
 
 
+# ----------------------------------------------------------------------------
+# Tracer Generation Rule
+# ----------------------------------------------------------------------------
+$(TRACER_OUTPUT):
+	@echo "=================================================="
+	@echo "Generating Firmware Tracer Module"
+	@echo "=================================================="
+	@mkdir -p $(dir $(TRACER_OUTPUT))
+    
+	@echo "Running gen_tracer.py..."
+	@python3 $(TRACER_SCRIPT) $(FIRMWARE_DISASM_FILE) $(FIRMWARE_SYM_FILE) $(TRACER_OUTPUT)
+    
+	@echo "  ✓ Generated: $(TRACER_OUTPUT)"
+
+
 # Main simulation build
-$(SIM_MINISOC_OUTPUT): minisoc check_firmware $(SIM_MINISOC_TB_SOURCE) $(SIM_MINISOC_HW_SOURCES) $(SIM_MINISOC_INCLUDE_FILES)
+$(SIM_MINISOC_OUTPUT): minisoc check_firmware $(TRACER_OUTPUT) $(SIM_MINISOC_TB_SOURCE) $(SIM_MINISOC_HW_SOURCES) $(SIM_MINISOC_INCLUDE_FILES)
 	@echo "=================================================="
 	@echo "Building MiniSoC with C Firmware Simulation"
 	@echo "=================================================="
