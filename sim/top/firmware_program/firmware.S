@@ -199,6 +199,10 @@ test_timer:
     # Step 4: Read back configuration
     la      a0, timer_config_msg
     jal     uart_send_string
+
+    # Reload TIMER address
+    li      t0, TIMER_BASE
+    addi    t3, t0, TIMER_CMP_OFF
     
     # Read and display compare value
     lw      a0, 0(t3)                 # Read from TIMER_CMP
@@ -206,6 +210,10 @@ test_timer:
     
     la      a0, newline
     jal     uart_send_string
+
+    # Reload TIMER address
+    li      t0, TIMER_BASE
+    addi    t1, t0, TIMER_CTRL_OFF
     
     # Read and display control register
     lw      a0, 0(t1)                 # Read from TIMER_CTRL

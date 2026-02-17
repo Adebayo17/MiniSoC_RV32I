@@ -5,11 +5,6 @@ module forward_unit #(
     input wire [REGFILE_ADDR_WIDTH-1:0] decode_rs1,
     input wire [REGFILE_ADDR_WIDTH-1:0] decode_rs2,
     
-    // Execute stage inputs
-    input wire [REGFILE_ADDR_WIDTH-1:0] execute_rd,
-    input wire                          execute_reg_write,
-    input wire                          execute_valid,
-    
     // Memory stage inputs
     input wire [REGFILE_ADDR_WIDTH-1:0] memory_rd,
     input wire                          memory_reg_write,

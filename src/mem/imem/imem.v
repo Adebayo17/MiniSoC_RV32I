@@ -92,19 +92,43 @@ module imem #(
     // -------------------------------------------
     // Acknowledge Generation (1-cycle pulse)
     // -------------------------------------------
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            wbs_if_ack <= 0;
-        end else begin
-            wbs_if_ack <= wbs_if_cyc && wbs_if_stb;
-        end
-    end  
+    // always @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         wbs_if_ack <= 0;
+    //     end else begin
+    //         wbs_if_ack <= wbs_if_cyc && wbs_if_stb;
+    //     end
+    // end  
+
+    // always @(posedge clk or negedge rst_n) begin
+    //     if (!rst_n) begin
+    //         wbs_ro_ack <= 0;
+    //     end else begin
+    //         wbs_ro_ack <= wbs_ro_cyc && wbs_ro_stb;
+    //     end
+    // end  
 
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            wbs_ro_ack <= 0;
-        end else begin
-            wbs_ro_ack <= wbs_ro_cyc && wbs_ro_stb;
+        if (!rst_n)
+            wbs_if_ack <= 1'b0;
+        else begin
+            if (wbs_if_cyc && wbs_if_stb && !wbs_if_ack) begin
+                wbs_if_ack <= 1'b1;
+            end else begin
+                wbs_if_ack <= 1'b0;
+            end
         end
-    end  
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            wbs_ro_ack <= 1'b0;
+        else begin
+            if (wbs_ro_cyc && wbs_ro_stb && !wbs_ro_ack) begin
+                wbs_ro_ack <= 1'b1;
+            end else begin
+                wbs_ro_ack <= 1'b0;
+            end
+        end
+    end
 endmodule

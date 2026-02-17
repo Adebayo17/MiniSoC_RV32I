@@ -2,19 +2,19 @@ module regfile #(
     parameter DATA_WIDTH = 32,
     parameter ADDR_WIDTH = 5
 )(
-    input wire clk,
-    input wire rst_n,
+    input   wire                    clk,
+    input   wire                    rst_n,
 
     // Read ports
-    input wire [ADDR_WIDTH-1:0] rs1_addr,
-    input wire [ADDR_WIDTH-1:0] rs2_addr,
-    output reg [DATA_WIDTH-1:0] rs1_data,
-    output reg [DATA_WIDTH-1:0] rs2_data,
+    input   wire [ADDR_WIDTH-1:0]   rs1_addr,
+    input   wire [ADDR_WIDTH-1:0]   rs2_addr,
+    output  wire [DATA_WIDTH-1:0]   rs1_data,
+    output  wire [DATA_WIDTH-1:0]   rs2_data,
 
     // Write port
-    input wire                  wr_en,
-    input wire [ADDR_WIDTH-1:0] wr_addr,
-    input wire [DATA_WIDTH-1:0] wr_data
+    input   wire                    wr_en,
+    input   wire [ADDR_WIDTH-1:0]   wr_addr,
+    input   wire [DATA_WIDTH-1:0]   wr_data
 );
 
     // Register storage
@@ -23,10 +23,11 @@ module regfile #(
     // -------------------------------------------
     // Read Logic (combinational)
     // -------------------------------------------
-    always @(*) begin
-        rs1_data = (rs1_addr != 0) ? registers[rs1_addr] : 0;
-        rs2_data = (rs2_addr != 0) ? registers[rs2_addr] : 0;
-    end
+    assign rs1_data = (rs1_addr == 0) ? {DATA_WIDTH{1'b0}} :
+                    ((wr_en && (rs1_addr == wr_addr)) ? wr_data : registers[rs1_addr]);
+
+    assign rs2_data = (rs2_addr == 0) ? {DATA_WIDTH{1'b0}} :
+                    ((wr_en && (rs2_addr == wr_addr)) ? wr_data : registers[rs2_addr]);
 
     // -------------------------------------------
     // Write Logic (synchronous)

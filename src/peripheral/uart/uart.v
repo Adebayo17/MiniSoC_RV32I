@@ -99,9 +99,7 @@ module uart #(
                     REG_UART_STATUS:    wbs_data_read <= {24'b0, status_reg};
                     default:            wbs_data_read <= {DATA_WIDTH{1'b0}};
                 endcase
-            end else begin
-                wbs_data_read <= {DATA_WIDTH{1'b0}};
-            end
+            end 
         end
     end
 
@@ -154,12 +152,19 @@ module uart #(
     // Wishbone ACK
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            wbs_ack <= 0;
-        end else begin
-            wbs_ack <= (wbs_cyc && wbs_stb);
+        if (!rst_n)
+            wbs_ack <= 1'b0;
+        else begin
+            // Generate ACK only if a valid request is present 
+            // AND we haven't already ack'd it
+            if (wbs_cyc && wbs_stb && !wbs_ack) begin
+                wbs_ack <= 1'b1;
+            end else begin
+                wbs_ack <= 1'b0;
+            end
+            // wbs_ack <= (wbs_cyc && wbs_stb);
         end
-    end 
+    end
 
     // -------------------------------------------
     // Baud Generator

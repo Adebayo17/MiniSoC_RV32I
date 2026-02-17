@@ -99,10 +99,9 @@ module cpu #(
     // WB to ID
     wire                            WB_to_ID_reg_write          ;
     wire [REGFILE_ADDR_WIDTH-1:0]   WB_to_ID_rd_addr            ;
-    wire [DATA_WIDTH-1:0]           WB_to_ID_wr_dara            ;
+    wire [DATA_WIDTH-1:0]           WB_to_ID_wr_data            ;
 
     // MEM to EX
-    wire [DATA_WIDTH-1:0]           MEM_to_EX_alu_result        ;
     wire                            MEM_load_misaligned         ;
     wire                            MEM_store_misaligned        ;
 
@@ -175,8 +174,8 @@ module cpu #(
         .valid_in                               (IF_to_ID_valid             ),
         .wb_reg_write                           (WB_to_ID_reg_write         ),
         .wb_rd_addr                             (WB_to_ID_rd_addr           ),
-        .wb_data                                (WB_to_ID_wr_dara           ),
-        .wb_valid                               (WB_valid_out               ),
+        .wb_data                                (WB_to_ID_wr_data           ),
+        .wb_valid                               (MEM_to_WB_valid            ),
         .pc_out                                 (ID_to_EX_pc                ),
         .instr_out                              (ID_to_EX_instr             ),
         .rs1_addr_out                           (ID_to_EX_rs1_addr          ),
@@ -221,6 +220,8 @@ module cpu #(
         .funct3_in                              (ID_to_EX_funct3            ),
         .funct7_in                              (ID_to_EX_funct7            ),
         .valid_in                               (ID_to_EX_valid             ),
+        .rs1_addr_in                            (ID_to_EX_rs1_addr          ),
+        .rs2_addr_in                            (ID_to_EX_rs2_addr          ),
         .reg_write_in                           (ID_to_EX_reg_write         ),
         .mem_write_in                           (ID_to_EX_mem_write         ),
         .mem_read_in                            (ID_to_EX_mem_read          ),
@@ -229,8 +230,8 @@ module cpu #(
         .jump_in                                (ID_to_EX_jump              ),
         .alu_src_in                             (ID_to_EX_alu_src           ),
         .alu_op_in                              (ID_to_EX_alu_op            ),
-        .mem_alu_result                         (MEM_to_EX_alu_result       ),
-        .wb_result                              (WB_to_EX_result            ),
+        .mem_alu_result                         (EX_to_MEM_alu_result       ),
+        .wb_result                              (WB_to_ID_wr_data           ),
         .forward_rs1                            (forward_unit_forward_rs1   ),
         .forward_rs2                            (forward_unit_forward_rs2   ),
         .instr_out                              (EX_to_MEM_instr            ),
@@ -292,7 +293,6 @@ module cpu #(
         .load_misaligned                        (MEM_load_misaligned        ),
         .store_misaligned                       (MEM_store_misaligned       )
     );
-    assign MEM_to_EX_alu_result = mem_stage_inst.alu_result_out;
 
     // Writeback Stage
     writeback_stage #(
@@ -314,13 +314,9 @@ module cpu #(
         .valid_in                               (MEM_to_WB_valid            ),
         .regfile_we                             (WB_to_ID_reg_write         ),
         .regfile_rd_addr                        (WB_to_ID_rd_addr           ),
-        .regfile_wr_data                        (WB_to_ID_wr_dara           ),
+        .regfile_wr_data                        (WB_to_ID_wr_data           ),
         .instr_out                              (WB_debug_instr             ),
         .pc_out                                 (WB_debug_pc                ),
-        .pc_plus_4_out                          (WB_debug_pc_plus_4         ),
-        .rd_out                                 (forward_unit_wb_rd         ),
-        .result_out                             (WB_to_EX_result            ),
-        .reg_write_out                          (forward_unit_wb_reg_write  ),
         .valid_out                              (WB_valid_out               )
     );
 
@@ -328,25 +324,35 @@ module cpu #(
     // Units
     // -------------------------------------------
 
+    wire [REGFILE_ADDR_WIDTH-1:0]   IF_to_ID_rs1        = IF_to_ID_instr[19:15];
+    wire [REGFILE_ADDR_WIDTH-1:0]   IF_to_ID_rs2        = IF_to_ID_instr[24:20];
+    wire                            IF_to_ID_mem_read   = (IF_to_ID_instr[6:0] == 7'b0000011);
+
     // Hazard Unit
     hazard_unit #(
         .ADDR_WIDTH         (ADDR_WIDTH         ),
         .DATA_WIDTH         (DATA_WIDTH         ),
         .REGFILE_ADDR_WIDTH (REGFILE_ADDR_WIDTH )
     ) hazard_unit_inst (
-        .id_rs1                                 (ID_to_EX_rs1_addr          ),       
-        .id_rs2                                 (ID_to_EX_rs2_addr          ),       
-        .id_mem_read                            (ID_to_EX_mem_read          ),  
-        .id_valid                               (ID_to_EX_valid             ),
-        .ex_rd                                  (EX_to_MEM_rd               ),        
-        .ex_reg_write                           (EX_to_MEM_reg_write        ), 
-        .ex_mem_read                            (EX_to_MEM_mem_read         ),  
-        .ex_valid                               (EX_to_MEM_valid            ),
-        .mem_rd                                 (MEM_to_WB_rd               ),       
-        .mem_reg_write                          (MEM_to_WB_reg_write        ),
-        .mem_valid                              (MEM_to_WB_valid            ),
+        // Instruction in ID (Decode)
+        .id_rs1                                 (IF_to_ID_rs1               ),       
+        .id_rs2                                 (IF_to_ID_rs2               ),       
+        .id_mem_read                            (IF_to_ID_mem_read          ),  
+        .id_valid                               (IF_to_ID_valid             ),
+
+        // Instruction in EX (Execute)
+        .ex_rd                                  (ID_to_EX_rd_addr           ),        
+        .ex_reg_write                           (ID_to_EX_reg_write         ), 
+        .ex_mem_read                            (ID_to_EX_mem_read          ),  
+        .ex_valid                               (ID_to_EX_valid             ),
+
+        // Instruction in MEM (Memory)
+        .mem_rd                                 (EX_to_MEM_rd               ),       
+        .mem_reg_write                          (EX_to_MEM_reg_write        ),
+        .mem_valid                              (EX_to_MEM_valid            ),
         .mem_busy                               (hazard_unit_mem_busy       ),
         .mem_ack                                (hazard_unit_mem_ack        ),
+
         .branch_taken                           (hazard_unit_branch_taken   ),
         .stall_fetch                            (hazard_unit_stall_fetch    ),  
         .stall_decode                           (hazard_unit_stall_decode   ), 
@@ -362,17 +368,17 @@ module cpu #(
     forward_unit #(
         .REGFILE_ADDR_WIDTH (REGFILE_ADDR_WIDTH )
     ) forward_unit_inst (
+        // Instruction needing data (in EX stage)
         .decode_rs1                             (ID_to_EX_rs1_addr          ),
         .decode_rs2                             (ID_to_EX_rs2_addr          ),
-        .execute_rd                             (EX_to_MEM_rd               ),
-        .execute_reg_write                      (EX_to_MEM_reg_write        ),
-        .execute_valid                          (EX_to_MEM_valid            ),
-        .memory_rd                              (MEM_to_WB_rd               ),
-        .memory_reg_write                       (MEM_to_WB_reg_write        ),
-        .memory_valid                           (MEM_to_WB_valid            ),
-        .writeback_rd                           (forward_unit_wb_rd         ),
-        .writeback_reg_write                    (forward_unit_wb_reg_write  ),
-        .writeback_valid                        (WB_valid_out               ),
+        // Data Provider 1 (Instruction in MEM stage)
+        .memory_rd                              (EX_to_MEM_rd               ),
+        .memory_reg_write                       (EX_to_MEM_reg_write        ),
+        .memory_valid                           (EX_to_MEM_valid            ),
+        // Data Provider 2 (Instruction in WB  stage)
+        .writeback_rd                           (MEM_to_WB_rd               ),
+        .writeback_reg_write                    (WB_to_ID_reg_write         ),
+        .writeback_valid                        (MEM_to_WB_valid            ),
         .forward_rs1                            (forward_unit_forward_rs1   ),
         .forward_rs2                            (forward_unit_forward_rs2   )
     );

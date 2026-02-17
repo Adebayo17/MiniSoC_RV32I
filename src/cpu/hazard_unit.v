@@ -58,12 +58,6 @@ module hazard_unit #(
                             ((id_rs1 == ex_rd && id_rs1 != 0) || 
                              (id_rs2 == ex_rd && id_rs2 != 0));
     
-    // EX-to-ID hazard: instruction in ID needs result from instruction in EX
-    // Cycle 1: ADD x1, x2, x3  (in EX stage) - computing x1 NOW
-    // Cycle 1: SUB x4, x1, x5  (in ID stage) - needs x1 NOW
-    assign ex_to_id_hazard = ex_reg_write && ex_valid && 
-                            ((id_rs1 == ex_rd && id_rs1 != 0) || 
-                             (id_rs2 == ex_rd && id_rs2 != 0));
 
     // Memory busy hazard: multi-cycle memory operation
     assign mem_busy_hazard = mem_busy && !mem_ack;
@@ -96,19 +90,19 @@ module hazard_unit #(
         else if (load_use_hazard) begin
             stall_fetch     = 1'b1;
             stall_decode    = 1'b1;
-            // EX advances (bubble inserted from decode stage)
-        end
-        // Priority 3: EX-to-ID hazard (new - for auipc→addi case)
-        else if (ex_to_id_hazard) begin
-            stall_fetch     = 1'b1;
-            stall_decode    = 1'b1;
-            // Let EX instruction proceed to write result
+            flush_execute   = 1'b1;     // EX advances (bubble inserted from decode stage)
         end
 
+
         // Branch/jump taken - flush wrong path instructions
+        // (FLushes generally override Stalls for pipeline registers)
         if (branch_taken) begin
             flush_fetch     = 1'b1;
             flush_decode    = 1'b1;
+
+            // Mask the stalls if we are flushing, to ensure the PC can jump to the new branch target
+            stall_fetch     = 1'b0;
+            stall_decode    = 1'b0;
         end
     end
 endmodule

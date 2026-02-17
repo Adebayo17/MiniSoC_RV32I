@@ -242,14 +242,5 @@ module decode_stage #(
                 alu_op_out      <= 0;
             end
         end
-    end
-
-    // debug
-    // always @(posedge clk) begin
-    //     if (rs1_addr == 5'd9) begin  // When reading s1
-    //         $display("[S1_DEBUG] Time %0t: pc_in=0x%h, reading s1=0x%h", 
-    //                 $time, pc_in, rs1_data);
-    //     end
-    // end
-    
+    end    
 endmodule

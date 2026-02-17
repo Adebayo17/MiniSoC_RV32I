@@ -161,17 +161,19 @@ module timer #(
     // -------------------------------------------
     // Wishbone Read
     // -------------------------------------------
-    always @(*) begin
-        wbs_data_read = {DATA_WIDTH{1'b0}};
-
-        if (wbs_cyc && wbs_stb && !wbs_we) begin
-            case (reg_offset)
-                REG_TIMER_COUNT:   wbs_data_read = count_reg;
-                REG_TIMER_CMP:     wbs_data_read = cmp_reg;
-                REG_TIMER_CTRL:    wbs_data_read = {27'b0, ctrl_reg}; 
-                REG_TIMER_STATUS:  wbs_data_read = {30'b0, status_reg}; 
-                default:           wbs_data_read = {DATA_WIDTH{1'b0}};
-            endcase
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            wbs_data_read <= {DATA_WIDTH{1'b0}};
+        end else begin
+            if (wbs_cyc && wbs_stb && !wbs_we) begin
+                case (reg_offset)
+                    REG_TIMER_COUNT:   wbs_data_read <= count_reg;
+                    REG_TIMER_CMP:     wbs_data_read <= cmp_reg;
+                    REG_TIMER_CTRL:    wbs_data_read <= {27'b0, ctrl_reg}; 
+                    REG_TIMER_STATUS:  wbs_data_read <= {30'b0, status_reg}; 
+                    default:           wbs_data_read <= {DATA_WIDTH{1'b0}};
+                endcase
+            end 
         end
     end
 
@@ -227,7 +229,15 @@ module timer #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             wbs_ack <= 1'b0;
-        else
-            wbs_ack <= (wbs_cyc && wbs_stb);
+        else begin
+            // Generate ACK only if a valid request is present 
+            // AND we haven't already ack'd it
+            if (wbs_cyc && wbs_stb && !wbs_ack) begin
+                wbs_ack <= 1'b1;
+            end else begin
+                wbs_ack <= 1'b0;
+            end
+            // wbs_ack <= (wbs_cyc && wbs_stb);
+        end
     end
 endmodule

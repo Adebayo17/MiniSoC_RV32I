@@ -24,6 +24,8 @@ module execute_stage #(
     input wire                                  valid_in,
 
     // Control signals from Decode Stage (Control Unit)
+    input wire [REGFILE_ADDR_WIDTH-1:0]         rs1_addr_in,
+    input wire [REGFILE_ADDR_WIDTH-1:0]         rs2_addr_in,
     input wire                                  reg_write_in,
     input wire                                  mem_write_in,
     input wire                                  mem_read_in,
