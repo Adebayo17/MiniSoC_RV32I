@@ -8,98 +8,116 @@
 
 
 /* ========================================================================== */
-/* Register Access Macros                                                     */
-/* ========================================================================== */
-
-
-/**
- * @brief Read from memory-map register
- * @param addr Memory addr to read from
- * @return 32-bit value read from the address
- */
-#define READ_REG(addr)              (*(volatile uint32_t *)(addr))
-
-
-/**
- * @brief Write to a memory-mapped register
- * @param addr Memory address to read to
- * @param value 32-bit value to write
- */
-#define WRITE_REG(addr, value)      (*(volatile uint32_t *)(addr) = (value))
-
-
-/**
- * @brief Set bits in a register (read-modify-write)
- * @param addr Register address
- * @param mask Bitmask of bits to set
- */
-#define SET_BITS(addr, mask)        do { \
-    uint32_t reg = READ_REG(addr); \
-    reg |= (mask); \
-    WRITE_REG(addr, reg); \
-} while (0)
-
-
-/**
- * @brief Clear bits in a register (read-modify-write)
- * @param addr Register address
- * @param mask Bitmask of bits to clear
- */
-#define CLEAR_BITS(addr, mask)      do { \
-    uint32_t reg = READ_REG(addr); \
-    reg &= ~(mask); \
-    WRITE_REG(addr, reg); \
-} while (0)
-
-
-/**
- * @brief Modify specific bits in a register (read-modify-write)
- * @param addr Register address
- * @param mask Bitmask of bits to modify
- * @param value New value for the bits (shifted to correct position)
- */
-#define MODIFY_BITS(addr, mask, value) do { \
-    uint32_t reg = READ_REG(addr); \
-    reg &= ~(mask); \
-    reg |= ((value) & (mask)); \
-    WRITE_REG(addr, reg); \
-} while (0)
-
-
-/* ========================================================================== */
 /* Bit Manipulation Macros                                                    */
 /* ========================================================================== */
 
+/**
+ * @brief Creates a mask with a single bit set to 1 at position 'n'.
+ * @note  Use the UL (Unsigned Long) suffix to avoid sign extension bugs.
+ */
+#define BIT(n)                      (1UL << (n))
 
 /**
- * @brief Create a bitmask with specified width at given position
- * @param width Number of bits in the mask
- * @param pos Starting bit position (0-based)
- * @return Bitmask value
+ * @brief Sets a specific bit in a register to 1.
  */
-#define BITMASK(width, pos)         (((1u << (width)) - 1u) << (pos))
+#define SET_BIT(reg, bit)           ((reg) |= BIT(bit))
+
+/**
+ * @brief Sets a specific bit in a register to 0.
+ */
+#define CLEAR_BIT(reg, bit)         ((reg) &= ~BIT(bit))
+
+/**
+ * @brief Inverts (toggles) a specific bit in a register.
+ */
+#define TOGGLE_BIT(reg, bit)        ((reg) ^= BIT(bit))
+
+/**
+ * @brief Reads the value (0 or 1) of a specific bit in a register.
+ */
+#define READ_BIT(reg, bit)          (((reg) & BIT(bit)) >> (bit))
+
+/**
+ * @brief Applies a mask to clear a region, then writes a value to it.
+ * @param reg        The register to modify.
+ * @param clear_mask The mask of the bits to reset.
+ * @param set_value  The value to write to this location.
+ */
+#define MODIFY_REG(reg, clear_mask, set_value)  ((reg) = (((reg) & ~(clear_mask)) | (set_value)))
+
+
+
+/* ========================================================================== */
+/* Raw memory access functions (MMIO - Memory Mapped I/O)                  */
+/* ========================================================================== */
+
+/**
+ * @brief  Writes a 32-bit value to a specific physical address.
+ * @param  [in] address Physical memory address (e.g., peripheral register).
+ * @param  [in] value   32-bit value to write.
+ */
+static inline void write_reg32(uint32_t address, uint32_t value)
+{
+    /* The cast to (volatile uint32_t *) is critical for forcing material writing */
+    *((volatile uint32_t *)address) = value;
+}
 
 
 /**
- * @brief Extract a field from a register value
- * @param reg Register value
- * @param mask Bitmask for the field
- * @param pos Starting bit position of the field
- * @return Extracted field value
+ * @brief  Reads a 32-bit value from a specific physical address.
+ * @param  [in] address Physical memory address (e.g., peripheral register).
+ * @return 32-bit value read from this address.
  */
-#define GET_FIELD(reg, mask, pos)   (((reg) & (mask)) >> (pos))
+static inline uint32_t read_reg32(uint32_t address)
+{
+    /* The cast to (volatile uint32_t *) is critical to force the material read */
+    return *((volatile uint32_t *)address);
+}
 
 
 /**
- * @brief Set a field in a register value
- * @param reg Register value
- * @param mask Bitmask for the field
- * @param pos Starting bit position of the field
- * @param value Value to set
- * @return Modified register value with field set
+ * @brief  Writes a 16-bit value to a specific physical address.
+ * @param  [in] address Physical memory address (e.g., peripheral register).
+ * @param  [in] value   16-bit value to write.
  */
-#define SET_FIELD(reg, mask, pos, value) \
-    (((reg) & ~(mask)) | (((value) << (pos)) & (mask)))
+static inline void write_reg16(uint32_t address, uint16_t value)
+{
+    /* The cast to (volatile uint16_t *) is critical for forcing material writing */
+    *((volatile uint16_t *)address) = value;
+}
 
+
+/**
+ * @brief  Reads a 16-bit value from a specific physical address.
+ * @param  [in] address Physical memory address (e.g., peripheral register).
+ * @return 16-bit value read from this address.
+ */
+static inline uint16_t read_reg16(uint32_t address)
+{
+    /* The cast to (volatile uint16_t *) is critical to force the material read */
+    return *((volatile uint16_t *)address);
+}
+
+
+
+/**
+ * @brief  Writes a 8-bit value to a specific physical address.
+ * @param  [in] address Physical memory address (e.g., peripheral register).
+ * @param  [in] value   8-bit value to write.
+ */
+static inline void write_reg8(uint32_t address, uint8_t value)
+{
+    *((volatile uint8_t *)address) = value;
+}
+
+/**
+ * @brief  Reads a 8-bit value from a specific physical address.
+ * @param  [in] address Physical memory address (e.g., peripheral register).
+ * @return 8-bit value read from this address.
+ */
+static inline uint8_t read_reg8(uint32_t address)
+{
+    return *((volatile uint8_t *)address);
+}
 
 #endif /* REG_ACCESS_H */

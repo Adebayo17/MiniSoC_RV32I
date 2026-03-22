@@ -1,10 +1,14 @@
-/*
- * @file timer_hw.h
- * @brief Timer Hardware Abstraction - Documents hardware-specific behavior
+/**
+ * @file    timer_hw.h
+ * @brief   Hardware definitions for the TIMER peripheral.
+ * @details Conforms to the Barr Group Embedded C Coding Standard.
+ * Describes the register structure and hardware bit masks.
  */
 
 #ifndef TIMER_HW_H
 #define TIMER_HW_H
+
+#include <stdint.h>
 
 /**
  * @brief Timer Hardware Description
@@ -64,21 +68,62 @@
  *    - Maximum compare value: 0xFFFFFFFF (32-bit max)
  *    - Compare value of 0 would match immediately
  *    - Prescaler changes affect timing immediately
- * 
- * Example usage in hardware:
- * 
- * // Configure timer for 1ms timeout @ 50MHz with /1 prescaler
- * // 1ms = 50,000 ticks (50,000,000 Hz / 1000)
- * WRITE_REG(TIMER_BASE + 0x04, 50000); // CMP = 50000
- * WRITE_REG(TIMER_BASE + 0x08, 0x01);  // ENABLE=1, continuous mode
- * 
- * // Wait for match
- * while (!(READ_REG(TIMER_BASE + 0x0C) & 0x01)) {}
- * WRITE_REG(TIMER_BASE + 0x0C, 0x00); // Clear match flag
- * 
- * // One-shot mode example
- * WRITE_REG(TIMER_BASE + 0x04, 1000);  // CMP = 1000
- * WRITE_REG(TIMER_BASE + 0x08, 0x05);  // ENABLE=1, ONESHOT=1
  */
+
+
+/* ========================================================================== */
+/* TIMER Register Map Structure                                               */
+/* ========================================================================== */
+
+/**
+ * @struct timer_regs_t
+ * @brief  Structure representing the TIMER register map.
+ */
+typedef struct
+{
+    /* COUNT is "volatile const" because the processor should/can only read it */
+    volatile const uint32_t COUNT;          /*!< 0x00: Counter Value (Read-Only) */
+    volatile uint32_t       CMP;            /*!< 0x04: Compare Value */
+    volatile uint32_t       CTRL;           /*!< 0x08: Control Register */
+    volatile uint32_t       STATUS;         /*!< 0x0C: Status Register (Write-1-to-Clear) */
+} timer_regs_t;
+
+
+/* ========================================================================== */
+/* Timer REG_CTRL Bit Definitions                                             */
+/* ========================================================================== */
+
+#define TIMER_CTRL_ENABLE_POS       (0U)
+#define TIMER_CTRL_ENABLE_BIT       (1UL << TIMER_CTRL_ENABLE_POS)
+
+#define TIMER_CTRL_RESET_POS        (1U)
+#define TIMER_CTRL_RESET_BIT        (1UL << TIMER_CTRL_RESET_POS)
+
+#define TIMER_CTRL_ONESHOT_POS      (2U)
+#define TIMER_CTRL_ONESHOT_BIT      (1UL << TIMER_CTRL_ONESHOT_POS)
+
+#define TIMER_CTRL_PRESCALE_POS     (3U)
+#define TIMER_CTRL_PRESCALE_MASK    (3UL << TIMER_CTRL_PRESCALE_POS) /* Bits 3 and 4 */
+
+
+/* ========================================================================== */
+/* Timer REG_STATUS Bit Definitions                                           */
+/* ========================================================================== */
+
+#define TIMER_STATUS_MATCH_POS      (0U)
+#define TIMER_STATUS_MATCH_BIT      (1UL << TIMER_STATUS_MATCH_POS)
+
+#define TIMER_STATUS_OVERFLOW_POS   (1U)
+#define TIMER_STATUS_OVERFLOW_BIT   (1UL << TIMER_STATUS_OVERFLOW_POS)
+
+
+/* ========================================================================== */
+/* TIMER Hardware Constants                                                   */
+/* ========================================================================== */
+
+/* IMPORTANT: Should match the OVERFLOW_VALUE parameter define in the Verilog module */
+#define TIMER_MAX_VALUE             (0xFFFFFFFFUL)
+#define TIMER_MIN_COMPARE_VALUE     (2UL)
+
 
 #endif /* TIMER_HW_H */

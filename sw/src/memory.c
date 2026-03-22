@@ -13,94 +13,38 @@
 
 uint8_t system_read_byte(uint32_t addr)
 {
-    uint32_t word_addr = addr & ~0x3;  // Align to word boundary
-    uint32_t byte_offset = addr & 0x3; // Byte position within word
-    uint32_t word = READ_REG(word_addr);
-    
-    return (word >> (byte_offset * 8)) & 0xFF;
+    /* In RISC-V, the LBU (Load Byte Unsigned) instruction handles unaligned addresses. */
+    return *((volatile uint8_t *)addr);
 }
 
 
 void system_write_byte(uint32_t addr, uint8_t value)
 {
-    uint32_t word_addr = addr & ~0x3;  // Align to word boundary
-    uint32_t byte_offset = addr & 0x3; // Byte position within word
-    uint32_t word = READ_REG(word_addr);
-    uint32_t mask = 0xFF << (byte_offset * 8);
-    
-    word = (word & ~mask) | ((uint32_t)value << (byte_offset * 8));
-    WRITE_REG(word_addr, word);
+    *((volatile uint8_t *)addr) = value;
 }
 
 
 uint16_t system_read_halfword(uint32_t addr)
 {
-    // Check if address is halfword-aligned
-    if ((addr & 0x1) == 0) {
-        // Aligned access - read word and extract halfword
-        uint32_t word_addr = addr & ~0x3;
-        uint32_t halfword_offset = (addr & 0x2) >> 1;
-        uint32_t word = READ_REG(word_addr);
-        
-        return (word >> (halfword_offset * 16)) & 0xFFFF;
-    } else {
-        // Unaligned access - read two bytes
-        uint8_t byte0 = system_read_byte(addr);
-        uint8_t byte1 = system_read_byte(addr + 1);
-        return (byte1 << 8) | byte0;
-    }
+    return *((volatile uint16_t *)addr);
 }
 
 
 void system_write_halfword(uint32_t addr, uint16_t value)
 {
-    // Check if address is halfword-aligned
-    if ((addr & 0x1) == 0) {
-        // Aligned access
-        uint32_t word_addr = addr & ~0x3;
-        uint32_t halfword_offset = (addr & 0x2) >> 1;
-        uint32_t word = READ_REG(word_addr);
-        uint32_t mask = 0xFFFF << (halfword_offset * 16);
-        
-        word = (word & ~mask) | ((uint32_t)value << (halfword_offset * 16));
-        WRITE_REG(word_addr, word);
-    } else {
-        // Unaligned access - write two bytes
-        system_write_byte(addr, value & 0xFF);
-        system_write_byte(addr + 1, (value >> 8) & 0xFF);
-    }
+    *((volatile uint16_t *)addr) = value;
 }
 
 
 uint32_t system_read_word(uint32_t addr)
 {
-    // Address must be word-aligned
-    if ((addr & 0x3) != 0) {
-        // Fallback to byte reads for unaligned access
-        uint8_t b0 = system_read_byte(addr);
-        uint8_t b1 = system_read_byte(addr + 1);
-        uint8_t b2 = system_read_byte(addr + 2);
-        uint8_t b3 = system_read_byte(addr + 3);
-        return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-    }
-    
-    return READ_REG(addr);
+    return *((volatile uint32_t *)addr);
 }
 
 
 void system_write_word(uint32_t addr, uint32_t value)
 {
-    // Address must be word-aligned
-    if ((addr & 0x3) != 0) {
-        // Fallback to byte writes for unaligned access
-        system_write_byte(addr, value & 0xFF);
-        system_write_byte(addr + 1, (value >> 8) & 0xFF);
-        system_write_byte(addr + 2, (value >> 16) & 0xFF);
-        system_write_byte(addr + 3, (value >> 24) & 0xFF);
-        return;
-    }
-    
-    WRITE_REG(addr, value);
+    *((volatile uint32_t *)addr) = value;
 }
 
 
@@ -110,107 +54,134 @@ void system_write_word(uint32_t addr, uint32_t value)
 
 system_error_t system_read_byte_safe(uint32_t addr, uint8_t *value)
 {
-    if (value == NULL) {
-        return SYSTEM_ERROR_INVALID_PARAM;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (value == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    else
+    {
+        status = system_validate_address(addr, false);
+
+        if (is_success(status))
+        {
+            *value = system_read_byte(addr);
+        }
     }
 
-    system_error_t err = system_validate_address(addr, false);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    *value = system_read_byte(addr);
-    
-    /* Check for hardware error patterns */
-    if (IS_HARDWARE_ERROR(*value)) {
-        return HARDWARE_ERROR_TO_SYSTEM_ERROR(*value);
-    }
-    
-    return SYSTEM_SUCCESS;
+    return status;
 }
 
 
 system_error_t system_write_byte_safe(uint32_t addr, uint8_t value)
 {
-    system_error_t err = system_validate_address(addr, true);
-    if (IS_ERROR(err)) {
-        return err;
+    system_error_t status = system_validate_address(addr, true);
+
+    if (is_success(status))
+    {
+        system_write_byte(addr, value);
     }
-    
-    system_write_byte(addr, value);
-    return SYSTEM_SUCCESS;
+
+    return status;
 }
 
 
 system_error_t system_read_halfword_safe(uint32_t addr, uint16_t *value)
 {
-    if (value == NULL) {
-        return SYSTEM_ERROR_INVALID_PARAM;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (value == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    /* 2-byte (16-bit) alignment check for RISC-V */
+    else if ((addr & 1U) != 0U)
+    {
+        status = SYSTEM_ERROR_MEMORY_ACCESS; 
+    }
+    else
+    {
+        status = system_validate_address(addr, false);
+
+        if (is_success(status))
+        {
+            *value = system_read_halfword(addr);
+        }
     }
 
-    /* Validate both bytes of the halfword */
-    system_error_t err = system_validate_address_range(addr, 2, false);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    *value = system_read_halfword(addr);
-    
-    /* Check for hardware error patterns */
-    if (IS_HARDWARE_ERROR(*value)) {
-        return HARDWARE_ERROR_TO_SYSTEM_ERROR(*value);
-    }
-    
-    return SYSTEM_SUCCESS;
+    return status;
 }
 
 
 system_error_t system_write_halfword_safe(uint32_t addr, uint16_t value)
 {
-    /* Validate both bytes of the halfword */
-    system_error_t err = system_validate_address_range(addr, 2, true);
-    if (IS_ERROR(err)) {
-        return err;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if ((addr & 1U) != 0U)
+    {
+        status = SYSTEM_ERROR_MEMORY_ACCESS;
     }
-    
-    system_write_halfword(addr, value);
-    return SYSTEM_SUCCESS;
+    else
+    {
+        status = system_validate_address(addr, true);
+
+        if (is_success(status))
+        {
+            system_write_halfword(addr, value);
+        }
+    }
+
+    return status;
 }
 
 
 system_error_t system_read_word_safe(uint32_t addr, uint32_t *value)
 {
-    if (value == NULL) {
-        return SYSTEM_ERROR_INVALID_PARAM;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (value == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    /* Strict 4-byte (32-bit) alignment check for RISC-V */
+    else if ((addr & 3U) != 0U)
+    {
+        status = SYSTEM_ERROR_MEMORY_ACCESS;
+    }
+    else
+    {
+        status = system_validate_address(addr, false);
+
+        if (is_success(status))
+        {
+            *value = system_read_word(addr);
+        }
     }
 
-    /* Validate all bytes of the word */
-    system_error_t err = system_validate_address_range(addr, 4, false);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    *value = system_read_word(addr);
-    
-    /* Check for hardware error patterns */
-    if (IS_HARDWARE_ERROR(*value)) {
-        return HARDWARE_ERROR_TO_SYSTEM_ERROR(*value);
-    }
-    
-    return SYSTEM_SUCCESS;
+    return status;
 }
 
 
 system_error_t system_write_word_safe(uint32_t addr, uint32_t value)
 {
-    /* Validate all bytes of the word */
-    system_error_t err = system_validate_address_range(addr, 4, true);
-    if (IS_ERROR(err)) {
-        return err;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if ((addr & 3U) != 0U)
+    {
+        status = SYSTEM_ERROR_MEMORY_ACCESS;
     }
-    
-    system_write_word(addr, value);
-    return SYSTEM_SUCCESS;
+    else
+    {
+        status = system_validate_address(addr, true);
+
+        if (is_success(status))
+        {
+            system_write_word(addr, value);
+        }
+    }
+
+    return status;
 }
 
 
@@ -220,143 +191,148 @@ system_error_t system_write_word_safe(uint32_t addr, uint32_t value)
 
 void *system_memcpy(void *dest, const void *src, size_t n)
 {
-    if (dest == NULL || src == NULL || n == 0) {
-        return dest;
-    }
-    
-    uint8_t *d = (uint8_t *)dest;
-    const uint8_t *s = (const uint8_t *)src;
-    
-    /* If no overlap or dest > src, copy forward */
-    if (d > s || (d + n) <= s) {
-        /* Try to copy words when possible for efficiency */
-        while (n >= 4 && ((uint32_t)d & 0x3) == 0 && ((uint32_t)s & 0x3) == 0) {
-            system_write_word((uint32_t)d, system_read_word((uint32_t)s));
-            d += 4;
-            s += 4;
-            n -= 4;
+    if ((dest != NULL) && (src != NULL) && (n > 0U))
+    {
+        uint8_t *d = (uint8_t *)dest;
+        const uint8_t *s = (const uint8_t *)src;
+        size_t bytes_left = n;
+
+        /* Copy by 32-bit words if perfect alignment */
+        if ((((uintptr_t)d & 3U) == 0U) && (((uintptr_t)s & 3U) == 0U))
+        {
+            uint32_t *d32 = (uint32_t *)d;
+            const uint32_t *s32 = (const uint32_t *)s;
+            
+            while (bytes_left >= 4U)
+            {
+                *d32++ = *s32++;
+                bytes_left -= 4U;
+            }
+            
+            /* Updating byte pointers for the remainder */
+            d = (uint8_t *)d32;
+            s = (const uint8_t *)s32;
         }
-        
-        /* Copy remaining bytes */
-        while (n > 0) {
-            system_write_byte((uint32_t)d, system_read_byte((uint32_t)s));
-            d++;
-            s++;
-            n--;
+
+        /* Copying the remaining bytes */
+        while (bytes_left > 0U)
+        {
+            *d++ = *s++;
+            bytes_left--;
         }
     }
-    
+
     return dest;
 }
 
 
 void *system_memmove(void *dest, const void *src, size_t n)
 {
-    if (dest == NULL || src == NULL || n == 0) {
-        return dest;
-    }
-    
-    uint8_t *d = (uint8_t *)dest;
-    const uint8_t *s = (const uint8_t *)src;
-    
-    /* Check for overlap */
-    if (d < s) {
-        /* Copy forward (no overlap or dest before src) */
-        return system_memcpy(dest, src, n);
-    } else if (d > s) {
-        /* Copy backward (overlap, dest after src) */
-        d += n;
-        s += n;
-        
-        while (n >= 4) {
-            d -= 4;
-            s -= 4;
-            system_write_word((uint32_t)d, system_read_word((uint32_t)s));
-            n -= 4;
+    if ((dest != NULL) && (src != NULL) && (dest != src) && (n > 0U))
+    {
+        uint8_t *d = (uint8_t *)dest;
+        const uint8_t *s = (const uint8_t *)src;
+
+        if (d < s)
+        {
+            /* No destructive overlap: optimized call */
+            (void)system_memcpy(dest, src, n);
         }
-        
-        while (n > 0) {
-            d--;
-            s--;
-            system_write_byte((uint32_t)d, system_read_byte((uint32_t)s));
-            n--;
+        else
+        {
+            /* Overlap: copy from the back, right to left */
+            size_t bytes_left = n;
+            
+            /* 32-bit block copy backwards */
+            if ((((uintptr_t)d & 3U) == 0U) && (((uintptr_t)s & 3U) == 0U))
+            {
+                uint32_t *d32 = (uint32_t *)(d + n);
+                const uint32_t *s32 = (const uint32_t *)(s + n);
+                
+                while (bytes_left >= 4U)
+                {
+                    *(--d32) = *(--s32);
+                    bytes_left -= 4U;
+                }
+                
+                /* Potential residual (although rare if n is a multiple of 4) */
+                d = (uint8_t *)d32;
+                s = (const uint8_t *)s32;
+            }
+            else
+            {
+                d += n;
+                s += n;
+            }
+
+            /* Copying the remaining bytes from the back */
+            while (bytes_left > 0U)
+            {
+                *(--d) = *(--s);
+                bytes_left--;
+            }
         }
     }
-    
-    /* If dest == src, nothing to do */
+
     return dest;
 }
 
 
 void *system_memset(void *dest, int c, size_t n)
 {
-    if (dest == NULL || n == 0) {
-        return dest;
-    }
-    
-    uint8_t value = (uint8_t)(c & 0xFF);  /* Only use lowest byte */
-    uint8_t *d = (uint8_t *)dest;
-    
-    /* For very small buffers, use simple byte writes */
-    if (n < 8) {
-        while (n > 0) {
-            system_write_byte((uint32_t)d, value);
-            d++;
-            n--;
+    if ((dest != NULL) && (n > 0U))
+    {
+        uint8_t *d = (uint8_t *)dest;
+        uint8_t val = (uint8_t)c;
+        size_t bytes_left = n;
+
+        /* 32-bit word optimization */
+        if (((uintptr_t)d & 3U) == 0U)
+        {
+            uint32_t val32 = ((uint32_t)val << 24) | ((uint32_t)val << 16) | ((uint32_t)val << 8) | (uint32_t)val;
+            uint32_t *d32 = (uint32_t *)d;
+            
+            while (bytes_left >= 4U)
+            {
+                *d32++ = val32;
+                bytes_left -= 4U;
+            }
+            d = (uint8_t *)d32;
         }
-        return dest;
+
+        /* Remainder */
+        while (bytes_left > 0U)
+        {
+            *d++ = val;
+            bytes_left--;
+        }
     }
-    
-    /* Handle initial unaligned bytes */
-    while (n > 0 && ((uint32_t)d & 0x3) != 0) {
-        system_write_byte((uint32_t)d, value);
-        d++;
-        n--;
-    }
-    
-    /* Create a word with the repeated byte value */
-    uint32_t word_value = (value << 24) | (value << 16) | (value << 8) | value;
-    
-    /* Write aligned words */
-    while (n >= 4) {
-        system_write_word((uint32_t)d, word_value);
-        d += 4;
-        n -= 4;
-    }
-    
-    /* Handle remaining bytes */
-    while (n > 0) {
-        system_write_byte((uint32_t)d, value);
-        d++;
-        n--;
-    }
-    
+
     return dest;
 }
 
 
 int system_memcmp(const void *s1, const void *s2, size_t n)
 {
-    if (s1 == NULL || s2 == NULL || n == 0) {
-        return 0;
-    }
-    
-    const uint8_t *p1 = (const uint8_t *)s1;
-    const uint8_t *p2 = (const uint8_t *)s2;
-    
-    while (n-- > 0) {
-        uint8_t b1 = system_read_byte((uint32_t)p1);
-        uint8_t b2 = system_read_byte((uint32_t)p2);
-        
-        if (b1 != b2) {
-            return (int)b1 - (int)b2;
+    int result = 0;
+
+    if ((s1 != NULL) && (s2 != NULL) && (n > 0U))
+    {
+        const uint8_t *p1 = (const uint8_t *)s1;
+        const uint8_t *p2 = (const uint8_t *)s2;
+        size_t i;
+
+        for (i = 0U; i < n; i++)
+        {
+            if (p1[i] != p2[i])
+            {
+                result = (p1[i] < p2[i]) ? -1 : 1;
+                break;
+            }
         }
-        
-        p1++;
-        p2++;
     }
-    
-    return 0;
+
+    return result;
 }
 
 
@@ -365,192 +341,207 @@ void *memcpy(void *dest, const void *src, size_t n)
     return system_memcpy(dest, src, n);
 }
 
-
 /* ========================================================================== */
 /* Safe Memory Functions Implementation                                       */
 /* ========================================================================== */
 
 system_error_t system_memcpy_safe(void *dest, const void *src, size_t n, void **result)
 {
-    if (result != NULL) {
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (result != NULL)
+    {
         *result = NULL;
     }
-    
-    if (dest == NULL || src == NULL) {
-        if (n > 0) {
-            return SYSTEM_ERROR_INVALID_PARAM;
+
+    if ((dest == NULL) || (src == NULL))
+    {
+        if (n > 0U)
+        {
+            status = SYSTEM_ERROR_INVALID_PARAM;
         }
-        if (result != NULL) {
+        else if (result != NULL)
+        {
             *result = dest;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    if (n == 0) {
-        if (result != NULL) {
+    else if (n > 0U)
+    {
+        status = system_validate_address_range((uint32_t)src, n, false);
+
+        if (is_success(status))
+        {
+            status = system_validate_address_range((uint32_t)dest, n, true);
+        }
+
+        if (is_success(status))
+        {
+            uint8_t *d = (uint8_t *)dest;
+            const uint8_t *s = (const uint8_t *)src;
+            void *ret;
+
+            /* Application intelligence: Fallback to memory if overlap */
+            if ((d > s && d < (s + n)) || (s > d && s < (d + n)))
+            {
+                ret = system_memmove(dest, src, n);
+            }
+            else
+            {
+                ret = system_memcpy(dest, src, n);
+            }
+            
+            if (result != NULL)
+            {
+                *result = ret;
+            }
+        }
+    }
+    else
+    {
+        if (result != NULL)
+        {
             *result = dest;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    /* Validate source memory range (read access) */
-    system_error_t err = system_validate_address_range((uint32_t)src, n, false);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* Validate destination memory range (write access) */
-    err = system_validate_address_range((uint32_t)dest, n, true);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* Check for overlap */
-    uint8_t *d = (uint8_t *)dest;
-    const uint8_t *s = (const uint8_t *)src;
-    
-    if ((d > s && d < (s + n)) || (s > d && s < (d + n))) {
-        /* Overlap detected - use memmove instead */
-        void *ret = system_memmove(dest, src, n);
-        if (result != NULL) {
-            *result = ret;
-        }
-        return (ret != NULL) ? SYSTEM_SUCCESS : SYSTEM_ERROR_MEMORY_ACCESS;
-    }
-    
-    /* No overlap - use memcpy */
-    void *ret = system_memcpy(dest, src, n);
-    if (result != NULL) {
-        *result = ret;
-    }
-    
-    return (ret != NULL) ? SYSTEM_SUCCESS : SYSTEM_ERROR_MEMORY_ACCESS;
+
+    return status;
 }
 
 
 system_error_t system_memmove_safe(void *dest, const void *src, size_t n, void **result)
 {
-    if (result != NULL) {
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (result != NULL)
+    {
         *result = NULL;
     }
-    
-    if (dest == NULL || src == NULL) {
-        if (n > 0) {
-            return SYSTEM_ERROR_INVALID_PARAM;
+
+    if ((dest == NULL) || (src == NULL))
+    {
+        if (n > 0U)
+        {
+            status = SYSTEM_ERROR_INVALID_PARAM;
         }
-        if (result != NULL) {
+        else if (result != NULL)
+        {
             *result = dest;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    if (n == 0) {
-        if (result != NULL) {
+    else if (n > 0U)
+    {
+        status = system_validate_address_range((uint32_t)src, n, false);
+
+        if (is_success(status))
+        {
+            status = system_validate_address_range((uint32_t)dest, n, true);
+        }
+
+        if (is_success(status))
+        {
+            void *ret = system_memmove(dest, src, n);
+            if (result != NULL)
+            {
+                *result = ret;
+            }
+        }
+    }
+    else
+    {
+        if (result != NULL)
+        {
             *result = dest;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    /* Validate source memory range (read access) */
-    system_error_t err = system_validate_address_range((uint32_t)src, n, false);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* Validate destination memory range (write access) */
-    err = system_validate_address_range((uint32_t)dest, n, true);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* memmove handles overlap automatically */
-    void *ret = system_memmove(dest, src, n);
-    if (result != NULL) {
-        *result = ret;
-    }
-    
-    return (ret != NULL) ? SYSTEM_SUCCESS : SYSTEM_ERROR_MEMORY_ACCESS;
+
+    return status;
 }
 
 
 system_error_t system_memset_safe(void *dest, uint8_t value, size_t n, void **result)
 {
-    if (result != NULL) {
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (result != NULL)
+    {
         *result = NULL;
     }
-    
-    if (dest == NULL) {
-        if (n > 0) {
-            return SYSTEM_ERROR_INVALID_PARAM;
+
+    if (dest == NULL)
+    {
+        if (n > 0U)
+        {
+            status = SYSTEM_ERROR_INVALID_PARAM;
         }
-        if (result != NULL) {
+        else if (result != NULL)
+        {
             *result = dest;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    if (n == 0) {
-        if (result != NULL) {
+    else if (n > 0U)
+    {
+        status = system_validate_address_range((uint32_t)dest, n, true);
+
+        if (is_success(status))
+        {
+            void *ret = system_memset(dest, (int)value, n);
+            if (result != NULL)
+            {
+                *result = ret;
+            }
+        }
+    }
+    else
+    {
+        if (result != NULL)
+        {
             *result = dest;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    /* Validate destination memory range (write access) */
-    system_error_t err = system_validate_address_range((uint32_t)dest, n, true);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* Call standard memset (which will work since we validated addresses) */
-    void *ret = system_memset(dest, value, n);
-    if (result != NULL) {
-        *result = ret;
-    }
-    
-    return (ret != NULL) ? SYSTEM_SUCCESS : SYSTEM_ERROR_MEMORY_ACCESS;
+
+    return status;
 }
 
 
 system_error_t system_memcmp_safe(const void *s1, const void *s2, size_t n, int *result)
 {
-    if (result != NULL) {
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (result != NULL)
+    {
         *result = 0;
     }
-    
-    if (s1 == NULL || s2 == NULL) {
-        if (n > 0) {
-            return SYSTEM_ERROR_INVALID_PARAM;
+
+    if ((s1 == NULL) || (s2 == NULL))
+    {
+        if (n > 0U)
+        {
+            status = SYSTEM_ERROR_INVALID_PARAM;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    if (n == 0) {
-        if (result != NULL) {
-            *result = 0;
+    else if (n > 0U)
+    {
+        status = system_validate_address_range((uint32_t)s1, n, false);
+
+        if (is_success(status))
+        {
+            status = system_validate_address_range((uint32_t)s2, n, false);
         }
-        return SYSTEM_SUCCESS;
+
+        if (is_success(status))
+        {
+            if (result != NULL)
+            {
+                *result = system_memcmp(s1, s2, n);
+            }
+        }
     }
-    
-    /* Validate both memory ranges (read access) */
-    system_error_t err = system_validate_address_range((uint32_t)s1, n, false);
-    if (IS_ERROR(err)) {
-        return err;
+    else
+    {
+        /* n == 0, everything is ok */
     }
-    
-    err = system_validate_address_range((uint32_t)s2, n, false);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* Perform comparison */
-    int cmp_result = system_memcmp(s1, s2, n);
-    
-    if (result != NULL) {
-        *result = cmp_result;
-    }
-    
-    return SYSTEM_SUCCESS;
+
+    return status;
 }
 
 
@@ -560,33 +551,66 @@ system_error_t system_memcmp_safe(const void *s1, const void *s2, size_t n, int 
 
 system_error_t system_validate_address_range(uint32_t addr, uint32_t size, bool is_write)
 {
-    if (size == 0) {
-        return SYSTEM_SUCCESS; /* Empty range is always valid */
-    }
-    
-    /* Check for overflow in address calculation */
-    if ((addr + size) < addr) {
-        return SYSTEM_ERROR_INVALID_ADDRESS; /* Address wrapped around */
-    }
-    
-    /* Check each byte in the range */
-    for (uint32_t i = 0; i < size; i++) {
-        system_error_t err = system_validate_address(addr + i, is_write);
-        if (IS_ERROR(err)) {
-            return err;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (size > 0U)
+    {
+        uint32_t end_addr = (addr + size) - 1U;
+
+        /* Verification: Arithmetic overflow of the end address */
+        if (end_addr < addr)
+        {
+            status = SYSTEM_ERROR_INVALID_ADDRESS;
         }
+        else
+        {
+            /* Verification: memory block endpoints */
+            status = system_validate_address(addr, is_write);
+
+            if (is_success(status))
+            {
+                status = system_validate_address(end_addr, is_write);
+            }
+
+            /* Enhanced security: Verifies that the block does not "skip" zones
+               This would prevent a silent overflow  between IMEM and DMEM for example. */
+            if (is_success(status))
+            {
+                if (is_imem_address(addr) && !is_imem_address(end_addr))
+                {
+                    status = SYSTEM_ERROR_MEMORY_ACCESS;
+                }
+                else if (is_dmem_address(addr) && !is_dmem_address(end_addr))
+                {
+                    status = SYSTEM_ERROR_MEMORY_ACCESS;
+                }
+                else if (is_peripheral_address(addr) && !is_peripheral_address(end_addr))
+                {
+                    status = SYSTEM_ERROR_MEMORY_ACCESS;
+                }
+                else
+                {
+                    /* The area is valid and completely contiguous. */
+                }
+            }
+        }
+        
     }
-    
-    return SYSTEM_SUCCESS;
+    return status;
 }
 
 
 bool system_is_aligned(const void *ptr, size_t alignment)
 {
-    /* alignment must be power of two */
-    if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
-        return false;
+    bool aligned = false;
+
+    if ((alignment != 0U) && ((alignment & (alignment - 1U)) == 0U))
+    {
+        if (((uintptr_t)ptr & (alignment - 1U)) == 0U)
+        {
+            aligned = true;
+        }
+        
     }
-    
-    return ((uintptr_t)ptr & (alignment - 1)) == 0;
+    return aligned;
 }

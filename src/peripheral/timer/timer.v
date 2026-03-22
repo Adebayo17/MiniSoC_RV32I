@@ -43,7 +43,7 @@ module timer #(
     localparam [1:0] PRESCALE_1024 = 2'b11;  // Clock / 1024
 
     // Overflow value
-    localparam [DATA_WIDTH-1:0] OVERFLOW_VALUE = 32'h0000_1000;
+    localparam [DATA_WIDTH-1:0] OVERFLOW_VALUE = 32'hFFFF_FFFF;
 
     // -------------------------------------------
     // Internal Registers

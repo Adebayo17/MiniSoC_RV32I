@@ -1,10 +1,14 @@
 /*
- * @file gpio_hw.h
+ * @file  gpio_hw.h
  * @brief GPIO Hardware Abstraction - Documents hardware-specific behavior
+ * @brief Hardware definition for GPIO module
+ * @details Conforms to the Barr Group Embedded C Coding Standard.
  */
 
 #ifndef GPIO_HW_H
 #define GPIO_HW_H
+
+#include <stdint.h>
 
 /**
  * @brief GPIO Hardware Description
@@ -69,5 +73,42 @@
  * // Toggle pin 0
  * WRITE_REG(GPIO_BASE + 0x10, 0x01); // TOGGLE pin 0
  */
+
+
+/* ========================================================================== */
+/* GPIO Register Map Structure                                                */
+/* ========================================================================== */
+
+/**
+ * @struct gpio_regs_t
+ * @brief  Structure for GPIO register map.
+ * @note   SET, CLEAR and TOGGLE registers offer atomic operations
+ *         managed directly by the hardware.
+ */
+typedef struct
+{
+    volatile uint32_t DATA;         /*!< 0x00: Data Register (Read: In/Out state, Write: Out state) */
+    volatile uint32_t DIR;          /*!< 0x04: Direction Register (1=Output, 0=Input) */
+    volatile uint32_t SET;          /*!< 0x08: Set Output Bits (Write-only, 1=Set bit to 1) */
+    volatile uint32_t CLEAR;        /*!< 0x0C: Clear Output Bits (Write-only, 1=Clear bit to 0) */
+    volatile uint32_t TOGGLE;       /*!< 0x10: Toggle Output Bits (Write-only, 1=Invert bit) */
+} gpio_regs_t;
+
+/* ========================================================================== */
+/* GPIO Pin Masks                                                             */
+/* ========================================================================== */
+
+#define GPIO_PIN_MASK_0             (1UL << 0)
+#define GPIO_PIN_MASK_1             (1UL << 1)
+#define GPIO_PIN_MASK_2             (1UL << 2)
+#define GPIO_PIN_MASK_3             (1UL << 3)
+#define GPIO_PIN_MASK_4             (1UL << 4)
+#define GPIO_PIN_MASK_5             (1UL << 5)
+#define GPIO_PIN_MASK_6             (1UL << 6)
+#define GPIO_PIN_MASK_7             (1UL << 7)
+#define GPIO_ALL_PINS_MASK          (0xFFUL)
+
+/* Maximum number of GPIO pins (Hardware limit parameter N_GPIO = 8) */
+#define GPIO_MAX_PINS               (8U)
 
 #endif /* GPIO_HW_H */

@@ -1,11 +1,12 @@
 /*
- * @file system.c
- * @brief System-wide functions implementation with hardware timer support
+ * @file    system.c
+ * @brief   System-wide functions implementation with hardware timer support.
+ * @details Conforms to Barr Group Embedded C Coding Standard.
  */
 
 #include "../include/system.h"
 #include "../drivers/timer/include/timer.h"
-#include "../include/peripheral_utils.h"
+#include "timer_hw.h"
 #include <string.h>
 
 
@@ -13,27 +14,27 @@
 /* System Global Variables                                                    */
 /* ========================================================================== */
 
+/**
+ * @brief Pointer to the hardware timer used as the system time base
+ */
+static timer_t *g_system_timer = NULL;
 
-/* System timer device */
-static timer_t *system_timer = NULL;
-
-/* System start time reference */
-static uint32_t system_start_ticks = 0;
-
-
-/* Non-blocking delay state */
+/**
+ * @struct delay_state_t
+ * @brief Non-blocking delay state
+ */
 typedef struct {
-    bool active;
-    uint32_t start_ticks;
-    uint32_t delay_ticks;
+    bool        active;           /*!< Indicates whether the delay is active */
+    uint32_t    start_time;       /*!< Delay Start time (in µs) */
+    uint32_t    duration_us;      /*!< Delay duration (in µs) */
 } delay_state_t;
 
 
-static delay_state_t delay_state = {false, 0, 0};
-
-
-/* Legacy tick count for compatibility */
-static volatile uint32_t system_tick_count = 0;
+static delay_state_t g_delay = {
+    .active         = false, 
+    .start_time     = 0U, 
+    .duration_us    = 0U
+};
 
 
 /* ========================================================================== */
@@ -41,83 +42,58 @@ static volatile uint32_t system_tick_count = 0;
 /* ========================================================================== */
 
 
-/* Legacy initialization (for compatibility) */
 void system_init(void)
 {
-    /* Reset legacy tick count */
-    system_tick_count = 0;
-    
     /* Reset delay state */
-    delay_state.active = false;
-    delay_state.start_ticks = 0;
-    delay_state.delay_ticks = 0;
+    g_delay.active      = false;
+    g_delay.start_time  = 0;
+    g_delay.duration_us = 0;
     
     /* Clear system timer reference */
-    system_timer = NULL;
-    system_start_ticks = 0;
+    g_system_timer = NULL;
 }
 
 
 system_error_t system_init_with_timer_safe(timer_t *timer)
 {
-    PARAM_CHECK_NOT_NULL(timer);
-    
-    /* Validate timer is initialized */
-    bool timer_initialized = false;
-    system_error_t err = peripheral_is_initialized(&timer->base, &timer_initialized);
-    if (IS_ERROR(err)) {
-        return err;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (timer == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
     }
-    
-    if (!timer_initialized) {
-        return SYSTEM_ERROR_NOT_READY;
+    else
+    {
+        /* We check that the timer driver itself is properly initialized. */
+        status = peripheral_check_valid(timer_to_peripheral(timer));
+
+        if (is_success(status))
+        {
+            g_system_timer = timer;
+
+            /* Configuring the timer in CONTINUOUS mode to serve as a time base */
+            timer_config_t cfg;
+            cfg.mode          = TIMER_MODE_CONTINUOUS;
+            cfg.prescale      = TIMER_PRESCALE_1;       /* Maximum Precision */
+            cfg.compare_value = TIMER_MAX_VALUE;        /* Count to 0xFFFFFFFF */
+
+            status = timer_configure(g_system_timer, &cfg);
+
+            if (is_success(status))
+            {
+                status = timer_enable(g_system_timer);
+            }
+        }
     }
-    
-    /* Store timer reference */
-    system_timer = timer;
-    
-    /* Configure system timer for continuous mode, maximum range */
-    timer_config_t timer_config = {
-        .mode = TIMER_MODE_CONTINUOUS,
-        .prescale = TIMER_PRESCALE_1,
-        .compare_value = 0xFFFFFFFFu,
-        .auto_reload = true
-    };
-    
-    err = timer_configure(system_timer, &timer_config);
-    if (IS_ERROR(err)) {
-        system_timer = NULL;
-        return err;
-    }
-    
-    err = timer_enable(system_timer);
-    if (IS_ERROR(err)) {
-        timer_disable(system_timer);
-        system_timer = NULL;
-        return err;
-    }
-    
-    /* Get initial tick count for time reference */
-    err = timer_get_count(system_timer, &system_start_ticks);
-    if (IS_ERROR(err)) {
-        timer_disable(system_timer);
-        system_timer = NULL;
-        return err;
-    }
-    
-    /* Reset delay state */
-    delay_state.active = false;
-    delay_state.start_ticks = 0;
-    delay_state.delay_ticks = 0;
-    
-    return SYSTEM_SUCCESS;
+
+    return status;
 }
 
 
-/* Legacy function (for compatibility) */
-void system_init_with_timer(timer_t *timer)
+void system_init_with_timer(timer_t *system_timer)
 {
-    (void)system_init_with_timer_safe(timer);
+    /* The error is being silently ignored */
+    (void)system_init_with_timer_safe(system_timer);
 }
 
 
@@ -128,16 +104,20 @@ void system_init_with_timer(timer_t *timer)
 __attribute__((noreturn))
 void system_reset(void)
 {
-    /* Perform any necessary cleanup */
-    system_timer = NULL;
-    system_start_ticks = 0;
-    delay_state.active = false;
-    system_tick_count = 0;
+    /* *Soft Reset
+     * Jump to the base address of instruction memory (0x00000000)
+     */
+    void (*reset_vector)(void) = (void (*)(void))IMEM_BASE_ADDRESS;
     
-    /* In a real system, this would trigger a hardware reset */
-    /* For simulation, we'll just hang */
-    while (1) {
-        /* Wait for watchdog or external reset */
+    /* Performs the unconditional jump */
+    reset_vector();
+
+    /* * Code should never reach this line
+     * The infinite loop guarantees the '__attribute__((noreturn))' behavior
+     */
+    while (1) 
+    {
+        /* Infinite trap */
     }
 }
 
@@ -148,26 +128,35 @@ void system_reset(void)
 
 system_error_t system_validate_address(uint32_t addr, bool is_write)
 {
-    /* Check IMEM access (read-only) */
-    if (IS_IMEM_ADDRESS(addr)) {
-        if (is_write) {
-            return SYSTEM_ERROR_MEMORY_ACCESS; /* Cannot write to IMEM */
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (is_imem_address(addr))
+    {
+        /* * Instruction Memory (IMEM) is generally write-protected
+         * from the CPU (Classic Harvard Architecture).
+         */
+        if (is_write)
+        {
+            status = SYSTEM_ERROR_MEMORY_ACCESS;
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    /* Check DMEM access (read-write) */
-    if (IS_DMEM_ADDRESS(addr)) {
-        return SYSTEM_SUCCESS; /* DMEM supports both read and write */
+    else if (is_dmem_address(addr))
+    {
+        /* DMEM is accessible for reading and writing */
+        status = SYSTEM_SUCCESS; 
     }
-    
-    /* Check peripheral access (read-write) */
-    if (IS_PERIPHERAL_ADDRESS(addr)) {
-        return SYSTEM_SUCCESS; /* Peripherals support both read and write */
+    else if (is_peripheral_address(addr))
+    {
+        /* Hardware Peripherals are managed independently */
+        status = SYSTEM_SUCCESS;
     }
-    
-    /* Address is outside valid ranges */
-    return SYSTEM_ERROR_INVALID_ADDRESS;
+    else
+    {
+        /* The address does not correspond to any known area */
+        status = SYSTEM_ERROR_INVALID_ADDRESS;
+    }
+
+    return status;
 }
 
 
@@ -175,192 +164,102 @@ system_error_t system_validate_address(uint32_t addr, bool is_write)
 /* Time Management Functions                                                  */
 /* ========================================================================== */
 
-system_error_t system_get_time_us_safe(uint32_t *time_us)
-{
-    PARAM_CHECK_NOT_NULL(time_us);
-    
-    if (system_timer == NULL) {
-        return SYSTEM_ERROR_NOT_READY;
-    }
-    
-    /* Get current timer count */
-    uint32_t current_ticks;
-    system_error_t err = timer_get_count(system_timer, &current_ticks);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* Calculate elapsed ticks */
-    uint32_t elapsed_ticks;
-    if (current_ticks >= system_start_ticks) {
-        elapsed_ticks = current_ticks - system_start_ticks;
-    } else {
-        /* Timer wrapped around */
-        elapsed_ticks = (0xFFFFFFFFu - system_start_ticks) + current_ticks + 1;
-    }
-    
-    /* Convert ticks to microseconds */
-    *time_us = (uint32_t)((uint64_t)elapsed_ticks * 1000000ULL / SYSTEM_CLOCK_FREQ);
-    
-    return SYSTEM_SUCCESS;
-}
-
-
-uint32_t system_get_time_us(void)
-{
-    uint32_t time_us = 0;
-    (void)system_get_time_us_safe(&time_us);
-    return time_us;
-}
-
-
 system_error_t system_get_ticks_safe(uint32_t *ticks)
 {
-    PARAM_CHECK_NOT_NULL(ticks);
-    
-    if (system_timer == NULL) {
-        return SYSTEM_ERROR_NOT_READY;
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (ticks == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    else if (g_system_timer == NULL)
+    {
+        status = SYSTEM_ERROR_NOT_READY;
+    }
+    else
+    {
+        /* Physical reading of the current counter via the timer driver */
+        status = timer_get_count(g_system_timer, ticks);
     }
     
-    return timer_get_count(system_timer, ticks);
+    return status;
 }
 
 
-uint32_t system_get_ticks(void)
+system_error_t system_get_time_us_safe(uint32_t *time_us)
 {
-    uint32_t ticks = 0;
-    (void)system_get_ticks_safe(&ticks);
-    return ticks;
+    system_error_t status = SYSTEM_SUCCESS;
+    uint32_t ticks = 0U;
+
+    if (time_us == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    else
+    {
+        status = system_get_ticks_safe(&ticks);
+
+        if (is_success(status))
+        {
+            uint32_t ticks_per_us = g_system_timer->clock_frequency / 1000000U;
+
+            if (ticks_per_us > 0U)
+            {
+                *time_us = ticks / ticks_per_us;
+            }
+            else
+            {
+                /* If the system clock is < 1 MHz, degraded conversion is used to avoid div by 0 */
+                *time_us = 0U; 
+            }
+        }
+    }
+
+    return status;
 }
 
 
 system_error_t system_get_elapsed_time_us_safe(uint32_t previous_tick, uint32_t *elapsed_us)
 {
-    PARAM_CHECK_NOT_NULL(elapsed_us);
-    
-    if (system_timer == NULL) {
-        return SYSTEM_ERROR_NOT_READY;
-    }
-    
-    uint32_t current_ticks;
-    system_error_t err = timer_get_count(system_timer, &current_ticks);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    uint32_t elapsed_ticks;
-    
-    /* Handle timer overflow */
-    if (current_ticks >= previous_tick) {
-        elapsed_ticks = current_ticks - previous_tick;
-    } else {
-        /* Timer wrapped around */
-        elapsed_ticks = (0xFFFFFFFFu - previous_tick) + current_ticks + 1;
-    }
-    
-    *elapsed_us = (uint32_t)((uint64_t)elapsed_ticks * 1000000ULL / SYSTEM_CLOCK_FREQ);
-    
-    return SYSTEM_SUCCESS;
-}
+    system_error_t status = SYSTEM_SUCCESS;
+    uint32_t current_tick = 0U;
 
-uint32_t system_get_elapsed_time_us(uint32_t previous_tick)
-{
-    uint32_t elapsed_us = 0;
-    (void)system_get_elapsed_time_us_safe(previous_tick, &elapsed_us);
-    return elapsed_us;
-}
+    if (elapsed_us == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    else
+    {
+        status = system_get_ticks_safe(&current_tick);
 
-/* ========================================================================== */
-/* Non-blocking Delay Functions                                               */
-/* ========================================================================== */
+        if (is_success(status))
+        {
+            uint32_t diff_ticks;
 
-system_error_t system_delay_us_start_safe(uint32_t us)
-{
-    if (system_timer == NULL) {
-        return SYSTEM_ERROR_NOT_READY;
-    }
-    
-    if (delay_state.active) {
-        return SYSTEM_ERROR_BUSY;
-    }
-    
-    if (us == 0) {
-        return SYSTEM_ERROR_INVALID_PARAM;
-    }
-    
-    /* Calculate required ticks for the delay */
-    uint64_t delay_ticks = (uint64_t)us * SYSTEM_CLOCK_FREQ / 1000000ULL;
-    if (delay_ticks == 0) {
-        delay_ticks = 1; /* Minimum 1 tick */
-    }
-    
-    if (delay_ticks > 0xFFFFFFFFu) {
-        return SYSTEM_ERROR_INVALID_PARAM; /* Delay too long */
-    }
-    
-    /* Get current timer count */
-    uint32_t current_ticks;
-    system_error_t err = timer_get_count(system_timer, &current_ticks);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    /* Setup delay state */
-    delay_state.start_ticks = current_ticks;
-    delay_state.delay_ticks = (uint32_t)delay_ticks;
-    delay_state.active = true;
-    
-    return SYSTEM_SUCCESS;
-}
+            /* Intelligent management of 32-bit counter overflow */
+            if (current_tick >= previous_tick)
+            {
+                diff_ticks = current_tick - previous_tick;
+            }
+            else
+            {
+                diff_ticks = (0xFFFFFFFFU - previous_tick) + current_tick + 1U;
+            }
 
-
-bool system_delay_us_start(uint32_t us)
-{
-    return (system_delay_us_start_safe(us) == SYSTEM_SUCCESS);
-}
-
-
-system_error_t system_delay_us_complete_safe(bool *is_complete)
-{
-    PARAM_CHECK_NOT_NULL(is_complete);
-    
-    if (!delay_state.active || system_timer == NULL) {
-        *is_complete = true;
-        return SYSTEM_SUCCESS;
+            uint32_t ticks_per_us = g_system_timer->clock_frequency / 1000000U;
+            
+            if (ticks_per_us > 0U)
+            {
+                *elapsed_us = diff_ticks / ticks_per_us;
+            }
+            else
+            {
+                *elapsed_us = 0U;
+            }
+        }
     }
-    
-    uint32_t current_ticks;
-    system_error_t err = timer_get_count(system_timer, &current_ticks);
-    if (IS_ERROR(err)) {
-        return err;
-    }
-    
-    uint32_t elapsed_ticks;
-    
-    /* Handle timer overflow */
-    if (current_ticks >= delay_state.start_ticks) {
-        elapsed_ticks = current_ticks - delay_state.start_ticks;
-    } else {
-        elapsed_ticks = (0xFFFFFFFFu - delay_state.start_ticks) + current_ticks + 1;
-    }
-    
-    /* Check if delay completed */
-    if (elapsed_ticks >= delay_state.delay_ticks) {
-        delay_state.active = false;
-        *is_complete = true;
-    } else {
-        *is_complete = false;
-    }
-    
-    return SYSTEM_SUCCESS;
-}
 
-
-bool system_delay_us_complete(void)
-{
-    bool is_complete = false;
-    (void)system_delay_us_complete_safe(&is_complete);
-    return is_complete;
+    return status;
 }
 
 
@@ -370,20 +269,129 @@ bool system_delay_us_complete(void)
 
 system_error_t system_delay_us_safe(uint32_t us)
 {
-    if (us == 0) {
-        return SYSTEM_SUCCESS; /* No delay needed */
-    }
-    
-    if (system_timer == NULL) {
-        /* Fallback to software delay if no timer available */
-        uint32_t cycles = (us * (SYSTEM_CLOCK_FREQ / 1000000U)) / 10U;
-        for (volatile uint32_t i = 0; i < cycles; i++) {
-            __asm__ volatile ("nop");
+    system_error_t status = SYSTEM_SUCCESS;
+    uint32_t start_tick = 0U;
+    uint32_t elapsed_us = 0U;
+
+    status = system_get_ticks_safe(&start_tick);
+
+    if (is_success(status))
+    {
+        /* Active loop (Busy-wait) without destroying the Timer configuration */
+        while (elapsed_us < us)
+        {
+            status = system_get_elapsed_time_us_safe(start_tick, &elapsed_us);
+            
+            if (is_error(status))
+            {
+                /* Immediate exit if the timer crashes or stops mid-journey */
+                break;
+            }
         }
-        return SYSTEM_SUCCESS;
     }
-    
-    return timer_delay_us(system_timer, us);
+
+    return status;
+}
+
+
+system_error_t system_delay_ms_safe(uint32_t ms)
+{   
+    return system_delay_us_safe(ms * 1000U);
+}
+
+
+/* ========================================================================== */
+/* Non-blocking Delay Functions                                               */
+/* ========================================================================== */
+
+system_error_t system_delay_us_start_safe(uint32_t us)
+{
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (g_system_timer == NULL)
+    {
+        status = SYSTEM_ERROR_NOT_READY;
+    }
+    else if (g_delay.active)
+    {
+        status = SYSTEM_ERROR_BUSY; /* A delay is already underway. */
+    }
+    else
+    {
+        status = system_get_ticks_safe(&g_delay.start_time);
+
+        if (is_success(status))
+        {
+            g_delay.duration_us = us;
+            g_delay.active      = true;
+        }
+    }
+
+    return status;
+}
+
+
+system_error_t system_delay_us_complete_safe(bool *is_complete)
+{
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if (is_complete == NULL)
+    {
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    else if (!g_delay.active)
+    {
+        /* If no delay has been set, the condition is considered to be met. */
+        *is_complete = true;
+    }
+    else
+    {
+        uint32_t elapsed_us = 0U;
+        status = system_get_elapsed_time_us_safe(g_delay.start_time, &elapsed_us);
+
+        if (is_success(status))
+        {
+            if (elapsed_us >= g_delay.duration_us)
+            {
+                *is_complete = true;
+                g_delay.active = false; /* Free for next delay */
+            }
+            else
+            {
+                *is_complete = false;
+            }
+        }
+    }
+
+    return status;
+}
+
+
+/* ========================================================================== */
+/* Legacy Functions (for compatibility)                                       */
+/* ========================================================================== */
+
+uint32_t system_get_ticks(void)
+{
+    uint32_t ticks = 0U;
+    (void)system_get_ticks_safe(&ticks);
+    return ticks;
+}
+
+
+uint32_t system_get_time_us(void)
+{
+    uint32_t time_us = 0U;
+    (void)system_get_time_us_safe(&time_us);
+    return time_us;
+}
+
+
+uint32_t system_get_elapsed_time_us(uint32_t previous_tick)
+{
+    uint32_t elapsed_us = 0U;
+    (void)system_get_elapsed_time_us_safe(previous_tick, &elapsed_us);
+    return elapsed_us;
 }
 
 
@@ -393,59 +401,21 @@ void system_delay_us(uint32_t us)
 }
 
 
-system_error_t system_delay_ms_safe(uint32_t ms)
-{
-    /* Convert milliseconds to microseconds */
-    if (ms > (0xFFFFFFFFu / 1000u)) {
-        return SYSTEM_ERROR_INVALID_PARAM; /* Would overflow */
-    }
-    
-    return system_delay_us_safe(ms * 1000u);
-}
-
-
 void system_delay_ms(uint32_t ms)
 {
     (void)system_delay_ms_safe(ms);
 }
 
 
-/* ========================================================================== */
-/* Legacy Functions (for compatibility)                                       */
-/* ========================================================================== */
-
-void system_tick_handler(void)
+bool system_delay_us_start(uint32_t us)
 {
-    system_tick_count++;
+    return (system_delay_us_start_safe(us) == SYSTEM_SUCCESS);
 }
 
 
-uint32_t system_get_ticks_legacy(void)
+bool system_delay_us_complete(void)
 {
-    return system_tick_count;
-}
-
-
-/* ========================================================================== */
-/* Utility Functions                                                          */
-/* ========================================================================== */
-
-
-uint32_t system_align_up(uint32_t value, uint32_t alignment)
-{
-    if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
-        return value; /* Invalid alignment, return unchanged */
-    }
-    
-    return (value + alignment - 1) & ~(alignment - 1);
-}
-
-
-uint32_t system_align_down(uint32_t value, uint32_t alignment)
-{
-    if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
-        return value; /* Invalid alignment, return unchanged */
-    }
-    
-    return value & ~(alignment - 1);
+    bool is_complete = false;
+    (void)system_delay_us_complete_safe(&is_complete);
+    return is_complete;
 }

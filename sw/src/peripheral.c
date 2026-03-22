@@ -1,144 +1,146 @@
-/*
- * @file peripheral.c
- * @brief Peripheral functions prototypes implementation for Mini RV32I SoC
-*/
+/**
+ * @file    peripheral.c
+ * @brief   Implementation of generic peripheral management functions.
+ * @details Conforms to Barr Group Embedded C Coding Standard.
+ */
 
-#include "../include/peripheral.h"
-#include "../include/system.h"
+#include "peripheral.h"
+#include <stddef.h>
 
 
 /* ========================================================================== */
-/* Peripheral Functions with System Error Code                                */
+/* Functions Implementation                                                   */
 /* ========================================================================== */
 
 system_error_t peripheral_init(peripheral_t *dev, uint32_t base_addr)
 {
-    /* Parameter validation */
+    
+    system_error_t status = SYSTEM_SUCCESS;
+    
     if (dev == NULL)
     {
-        return SYSTEM_ERROR_INVALID_PARAM; 
+        status = SYSTEM_ERROR_INVALID_PARAM; 
     }
-
-    /* Validate base address */
-    if (!IS_PERIPHERAL_ADDRESS(base_addr))
+    else if (!is_peripheral_address(base_addr))
     {
-        return SYSTEM_ERROR_INVALID_ADDRESS;
+        status = SYSTEM_ERROR_INVALID_ADDRESS;
     }
-
-    /* Check if already initialized */
-    if (dev->initialized)
+    else if (dev->initialized)
     {
-        return SYSTEM_ERROR_BUSY;
+        status = SYSTEM_ERROR_BUSY;
+    }
+    else
+    {
+        /* Initiaize structure */
+        dev->base_address = base_addr;
+        dev->initialized  = true;    
     }
 
-    /* Initiaize structure */
-    dev->base_address = base_addr;
-    dev->initialized  = true;
-
-    return SYSTEM_SUCCESS;    
-    
+    return status;    
 }
 
 
 system_error_t peripheral_deinit(peripheral_t *dev)
 {
-    /* Parameter validation */
+    system_error_t status = SYSTEM_SUCCESS;
+
     if (dev == NULL)
     {
-        return SYSTEM_ERROR_INVALID_PARAM; 
+        status = SYSTEM_ERROR_INVALID_PARAM;
     }
-
-    /* Check if already initialized */
-    if (!dev->initialized)
+    else
     {
-        return SYSTEM_SUCCESS; /* Already initialized */
+        dev->base_address = 0U;
+        dev->initialized  = false;
     }
-    
-    /* Reset structure */
-    dev->base_address = 0;
-    dev->initialized  = false;
 
-    return SYSTEM_SUCCESS;
-
+    return status;
 }
 
 
 system_error_t peripheral_get_base_address(const peripheral_t *dev, uint32_t *base_addr)
 {
-    /* Parameter validation */
-    if (dev == NULL || base_addr == NULL)
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if ((dev == NULL) || (base_addr == NULL))
     {
-        return SYSTEM_ERROR_INVALID_PARAM; 
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    else if (!(dev->initialized))
+    {
+        status = SYSTEM_ERROR_NOT_READY;
+    }
+    else
+    {
+        *base_addr = dev->base_address;
     }
 
-    /* Check if initialized */
-    if (!dev->initialized)
-    {
-        return SYSTEM_ERROR_NOT_READY; 
-    }
-
-    *base_addr = dev->base_address;
-    return SYSTEM_SUCCESS;
-
+    return status;
 }
 
 
 system_error_t peripheral_is_initialized(const peripheral_t *dev, bool *is_initialized)
 {
-    /* Parameter validation */
-    if (dev == NULL || is_initialized == NULL)
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if ((dev == NULL) || (is_initialized == NULL))
     {
-        return SYSTEM_ERROR_INVALID_PARAM; 
+        status = SYSTEM_ERROR_INVALID_PARAM;
+    }
+    else
+    {
+        *is_initialized = dev->initialized;
     }
 
-    *is_initialized = dev->initialized;
-    return SYSTEM_SUCCESS;
-
+    return status;
 }
 
 
 system_error_t peripheral_validate_address(const peripheral_t *dev, uint32_t offset, bool *is_valid)
 {
-    /* Parameter validation */
-    if (dev == NULL || is_valid == NULL)
+    system_error_t status = SYSTEM_SUCCESS;
+
+    if ((dev == NULL) || (is_valid == NULL))
     {
-        return SYSTEM_ERROR_INVALID_PARAM;
+        status = SYSTEM_ERROR_INVALID_PARAM;
     }
-    
-    /* Check if initialized */
-    if (!dev->initialized)
+    else if (!(dev->initialized))
     {
-        *is_valid = false;
-        return SYSTEM_ERROR_NOT_READY;
+        status = SYSTEM_ERROR_NOT_READY;
+    }
+    else
+    {
+        /* In our architecture (system.h), each peripheral has 4 KB (PERIPH_SIZE) */
+        if (offset < PERIPH_SIZE)
+        {
+            *is_valid = true;
+        }
+        else
+        {
+            *is_valid = false;
+        }
     }
 
-    /* Validate offset within peripheral space */
-    *is_valid = (offset < PERIPH_SIZE);
-    
-    return SYSTEM_SUCCESS;
-    
+    return status;
 }
 
 
 system_error_t peripheral_reset(peripheral_t *dev)
 {
-    /* Parameter validation */
-    if (dev == NULL) 
+    system_error_t status = SYSTEM_SUCCESS;
+
+    /* Using the inline function defined in peripheral.h */
+    status = peripheral_check_valid(dev);
+
+    if (is_success(status))
     {
-        return SYSTEM_ERROR_INVALID_PARAM;
+        /* * For the generic base structure, the software reset does nothing but 
+         * confirm that the peripheral is ready. 
+         * The overlays (e.g., uart_reset) will handle resetting 
+         * their specific statistics (rx_count, tx_count, etc.).
+         */
+        dev->initialized = true;
     }
-    
-    /* Check if initialized */
-    if (!dev->initialized) 
-    {
-        return SYSTEM_ERROR_NOT_READY;
-    }
-    
-    /* For base peripheral, reset just means clearing the structure */
-    dev->base_address = 0;
-    dev->initialized  = false;
-    
-    return SYSTEM_SUCCESS;
+
+    return status;
 }
-
-

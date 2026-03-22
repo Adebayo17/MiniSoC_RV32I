@@ -1,131 +1,208 @@
 /*
- * @file math.c
- * @brief Software math functions for Mini RV32I SoC implementation
+ * @file    math.c
+ * @brief   Software math functions for Mini RV32I SoC implementation.
+ * @details Conforms to Barr Group Embedded C Coding Standard.
  */
 
 #include "../include/math.h"
 
 /* ========================================================================== */
-/* Software Math Functions Implementation                                     */
+/* Unsigned Mathematics                                                       */
 /* ========================================================================== */
 
-
-// Unsigned multiplication using shift-and-add algorithm
 uint32_t system_umul32(uint32_t a, uint32_t b)
 {
-    uint32_t result = 0;
+    uint32_t result = 0U;
+    uint32_t temp_a = a;
+    uint32_t temp_b = b;
     
-    while (b > 0) {
-        if (b & 1) {
-            result += a;
+    /* Algorithm: Shift-and-Add Multiplication */
+    while (temp_b != 0u) 
+    {
+        /* If the least significant bit of b is 1, we add a to the result. */
+        if ((temp_b & 1u) != 0u) 
+        {
+            result += temp_a;
         }
-        a <<= 1;
-        b >>= 1;
+
+        /* Shift a to the left (multiply by 2) */
+        temp_a <<= 1u;
+        /* Shift b to the right (divide by 2) */
+        temp_b >>= 1u;
     }
     
     return result;
 }
 
-// Signed multiplication
-int32_t system_mul32(int32_t a, int32_t b)
-{
-    // Handle sign and use unsigned multiplication
-    bool negative = (a < 0) != (b < 0);
-    uint32_t abs_a = (a < 0) ? -a : a;
-    uint32_t abs_b = (b < 0) ? -b : b;
-    uint32_t abs_result = system_umul32(abs_a, abs_b);
-    
-    return negative ? -abs_result : abs_result;
-}
 
-// Unsigned division using restoring division algorithm
 uint32_t system_udiv32(uint32_t dividend, uint32_t divisor)
 {
-    if (divisor == 0) {
-        // Division by zero - return maximum value
-        return 0xFFFFFFFF;
+    uint32_t quotient = 0u;
+    uint32_t remainder = 0u;
+    int32_t  i;
+    
+    /* RISC-V Specification: Division by zero returns all bits to 1 */
+    if (divisor == 0u) 
+    {
+        quotient = 0xFFFFFFFFU;
     }
-    
-    // Handle power of two divisors efficiently
-    if (is_power_of_two(divisor)) {
-        return fast_udiv_pow2(dividend, divisor);
-    }
-    
-    // Restoring division algorithm
-    uint32_t quotient = 0;
-    uint32_t remainder = 0;
-    
-    for (int i = 31; i >= 0; i--) {
-        remainder = (remainder << 1) | ((dividend >> i) & 1);
-        if (remainder >= divisor) {
-            remainder -= divisor;
-            quotient |= (1 << i);
+    else
+    {
+        /* Algorithm: Restoring Division (Binary Long Division) */
+        for (i = 31; i >= 0; i--)
+        {
+            /* Shift remainder to the left and add the next bit to the dividend */
+            remainder = (remainder << 1u) | ((dividend >> (uint32_t)i) & 1u);
+
+            if (remainder >= divisor)
+            {
+                remainder -= divisor;
+                quotient  |= (1u << (uint32_t)i);
+            }
+            
         }
+        
     }
-    
+
     return quotient;
 }
 
-// Signed division
-int32_t system_div32(int32_t dividend, int32_t divisor)
-{
-    if (divisor == 0) {
-        // Division by zero
-        return 0x7FFFFFFF; // Maximum positive value
-    }
-    
-    // Handle sign and use unsigned division
-    bool negative = (dividend < 0) != (divisor < 0);
-    uint32_t abs_dividend = (dividend < 0) ? -dividend : dividend;
-    uint32_t abs_divisor = (divisor < 0) ? -divisor : divisor;
-    uint32_t abs_quotient = system_udiv32(abs_dividend, abs_divisor);
-    
-    return negative ? -abs_quotient : abs_quotient;
-}
 
-// Unsigned modulus
 uint32_t system_umod32(uint32_t dividend, uint32_t divisor)
 {
-    if (divisor == 0) {
-        return dividend; // Modulus by zero returns dividend
+    uint32_t remainder = 0u;
+    int32_t  i;
+
+    /* RISC-V Specification: Modulus by zero returns dividend */
+    if (divisor == 0u) 
+    {
+        remainder = dividend;
+    }
+    else
+    {
+        for (i = 31; i >= 0; i--)
+        {
+            remainder = (remainder << 1u) | ((dividend >> (uint32_t)i) & 1u);
+
+            if (remainder >= divisor)
+            {
+                remainder -= divisor;
+            }
+        }
     }
     
-    // Handle power of two divisors efficiently
-    if (is_power_of_two(divisor)) {
-        return fast_umod_pow2(dividend, divisor);
-    }
-    
-    return dividend - system_umul32(system_udiv32(dividend, divisor), divisor);
+    return remainder;
 }
 
-// Signed modulus
-int32_t system_mod32(int32_t dividend, int32_t divisor)
-{
-    if (divisor == 0) {
-        return dividend;
-    }
-    
-    // C99 standard: (a/b)*b + a%b == a
-    return dividend - system_mul32(system_div32(dividend, divisor), divisor);
-}
 
-// 64-bit multiplication result
 void system_umul64(uint32_t a, uint32_t b, uint32_t result[2])
 {
-    // Split into 16-bit chunks to avoid overflow
-    uint32_t a_low = a & 0xFFFF;
-    uint32_t a_high = a >> 16;
-    uint32_t b_low = b & 0xFFFF;
-    uint32_t b_high = b >> 16;
-    
-    uint32_t p0 = a_low * b_low;
-    uint32_t p1 = a_low * b_high;
-    uint32_t p2 = a_high * b_low;
-    uint32_t p3 = a_high * b_high;
-    
-    uint32_t low = p0 + ((p1 + p2) << 16);
-    uint32_t high = p3 + ((p1 + p2) >> 16) + ((low < p0) ? 1 : 0); // Carry
-    
-    result[0] = low;
-    result[1] = high;
+    if (result != NULL)
+    {
+        uint32_t a_lo = a;
+        uint32_t a_hi = 0U;
+        uint32_t temp_b = b;
+        
+        uint32_t res_lo = 0U;
+        uint32_t res_hi = 0U;
+        
+        while (temp_b != 0U)
+        {
+            if ((temp_b & 1U) != 0U)
+            {
+                uint32_t old_lo = res_lo;
+                res_lo += a_lo;
+                
+                /* Overrun detection (carry) on the lower part */
+                if (res_lo < old_lo)
+                {
+                    res_hi++; 
+                }
+                res_hi += a_hi;
+            }
+            
+            /* Shifting a_hi and a_lo as if they formed a 64-bit integer */
+            a_hi = (a_hi << 1U) | (a_lo >> 31U);
+            a_lo <<= 1U;
+            
+            temp_b >>= 1U;
+        }
+        
+        result[0] = res_lo;
+        result[1] = res_hi;
+    }
 }
+
+
+/* ========================================================================== */
+/* Signed Mathematics                                                         */
+/* ========================================================================== */
+
+int32_t system_mul32(int32_t a, int32_t b)
+{
+    uint32_t ua = (a < 0) ? (uint32_t)(-a) : (uint32_t)a;
+    uint32_t ub = (b < 0) ? (uint32_t)(-b) : (uint32_t)b;
+    
+    uint32_t ures = system_umul32(ua, ub);
+    
+    /* The result is negative if one (but not both) of the operands is negative. */
+    bool is_negative = ((a < 0) != (b < 0));
+    
+    return is_negative ? (int32_t)(-ures) : (int32_t)ures;
+}
+
+
+int32_t system_div32(int32_t dividend, int32_t divisor)
+{
+    int32_t result;
+
+    if (divisor == 0)
+    {
+        result = -1; /* Typical RISC-V specification for division by 0 */
+    }
+    else if ((dividend == (int32_t)0x80000000) && (divisor == -1))
+    {
+        /* RISC-V overflow case: INT_MIN / -1 */
+        result = dividend; 
+    }
+    else
+    {
+        uint32_t udividend = (dividend < 0) ? (uint32_t)(-dividend) : (uint32_t)dividend;
+        uint32_t udivisor  = (divisor < 0) ? (uint32_t)(-divisor) : (uint32_t)divisor;
+        
+        uint32_t ures = system_udiv32(udividend, udivisor);
+        
+        bool is_negative = ((dividend < 0) != (divisor < 0));
+        result = is_negative ? (int32_t)(-ures) : (int32_t)ures;
+    }
+
+    return result;
+}
+
+
+int32_t system_mod32(int32_t dividend, int32_t divisor)
+{
+    int32_t result;
+
+    if (divisor == 0)
+    {
+        result = dividend;
+    }
+    else if ((dividend == (int32_t)0x80000000) && (divisor == -1))
+    {
+        result = 0; /* Overflow INT_MIN / -1, the remainder is 0 */
+    }
+    else
+    {
+        uint32_t udividend = (dividend < 0) ? (uint32_t)(-dividend) : (uint32_t)dividend;
+        uint32_t udivisor  = (divisor < 0) ? (uint32_t)(-divisor) : (uint32_t)divisor;
+        
+        uint32_t ures = system_umod32(udividend, udivisor);
+        
+        /* In C, the sign of the remainder is always the same as the sign of the dividend. */
+        result = (dividend < 0) ? (int32_t)(-ures) : (int32_t)ures;
+    }
+
+    return result;
+}
+

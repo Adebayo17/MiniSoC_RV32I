@@ -66,9 +66,13 @@ module uart #(
     wire        rx_frame_error;
     wire [7:0]  rx_data;
 
+    // Operation flags
+    wire read_op  = wbs_cyc && wbs_stb && !wbs_we;
+    wire write_op = wbs_cyc && wbs_stb && wbs_we;
+
     // Read Detection signals
-    wire status_read  = wbs_cyc && wbs_stb && !wbs_we && sel_status;
-    wire rx_data_read = wbs_cyc && wbs_stb && !wbs_we && sel_rx_data;
+    wire status_read  = read_op && sel_status;
+    wire rx_data_read = read_op && sel_rx_data;
 
     // -------------------------------------------
     // Address Decoding
