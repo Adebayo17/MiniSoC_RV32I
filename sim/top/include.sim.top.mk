@@ -1,30 +1,30 @@
-# Top-level Simulation Makefile
+# ==============================================================================
+# sim/top/include.sim.top.mk : Top-level Simulation Makefile
+# ==============================================================================
 
 # -------------------------------------------
 # Configuration
 # -------------------------------------------
-TOP_SIM_DIR          	:= $(SIM_DIR)/top
-TOP_SRC_DIR          	:= $(TOP_DIR)/src/top
-TOP_SIM_BUILD_DIR    	:= $(SIM_BUILD_DIR)/top
-TOP_SIM_TESTCASES_DIR	:= $(TOP_SIM_DIR)/testcases
-TOP_SIM_FIRMWARE_DIR 	:= $(TOP_SIM_DIR)/firmware_program
+TOP_SIM_DIR             := $(SIM_DIR)/top
+TOP_SRC_DIR             := $(TOP_DIR)/src/top
+TOP_SIM_BUILD_DIR       := $(SIM_BUILD_DIR)/top
+TOP_SIM_TESTCASES_DIR   := $(TOP_SIM_DIR)/testcases
+TOP_SIM_FIRMWARE_DIR    := $(TOP_SIM_DIR)/firmware_program
 
-# Toolchain
-RISCV_PREFIX 			?= riscv32-unknown-elf-
-CC 						:= $(RISCV_PREFIX)gcc
-OBJCOPY 				:= $(RISCV_PREFIX)objcopy
+# Toolchain RISC-V pour le firmware de simulation
+RISCV_PREFIX            ?= riscv32-unknown-elf-
+CC                      := $(RISCV_PREFIX)gcc
+OBJCOPY                 := $(RISCV_PREFIX)objcopy
+OBJDUMP                 := $(RISCV_PREFIX)objdump
+SIZE                    := $(RISCV_PREFIX)size
 
 # -------------------------------------------
-# Source Files
+# Source Files (Auto-discovery)
 # -------------------------------------------
-TOP_SOURCES := \
-    $(TOP_SRC_DIR)/top_soc.v \
-    $(TOP_SRC_DIR)/mini_rv32i_top.v
+TOP_SOURCES := $(wildcard $(TOP_SRC_DIR)/*.v)
+TOP_TB      := $(wildcard $(TOP_SIM_DIR)/*.v)
 
-
-TOP_TB := $(TOP_SIM_DIR)/tb_mini_rv32i_top.v
-
-# Firmware files
+# Firmware files (We specifically keep firmware.S as the main entry point)
 TOP_SIM_FIRMWARE_SRC  := $(TOP_SIM_FIRMWARE_DIR)/firmware.S
 TOP_SIM_LINKER_SCRIPT := $(TOP_SIM_FIRMWARE_DIR)/linker.ld
 TOP_SIM_TEST_HEADER   := $(TOP_SIM_FIRMWARE_DIR)/minisoc_test.h
@@ -33,7 +33,6 @@ TOP_SIM_TEST_HEADER   := $(TOP_SIM_FIRMWARE_DIR)/minisoc_test.h
 FIRMWARE_CFLAGS := -march=rv32i -mabi=ilp32 -nostdlib -nostartfiles -static \
                    -T$(TOP_SIM_LINKER_SCRIPT) -Os -ffreestanding -Wall \
                    -mno-div   # Explicitly disable M extension
-
 
 # -------------------------------------------
 # Firmware Targets
@@ -44,49 +43,48 @@ sim.top.firmware: $(TOP_SIM_BUILD_DIR)/firmware.mem
 
 # Build firmware from assembly source
 $(TOP_SIM_BUILD_DIR)/firmware.mem: $(TOP_SIM_FIRMWARE_SRC) $(TOP_SIM_LINKER_SCRIPT) $(TOP_SIM_TEST_HEADER)
-	@echo "[TOP_SIM_FIRMWARE] Building test firmware..."
-	@mkdir -p $(TOP_SIM_BUILD_DIR)
-	$(CC) $(FIRMWARE_CFLAGS) -I$(TOP_SIM_FIRMWARE_DIR) $(TOP_SIM_FIRMWARE_SRC) -o $(TOP_SIM_BUILD_DIR)/firmware.elf
-	$(OBJCOPY) -O ihex $(TOP_SIM_BUILD_DIR)/firmware.elf $(TOP_SIM_BUILD_DIR)/firmware.ihex
-	python3 $(TOP_DIR)/scripts/convert/hex2mem.py $(TOP_SIM_BUILD_DIR)/firmware.ihex $@
-	@rm -f $(TOP_SIM_BUILD_DIR)/firmware.ihex
-	@echo "[TOP_SIM_FIRMWARE] Test firmware ready: $@"
-	@echo "[TOP_SIM_FIRMWARE] Firmware created: $@"
-	@echo "[TOP_SIM_FIRMWARE] Firmware statistics:"
-	@$(SIZE) $(TOP_SIM_BUILD_DIR)/firmware.elf | tail -1 | awk '{print "  Text: " $$1 " bytes, Data: " $$2 " bytes, BSS: " $$3 " bytes"}'
-	@wc -l < $@ | xargs echo "  Memory words:"
-
+	@mkdir -p $(dir $@)
+	$(Q)echo "  [CC]        Building TOP test firmware"
+	$(Q)$(CC) $(FIRMWARE_CFLAGS) -I$(TOP_SIM_FIRMWARE_DIR) $(TOP_SIM_FIRMWARE_SRC) -o $(TOP_SIM_BUILD_DIR)/firmware.elf
+	$(Q)echo "  [OBJCOPY]   Generating ihex format"
+	$(Q)$(OBJCOPY) -O ihex $(TOP_SIM_BUILD_DIR)/firmware.elf $(TOP_SIM_BUILD_DIR)/firmware.ihex
+	$(Q)echo "  [HEX2MEM]   Converting to memory format"
+	$(Q)python3 $(TOP_DIR)/scripts/convert/hex2mem.py $(TOP_SIM_BUILD_DIR)/firmware.ihex $@
+	$(Q)rm -f $(TOP_SIM_BUILD_DIR)/firmware.ihex
+	$(Q)echo "  [TOP-FW]    Test firmware ready: $@"
+	@$(SIZE) $(TOP_SIM_BUILD_DIR)/firmware.elf | tail -1 | awk '{print "              Text: " $$1 " bytes, Data: " $$2 " bytes, BSS: " $$3 " bytes"}'
+	@wc -l < $@ | xargs echo "              Memory words:"
 
 sim.top.firmware-clean:
-	rm -f $(TOP_SIM_BUILD_DIR)/firmware.*
-
+	$(Q)echo "  [CLEAN]     TOP Firmware artifacts"
+	$(Q)rm -f $(TOP_SIM_BUILD_DIR)/firmware.*
 
 sim.top.firmware-verify: sim.top.firmware
-	@echo "[TOP_SIM_FIRMWARE_VERIFY] Verifying firmware..."
-	@echo "Firmware file: $(TOP_SIM_BUILD_DIR)/firmware.mem"
-	@echo ""
-	@echo "First 10 words of firmware:"
-	@head -10 $(TOP_SIM_BUILD_DIR)/firmware.mem
-	@echo ""
-	@echo "Firmware word count:"
-	@wc -l < $(TOP_SIM_BUILD_DIR)/firmware.mem
-	@echo ""
-	@echo "Disassembly (first 20 instructions):"
-	@$(RISCV_PREFIX)objdump -d $(TOP_SIM_BUILD_DIR)/firmware.elf | head -30
-
+	$(Q)echo "  [VERIFY]    TOP Firmware contents"
+	$(Q)echo "Firmware file: $(TOP_SIM_BUILD_DIR)/firmware.mem"
+	$(Q)echo ""
+	$(Q)echo "First 10 words of firmware:"
+	$(Q)head -10 $(TOP_SIM_BUILD_DIR)/firmware.mem
+	$(Q)echo ""
+	$(Q)echo "Firmware word count:"
+	$(Q)wc -l < $(TOP_SIM_BUILD_DIR)/firmware.mem
+	$(Q)echo ""
+	$(Q)echo "Disassembly (first 20 instructions):"
+	$(Q)$(OBJDUMP) -d $(TOP_SIM_BUILD_DIR)/firmware.elf | head -30
 
 # -------------------------------------------
-# Targets
+# Simulation Targets
 # -------------------------------------------
 .PHONY: sim.top sim.top.run sim.top.wave sim.top.clean
 
 sim.top: $(TOP_SIM_BUILD_DIR)/mini_rv32i_top_tb.out
 
-# Build
+# Build Hardware Simulation
+# All *_SOURCES variables come from the sub-makefiles included before
 $(TOP_SIM_BUILD_DIR)/mini_rv32i_top_tb.out: $(BUS_SOURCES) $(IMEM_SOURCES) $(DMEM_SOURCES) $(MEM_INIT_SOURCES) $(UART_SOURCES) $(TIMER_SOURCES) $(GPIO_SOURCES) $(CPU_SOURCES) $(PAD_SOURCES) $(TOP_SOURCES) $(TOP_TB)
-	@echo "Building top-level SoC testbench..."
-	@mkdir -p $(TOP_SIM_BUILD_DIR)
-	$(IVERILOG) -o $@ \
+	@mkdir -p $(dir $@)
+	$(Q)echo "  [IVERILOG]  Compiling TOP Testbench"
+	$(Q)$(IVERILOG) -o $@ \
 		-I$(TOP_DIR)/src/bus \
 		-I$(TOP_DIR)/src/cpu \
 		-I$(TOP_DIR)/src/mem \
@@ -102,27 +100,52 @@ $(TOP_SIM_BUILD_DIR)/mini_rv32i_top_tb.out: $(BUS_SOURCES) $(IMEM_SOURCES) $(DME
 		-DFIRMWARE_FILE=\"$(TOP_SIM_BUILD_DIR)/firmware.mem\" \
 		-DBAUD_DIV_RST=104 \
 		$^
-	@echo "[TOP_SOC] Testbench built: $@"
-	@echo ""
 
 # Run
-sim.top.run: sim.top	
-	@echo "\n[TOP] Running top-level simulation..."
-	@cd $(TOP_SIM_BUILD_DIR) && $(VVP) mini_rv32i_top_tb.out -l mini_rv32i_top.log
-	@echo "[TOP] Simulation completed"
-	@echo "[TOP] Log file: $(TOP_SIM_BUILD_DIR)/mini_rv32i_top.log"
-	@echo "[TOP] Last log lines:"
+sim.top.run: sim.top sim.top.firmware
+	$(Q)echo "  [VVP]       Running TOP Simulation..."
+	$(Q)cd $(TOP_SIM_BUILD_DIR) && $(VVP) mini_rv32i_top_tb.out -l mini_rv32i_top.log
+	$(Q)echo "  [SIM-TOP]   Test completed. Log: $(TOP_SIM_BUILD_DIR)/mini_rv32i_top.log"
+	$(Q)echo "  [SIM-TOP]   Last log lines:"
 	@tail -5 $(TOP_SIM_BUILD_DIR)/mini_rv32i_top.log
-	@echo ""
+	$(Q)echo ""
 
 # Wave
 sim.top.wave:
-	$(GTKWAVE) $(TOP_SIM_BUILD_DIR)/mini_rv32i_top_tb.vcd &
+	$(Q)echo "  [GTKWAVE]   Opening TOP Waveform"
+	$(Q)$(GTKWAVE) $(TOP_SIM_BUILD_DIR)/mini_rv32i_top_tb.vcd &
 
 # Clean
 sim.top.clean:
-	rm -rf $(TOP_SIM_BUILD_DIR)
-	rm -f $(TOP_SIM_DIR)/*.vcd $(TOP_SIM_DIR)/*.log
+	$(Q)echo "  [CLEAN]     TOP Simulation artifacts"
+	$(Q)rm -rf $(TOP_SIM_BUILD_DIR)
+
+# -------------------------------------------
+# Debug and Quick Targets
+# -------------------------------------------
+.PHONY: top-quick debug-firmware
+
+# Quick rebuild and run
+top-quick: sim.top.firmware debug-firmware sim.top sim.top.run
+
+# Debug: build firmware only with heavy disassemblies
+debug-firmware:
+	@mkdir -p $(TOP_SIM_BUILD_DIR)
+	$(Q)echo "  [CC]        Building debug firmware with detailed output..."
+	$(Q)$(CC) $(FIRMWARE_CFLAGS) $(TOP_SIM_FIRMWARE_SRC) -o $(TOP_SIM_BUILD_DIR)/firmware.elf
+	$(Q)$(OBJCOPY) -O ihex $(TOP_SIM_BUILD_DIR)/firmware.elf $(TOP_SIM_BUILD_DIR)/firmware.ihex
+	$(Q)python3 $(TOP_DIR)/scripts/convert/hex2mem.py $(TOP_SIM_BUILD_DIR)/firmware.ihex $(TOP_SIM_BUILD_DIR)/firmware.mem
+	$(Q)rm -f $(TOP_SIM_BUILD_DIR)/firmware.ihex
+	$(Q)echo "  [OBJDUMP]   Extracting disassembly sections..."
+	$(Q)$(OBJDUMP) -d $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware.disasm
+	$(Q)$(OBJDUMP) -D $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_full.disasm
+	$(Q)$(OBJDUMP) -h $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_section.disasm
+	$(Q)$(OBJDUMP) -t $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_symbol_table.disasm
+	$(Q)echo "  [DEBUG]     Files generated in $(TOP_SIM_BUILD_DIR)/ :"
+	$(Q)echo "              - firmware.disasm"
+	$(Q)echo "              - firmware_full.disasm"
+	$(Q)echo "              - firmware_section.disasm"
+	$(Q)echo "              - firmware_symbol_table.disasm"
 
 # -------------------------------------------
 # Help
@@ -135,76 +158,42 @@ sim.top.help:
 	@echo "================================================================================"
 	@echo ""
 	@echo "Simulation control"
-	@echo "  make sim.top                 	- Build top simulation"
-	@echo "  make sim.top.run             	- Run top simulation"
-	@echo "  make sim.top.wave            	- Open Open waveform viewer (GTKWave)"
-	@echo "  make sim.top.clean           	- Clean top simulation files"
-	@echo "  make sim.top.help            	- Show top simulation help"
+	@echo "  make sim.top                   - Build top simulation"
+	@echo "  make sim.top.run               - Run top simulation"
+	@echo "  make sim.top.wave              - Open waveform viewer (GTKWave)"
+	@echo "  make sim.top.clean             - Clean top simulation files"
+	@echo "  make sim.top.help              - Show top simulation help"
 	@echo ""
 	@echo "Firmware Management:"
-	@echo "  make sim.top.firmware        	- Build/copy firmware for simulation"
-	@echo "  make sim.top.firmware-verify 	- Verify firmware content and size"
-	@echo "  make sim.top.firmware-clean 	- Clean simulation firmware files"
+	@echo "  make sim.top.firmware          - Build firmware for simulation"
+	@echo "  make sim.top.firmware-verify   - Verify firmware content and size"
+	@echo "  make sim.top.firmware-clean    - Clean simulation firmware files"
 	@echo ""
 	@echo "Development Shortcuts:"
-	@echo "  make top-quick              	- Rebuild firmware and run simulation"
-	@echo "  make debug-firmware        	- Build firmware with detailed output"
+	@echo "  make top-quick                 - Rebuild firmware and run simulation"
+	@echo "  make debug-firmware            - Build firmware with detailed output"
 	@echo ""
 	@echo "Shortcuts:"
-	@echo "  make top                     	- Alias for sim.top"
-	@echo "  make top-run                 	- Alias for sim.top.run"
-	@echo "  make top-wave                	- Alias for sim.top.wave"
-	@echo "  make top-clean               	- Alias for sim.top.clean"
-	@echo "  make top-help                	- Alias for sim.top.help"
-	@echo "  make top-firmware           	- Alias for sim.top.firmware"
-	@echo "  make top-firmware-clean    	- Alias for sim.top.firmware-clean"
-	@echo ""
-	@echo "File Locations:"
-	@echo "  Firmware source:            	$(TOP_SIM_FIRMWARE_SRC)"
-	@echo "  Firmware output:            	$(TOP_SIM_BUILD_DIR)/firmware.mem"
-	@echo "  Simulation build:           	$(TOP_SIM_BUILD_DIR)"
-	@echo "  Waveform file:              	$(TOP_SIM_BUILD_DIR)/mini_rv32i_top_tb.vcd"
-	@echo ""
-	@echo "Workflow Examples:"
-	@echo "  Quick test:                	make top-quick"
-	@echo "  Full build and run:        	make top-run"
-	@echo "  Debug firmware:            	make debug-firmware"
-	@echo "  Verify then run:           	make top-firmware-verify && make top-run"
-	@echo ""
+	@echo "  make top                       - Alias for sim.top"
+	@echo "  make top-run                   - Alias for sim.top.run"
+	@echo "  make top-wave                  - Alias for sim.top.wave"
+	@echo "  make top-clean                 - Alias for sim.top.clean"
+	@echo "  make top-firmware              - Alias for sim.top.firmware"
+	@echo "  make top-firmware-verify       - Alias for sim.top.firmware-verify"
 	@echo "================================================================================"
-
 
 # -------------------------------------------
 # Shortcuts
 # -------------------------------------------
-top: 					sim.top
-top-run: 				sim.top.run
-top-wave: 				sim.top.wave
-top-clean: 				sim.top.clean
-top-help: 				sim.top.help
+.PHONY: top top-run top-wave top-clean top-help \
+        top-firmware top-firmware-clean top-firmware-verify
 
-top-firmware: 			sim.top.firmware
-top-firmware-clean: 	sim.top.firmware-clean
-top-firmware-verify: 	sim.top.firmware-verify
+top:                    sim.top
+top-run:                sim.top.run
+top-wave:               sim.top.wave
+top-clean:              sim.top.clean
+top-help:               sim.top.help
 
-# Quick rebuild and run
-top-quick: sim.top.firmware debug-firmware sim.top sim.top.run
-
-# Debug: build firmware only
-debug-firmware:
-	@echo "[TOP_SIM_FIRMWARE_DEBUG] Building firmware with detailed output..."
-	@mkdir -p $(TOP_SIM_BUILD_DIR)
-	$(CC) $(FIRMWARE_CFLAGS) $(TOP_SIM_FIRMWARE_SRC) -o $(TOP_SIM_BUILD_DIR)/firmware.elf
-	$(OBJCOPY) -O ihex $(TOP_SIM_BUILD_DIR)/firmware.elf $(TOP_SIM_BUILD_DIR)/firmware.ihex
-	python3 $(TOP_DIR)/scripts/convert/hex2mem.py $(TOP_SIM_BUILD_DIR)/firmware.ihex $(TOP_SIM_BUILD_DIR)/firmware.mem
-	@rm -f $(TOP_SIM_BUILD_DIR)/firmware.ihex
-	@echo "[TOP_SIM_FIRMWARE_DEBUG] Generated: $(TOP_SIM_BUILD_DIR)/firmware.mem"
-	@echo "[TOP_SIM_FIRMWARE_DEBUG] Firmware disassembly:"
-	@$(RISCV_PREFIX)objdump -d $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware.disasm
-	@$(RISCV_PREFIX)objdump -D $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_full.disasm
-	@$(RISCV_PREFIX)objdump -h $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_section.disasm
-	@$(RISCV_PREFIX)objdump -t $(TOP_SIM_BUILD_DIR)/firmware.elf > $(TOP_SIM_BUILD_DIR)/firmware_symbol_table.disasm
-	@echo "    Text:         	$(TOP_SIM_BUILD_DIR)/firmware.disasm"
-	@echo "    Full:          	$(TOP_SIM_BUILD_DIR)/firmware_full.disasm"
-	@echo "    Section:        	$(TOP_SIM_BUILD_DIR)/firmware_section.disasm"
-	@echo "    Symbol Table:   	$(TOP_SIM_BUILD_DIR)/firmware_symbol_table.disasm"
+top-firmware:           sim.top.firmware
+top-firmware-clean:     sim.top.firmware-clean
+top-firmware-verify:    sim.top.firmware-verify

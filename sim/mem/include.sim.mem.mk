@@ -1,45 +1,35 @@
-# Memory Simulation Makefile
+# ==============================================================================
+# sim/mem/include.sim.mem.mk : Memory Simulation Makefile
+# ==============================================================================
 
 # -------------------------------------------
 # Configuration
 # -------------------------------------------
-MEM_SIM_DIR := $(SIM_DIR)/mem
-MEM_SRC_DIR := $(TOP_DIR)/src/mem
-MEM_SIM_BUILD_DIR := $(SIM_BUILD_DIR)/mem
+MEM_SIM_DIR 		:= $(SIM_DIR)/mem
+MEM_SRC_DIR 		:= $(TOP_DIR)/src/mem
+MEM_SIM_BUILD_DIR 	:= $(SIM_BUILD_DIR)/mem
 
-# Build directories
-DMEM_BUILD_DIR := $(MEM_SIM_BUILD_DIR)/dmem
-IMEM_BUILD_DIR := $(MEM_SIM_BUILD_DIR)/imem
-MEM_INIT_BUILD_DIR := $(MEM_SIM_BUILD_DIR)/mem_init
+# Build directories for sub-components
+DMEM_BUILD_DIR 		:= $(MEM_SIM_BUILD_DIR)/dmem
+IMEM_BUILD_DIR 		:= $(MEM_SIM_BUILD_DIR)/imem
+MEM_INIT_BUILD_DIR 	:= $(MEM_SIM_BUILD_DIR)/mem_init
 
 # -------------------------------------------
 # Source Files
 # -------------------------------------------
 
 # Common sources
-MEM_COMMON_SOURCES := $(MEM_SRC_DIR)/mem_init/mem_init.v
+MEM_COMMON_SOURCES := $(wildcard $(MEM_SRC_DIR)/mem_init/*.v)
 
-# DMEM sources
-DMEM_SOURCES := \
-    $(MEM_SRC_DIR)/dmem/dmem.v \
-    $(MEM_SRC_DIR)/dmem/dmem_wrapper.v \
-    $(MEM_COMMON_SOURCES)
-
-# IMEM sources
-IMEM_SOURCES := \
-    $(MEM_SRC_DIR)/imem/imem.v \
-    $(MEM_SRC_DIR)/imem/imem_wrapper.v \
-    $(MEM_COMMON_SOURCES)
-
-# MEM_INIT sources
-MEM_INIT_SOURCES := $(MEM_COMMON_SOURCES) \
-					$(IMEM_SOURCES) \
-					$(DMEM_SOURCES)
+# Hardware sources per module
+DMEM_SOURCES       := $(wildcard $(MEM_SRC_DIR)/dmem/*.v) $(MEM_COMMON_SOURCES)
+IMEM_SOURCES       := $(wildcard $(MEM_SRC_DIR)/imem/*.v) $(MEM_COMMON_SOURCES)
+MEM_INIT_SOURCES   := $(MEM_COMMON_SOURCES) $(wildcard $(MEM_SRC_DIR)/imem/*.v) $(wildcard $(MEM_SRC_DIR)/dmem/*.v)
 
 # Testbenches
-DMEM_TB := $(MEM_SIM_DIR)/dmem/tb_dmem.v
-IMEM_TB := $(MEM_SIM_DIR)/imem/tb_imem.v
-MEM_INIT_TB := $(MEM_SIM_DIR)/mem_init/tb_mem_init.v
+DMEM_TB            := $(wildcard $(MEM_SIM_DIR)/dmem/*.v)
+IMEM_TB            := $(wildcard $(MEM_SIM_DIR)/imem/*.v)
+MEM_INIT_TB        := $(wildcard $(MEM_SIM_DIR)/mem_init/*.v)
 
 # -------------------------------------------
 # Build Targets
@@ -51,29 +41,26 @@ sim.mem: sim.dmem sim.imem sim.mem_init
 
 # DMEM
 $(DMEM_BUILD_DIR)/dmem_tb.out: $(DMEM_SOURCES) $(DMEM_TB)
-	@mkdir -p $(DMEM_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
-	@echo "[DMEM] Testbench built: $@"
-	@echo ""
+	@mkdir -p $(dir $@)
+	$(Q)echo "  [IVERILOG]  Compiling DMEM Testbench"
+	$(Q)$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
 
 sim.dmem: $(DMEM_BUILD_DIR)/dmem_tb.out
 
 # IMEM
 $(IMEM_BUILD_DIR)/imem_tb.out: $(IMEM_SOURCES) $(IMEM_TB)
-	@mkdir -p $(IMEM_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
-	@echo "[IMEM] Testbench built: $@"
-	@echo ""
+	@mkdir -p $(dir $@)
+	$(Q)echo "  [IVERILOG]  Compiling IMEM Testbench"
+	$(Q)$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
 
 sim.imem: $(IMEM_BUILD_DIR)/imem_tb.out
 
 # MEM_INIT
 $(MEM_INIT_BUILD_DIR)/mem_init_tb.out: $(MEM_INIT_SOURCES) $(MEM_INIT_TB)
-	@mkdir -p $(MEM_INIT_BUILD_DIR)
-	@touch $(MEM_INIT_BUILD_DIR)/firmware.hex
-	$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
-	@echo "[MEM_INIT] Testbench built: $@"
-	@echo ""
+	@mkdir -p $(dir $@)
+	$(Q)touch $(dir $@)/firmware.hex
+	$(Q)echo "  [IVERILOG]  Compiling MEM_INIT Testbench"
+	$(Q)$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
 
 sim.mem_init: $(MEM_INIT_BUILD_DIR)/mem_init_tb.out
 
@@ -84,27 +71,23 @@ sim.mem_init: $(MEM_INIT_BUILD_DIR)/mem_init_tb.out
 
 # Individual run targets
 sim.dmem.run: sim.dmem
-	@echo "\n[DMEM] Running tests..."
-	@cd $(DMEM_BUILD_DIR) && $(VVP) dmem_tb.out -l dmem.log
-	@echo "[DMEM] Test completed - see $(DMEM_BUILD_DIR)/dmem.log"
-	@echo ""
+	$(Q)echo "  [VVP]       Running DMEM Simulation..."
+	$(Q)cd $(DMEM_BUILD_DIR) && $(VVP) dmem_tb.out -l dmem.log
+	$(Q)echo "  [SIM-DMEM]  Test completed. Log: $(DMEM_BUILD_DIR)/dmem.log"
 
 sim.imem.run: sim.imem
-	@echo "\n[IMEM] Running tests..."
-	@cd $(IMEM_BUILD_DIR) && $(VVP) imem_tb.out -l imem.log
-	@echo "[IMEM] Test completed - see $(IMEM_BUILD_DIR)/imem.log"
-	@echo ""
+	$(Q)echo "  [VVP]       Running IMEM Simulation..."
+	$(Q)cd $(IMEM_BUILD_DIR) && $(VVP) imem_tb.out -l imem.log
+	$(Q)echo "  [SIM-IMEM]  Test completed. Log: $(IMEM_BUILD_DIR)/imem.log"
 
 sim.mem_init.run: sim.mem_init
-	@echo "\n[MEM_INIT] Running tests..."
-	@cd $(MEM_INIT_BUILD_DIR) && $(VVP) mem_init_tb.out -l mem_init.log
-	@echo "[MEM_INIT] Test completed - see $(MEM_INIT_BUILD_DIR)/mem_init.log"
-	@echo ""
+	$(Q)echo "  [VVP]       Running MEM_INIT Simulation..."
+	$(Q)cd $(MEM_INIT_BUILD_DIR) && $(VVP) mem_init_tb.out -l mem_init.log
+	$(Q)echo "  [SIM-MINIT] Test completed. Log: $(MEM_INIT_BUILD_DIR)/mem_init.log"
 
 # Run all memory tests
 sim.mem.run: sim.dmem.run sim.imem.run sim.mem_init.run
-	@echo "All memory tests completed"
-	@echo ""
+	$(Q)echo "  [SIM]       All memory tests completed"
 
 
 # -------------------------------------------
@@ -113,13 +96,16 @@ sim.mem.run: sim.dmem.run sim.imem.run sim.mem_init.run
 .PHONY: sim.dmem.wave sim.imem.wave sim.mem_init.wave sim.mem.wave
 
 sim.dmem.wave:
-	$(GTKWAVE) $(DMEM_BUILD_DIR)/dmem_tb.vcd &
+	$(Q)echo "  [GTKWAVE]   Opening DMEM Waveform"
+	$(Q)$(GTKWAVE) $(DMEM_BUILD_DIR)/dmem_tb.vcd &
 
 sim.imem.wave:
-	$(GTKWAVE) $(IMEM_BUILD_DIR)/imem_tb.vcd &
+	$(Q)echo "  [GTKWAVE]   Opening IMEM Waveform"
+	$(Q)$(GTKWAVE) $(IMEM_BUILD_DIR)/imem_tb.vcd &
 
 sim.mem_init.wave:
-	$(GTKWAVE) $(MEM_INIT_BUILD_DIR)/mem_init_tb.vcd &
+	$(Q)echo "  [GTKWAVE]   Opening MEM_INIT Waveform"
+	$(Q)$(GTKWAVE) $(MEM_INIT_BUILD_DIR)/mem_init_tb.vcd &
 
 sim.mem.wave: sim.dmem.wave sim.imem.wave sim.mem_init.wave
 
@@ -129,11 +115,8 @@ sim.mem.wave: sim.dmem.wave sim.imem.wave sim.mem_init.wave
 .PHONY: sim.mem.clean
 
 sim.mem.clean:
-	@echo "Cleaning memory test files..."
-	@rm -rf $(MEM_SIM_BUILD_DIR)
-	@find $(MEM_SIM_DIR) -name "*.vcd" -delete
-	@find $(MEM_SIM_DIR) -name "*.log" -delete
-	@echo ""
+	$(Q)echo "  [CLEAN]     Memory Simulation artifacts"
+	$(Q)rm -rf $(MEM_SIM_BUILD_DIR)
 
 
 # -------------------------------------------
@@ -189,6 +172,11 @@ sim.mem.help:
 # -------------------------------------------
 # Shortcut Commands
 # -------------------------------------------
+.PHONY: mem mem-run mem-wave mem-clean mem-help \
+        dmem dmem-run dmem-wave \
+        imem imem-run imem-wave \
+        mem-init mem-init-run mem-init-wave
+		
 mem: 			sim.mem
 mem-run: 		sim.mem.run
 mem-wave: 		sim.mem.wave

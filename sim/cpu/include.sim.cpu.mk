@@ -1,31 +1,19 @@
-# CPU Simulation Makefile
+# ==============================================================================
+# sim/cpu/include.sim.cpu.mk : CPU Simulation Makefile
+# ==============================================================================
 
 # -------------------------------------------
 # Configuration
 # -------------------------------------------
-CPU_SIM_DIR 		:= $(SIM_DIR)/cpu
-CPU_SRC_DIR 		:= $(TOP_DIR)/src/cpu
-CPU_SIM_BUILD_DIR 	:= $(SIM_BUILD_DIR)/cpu
-
+CPU_SIM_DIR         := $(SIM_DIR)/cpu
+CPU_SRC_DIR         := $(TOP_DIR)/src/cpu
+CPU_SIM_BUILD_DIR   := $(SIM_BUILD_DIR)/cpu
 
 # -------------------------------------------
-# Source Files
+# Source Files (Auto-discovery)
 # -------------------------------------------
-CPU_SOURCES := \
-	$(CPU_SRC_DIR)/alu.v \
-	$(CPU_SRC_DIR)/regfile.v \
-	$(CPU_SRC_DIR)/control_unit.v \
-	$(CPU_SRC_DIR)/forward_unit.v \
-	$(CPU_SRC_DIR)/hazard_unit.v \
-	$(CPU_SRC_DIR)/fetch_stage.v \
-	$(CPU_SRC_DIR)/decode_stage.v \
-	$(CPU_SRC_DIR)/execute_stage.v \
-	$(CPU_SRC_DIR)/mem_stage.v \
-	$(CPU_SRC_DIR)/wb_stage.v \
-	$(CPU_SRC_DIR)/cpu.v
-
-
-CPU_TB := $(CPU_SIM_DIR)/tb_cpu.v
+CPU_SOURCES := $(wildcard $(CPU_SRC_DIR)/*.v)
+CPU_TB      := $(wildcard $(CPU_SIM_DIR)/*.v)
 
 # -------------------------------------------
 # Targets
@@ -35,29 +23,28 @@ CPU_TB := $(CPU_SIM_DIR)/tb_cpu.v
 sim.cpu: $(CPU_SIM_BUILD_DIR)/cpu_tb.out
 
 # Build
+# Note: CPU simulation relies on memory modules (IMEM, DMEM) defined in include.sim.mem.mk.
+# Because Make flattens the files, $(IMEM_SOURCES) etc. are perfectly valid here!
 $(CPU_SIM_BUILD_DIR)/cpu_tb.out: $(IMEM_SOURCES) $(DMEM_SOURCES) $(MEM_INIT_SOURCES) $(CPU_SOURCES) $(CPU_TB)
-	@echo "$(CPU_SIM_DIR)"
-	@mkdir -p $(CPU_SIM_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(CPU_SRC_DIR) $^
-	@echo "[CPU] Testbench built: $@"
-	@echo ""
+	@mkdir -p $(dir $@)
+	$(Q)echo "  [IVERILOG]  Compiling CPU Testbench"
+	$(Q)$(IVERILOG) -o $@ -I$(CPU_SRC_DIR) $^
 
 # Run
-sim.cpu.run: $(CPU_SIM_BUILD_DIR)/cpu_tb.out
-	@echo "\n[RV32I_CORE] Running tests..."
-	@cd $(CPU_SIM_BUILD_DIR) && $(VVP) cpu_tb.out -l cpu.log
-	@echo "[CPU] Test completed - see $(CPU_SIM_BUILD_DIR)/cpu.log"
-	@echo ""
+sim.cpu.run: sim.cpu
+	$(Q)echo "  [VVP]       Running CPU Simulation..."
+	$(Q)cd $(CPU_SIM_BUILD_DIR) && $(VVP) cpu_tb.out -l cpu.log
+	$(Q)echo "  [SIM-CPU]   Test completed. Log: $(CPU_SIM_BUILD_DIR)/cpu.log"
 
 # Wave
 sim.cpu.wave:
-	$(GTKWAVE) $(CPU_SIM_BUILD_DIR)/cpu_tb.vcd &
+	$(Q)echo "  [GTKWAVE]   Opening CPU Waveform"
+	$(Q)$(GTKWAVE) $(CPU_SIM_BUILD_DIR)/cpu_tb.vcd &
 
 # Clean
 sim.cpu.clean:
-	rm -rf $(CPU_SIM_BUILD_DIR)
-	rm -rf *.vcd *.log
-
+	$(Q)echo "  [CLEAN]     CPU Simulation artifacts"
+	$(Q)rm -rf $(CPU_SIM_BUILD_DIR)
 
 # -------------------------------------------
 # Help
@@ -68,26 +55,27 @@ sim.cpu.help:
 	@echo "================================================================================"
 	@echo "MiniSoC-RV32I: CPU Makefile Commands"
 	@echo "================================================================================"
-	@echo "  make sim.cpu             	- Build cpu simulation"
-	@echo "  make sim.cpu.run         	- Run cpu simulation"
-	@echo "  make sim.cpu.wave        	- Open cpu waveform"
-	@echo "  make sim.cpu.clean       	- Clean cpu simulation files"
-	@echo "  make sim.cpu.help         	- Show cpu simulation help"
+	@echo "  make sim.cpu               - Build cpu simulation"
+	@echo "  make sim.cpu.run           - Run cpu simulation"
+	@echo "  make sim.cpu.wave          - Open cpu waveform"
+	@echo "  make sim.cpu.clean         - Clean cpu simulation files"
+	@echo "  make sim.cpu.help          - Show cpu simulation help"
 	@echo ""
 	@echo "Shortcuts:"
-	@echo "  make cpu                	- Alias for sim.cpu"
-	@echo "  make cpu-run             	- Alias for sim.cpu.run"
-	@echo "  make cpu-wave            	- Alias for sim.cpu.wave"
-	@echo "  make cpu-clean     		- Alias for sim.cpu.clean"
-	@echo "  make cpu-help            	- Alias for sim.cpu.help"
+	@echo "  make cpu                   - Alias for sim.cpu"
+	@echo "  make cpu-run               - Alias for sim.cpu.run"
+	@echo "  make cpu-wave              - Alias for sim.cpu.wave"
+	@echo "  make cpu-clean             - Alias for sim.cpu.clean"
+	@echo "  make cpu-help              - Alias for sim.cpu.help"
 	@echo "================================================================================"
-
 
 # -------------------------------------------
 # Shortcuts
 # -------------------------------------------
-cpu: 		sim.cpu
-cpu-run: 	sim.cpu.run
-cpu-wave: 	sim.cpu.wave
-cpu-clean: 	sim.cpu.clean
-cpu-help: 	sim.cpu.help
+.PHONY: cpu cpu-run cpu-wave cpu-clean cpu-help
+
+cpu:        sim.cpu
+cpu-run:    sim.cpu.run
+cpu-wave:   sim.cpu.wave
+cpu-clean:  sim.cpu.clean
+cpu-help:   sim.cpu.help

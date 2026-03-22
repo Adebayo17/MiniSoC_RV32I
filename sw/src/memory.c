@@ -341,6 +341,7 @@ void *memcpy(void *dest, const void *src, size_t n)
     return system_memcpy(dest, src, n);
 }
 
+
 /* ========================================================================== */
 /* Safe Memory Functions Implementation                                       */
 /* ========================================================================== */

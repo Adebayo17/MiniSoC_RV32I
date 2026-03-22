@@ -1,23 +1,20 @@
-# Bus Simulation Makefile
+# ==============================================================================
+# sim/bus/include.sim.bus.mk : Bus Simulation Makefile
+# ==============================================================================
 
 # -------------------------------------------
 # Configuration
 # -------------------------------------------
-BUS_SIM_DIR := $(SIM_DIR)/bus
-BUS_SRC_DIR := $(TOP_DIR)/src/bus
-BUS_SIM_BUILD_DIR := $(SIM_BUILD_DIR)/bus
+BUS_SIM_DIR 		:= $(SIM_DIR)/bus
+BUS_SRC_DIR 		:= $(TOP_DIR)/src/bus
+BUS_SIM_BUILD_DIR 	:= $(SIM_BUILD_DIR)/bus
 
 
 # -------------------------------------------
 # Source files
 # -------------------------------------------
-BUS_SOURCES :=  $(BUS_SRC_DIR)/wishbone_interconnect.v
-				
-
-BUS_TB :=  	$(BUS_SIM_DIR)/wb_master_model.v \
-			$(BUS_SIM_DIR)/wb_slave_model.v \
-			$(BUS_SIM_DIR)/tb_wishbone_interconnect.v
-
+BUS_SOURCES := $(wildcard $(BUS_SRC_DIR)/*.v)
+BUS_TB      := $(wildcard $(BUS_SIM_DIR)/*.v)
 
 
 # -------------------------------------------
@@ -25,22 +22,25 @@ BUS_TB :=  	$(BUS_SIM_DIR)/wb_master_model.v \
 # -------------------------------------------
 .PHONY: sim.bus sim.bus.run sim.bus.wave 
 
+# Compiling the test bench with Icarus Verilog
 $(BUS_SIM_BUILD_DIR)/wishbone_interconnect_tb.out: $(BUS_SOURCES) $(BUS_TB)
-	@mkdir -p $(BUS_SIM_BUILD_DIR)
-	$(IVERILOG) -o $@ -I$(BUS_SRC_DIR) $^
-	@echo "[WISHBONE_INTERCONNECT] Testbench built: $@"
-	@echo ""
+	@mkdir -p $(dir $@)
+	$(Q)echo "  [IVERILOG]  Compiling Bus Testbench"
+	$(Q)$(IVERILOG) -o $@ -I$(BUS_SRC_DIR) $^
 
+# Main dependency
 sim.bus: $(BUS_SIM_BUILD_DIR)/wishbone_interconnect_tb.out
 
+# Running simulation
 sim.bus.run: sim.bus
-	@echo "\n[WISHBONE_INTERCONNECT] Running tests..."
-	@cd $(BUS_SIM_BUILD_DIR) && $(VVP) wishbone_interconnect_tb.out -l wishbone_interconnect.log
-	@echo "[WISHBONE_INTERCONNECT] Test completed - see $(BUS_SIM_BUILD_DIR)/wishbone_interconnect.log"
-	@echo ""
+	$(Q)echo "  [VVP]       Running Bus Simulation..."
+	$(Q)cd $(BUS_SIM_BUILD_DIR) && $(VVP) wishbone_interconnect_tb.out -l wishbone_interconnect.log
+	$(Q)echo "  [SIM-BUS]   Test completed. Log: $(BUS_SIM_BUILD_DIR)/wishbone_interconnect.log"
 
+# Show waveforms
 sim.bus.wave:
-	$(GTKWAVE) $(BUS_SIM_BUILD_DIR)/wishbone_interconnect_tb.vcd &
+	$(Q)echo "  [GTKWAVE]   Opening Bus Waveform"
+	$(Q)$(GTKWAVE) $(BUS_SIM_BUILD_DIR)/wishbone_interconnect_tb.vcd &
 
 
 # -------------------------------------------
@@ -49,11 +49,8 @@ sim.bus.wave:
 .PHONY: sim.bus.clean
 
 sim.bus.clean:
-	@echo "Cleaning bus test files..."
-	@rm -rf $(BUS_SIM_BUILD_DIR)
-	@find $(BUS_SIM_DIR) -name "*.vcd" -delete
-	@find $(BUS_SIM_DIR) -name "*.log" -delete
-	@echo ""
+	$(Q)echo "  [CLEAN]     Bus Simulation artifacts"
+	$(Q)rm -rf $(BUS_SIM_BUILD_DIR)
 
 
 # -------------------------------------------
@@ -82,6 +79,8 @@ sim.bus.help:
 # -------------------------------------------
 # Shortcuts
 # -------------------------------------------
+.PHONY: bus bus-run bus-wave bus-clean bus-help
+
 bus: 		sim.bus
 bus-run: 	sim.bus.run
 bus-wave: 	sim.bus.wave

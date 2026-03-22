@@ -1,15 +1,15 @@
-# sim/include.sim.mk : sim Folder Makefile
+# ==============================================================================
+# sim/include.sim.mk : Simulation Root Makefile
+# ==============================================================================
 
 # -------------------------------------------
 # Simulation Directories
 # -------------------------------------------
-SIM_DIR 		:= $(TOP_DIR)/sim
-SIM_BUILD_DIR 	:= $(BUILD_DIR)/sim
-export SIM_DIR SIM_BUILD_DIR
+SIM_DIR := $(TOP_DIR)/sim
+export SIM_DIR 
 
 # Use minisoc build directory for sources
-SIM_SRC_DIR := $(MINISOC_BUILD_DIR)/src
-SIM_FIRMWARE_DIR := $(MINISOC_BUILD_DIR)
+SIM_FIRMWARE_DIR := $(SIM_BUILD_DIR)/firmware
 
 
 # -------------------------------------------
@@ -19,11 +19,6 @@ IVERILOG 		?= iverilog
 VVP 			?= vvp 
 GTKWAVE 		?= gtkwave 
 export IVERILOG VVP GTKWAVE
-
-
-# -------------------------------------------
-# Simulation Flags
-# -------------------------------------------
 
 
 # -------------------------------------------
@@ -48,29 +43,25 @@ SIM_TARGETS := sim.bus sim.mem sim.peripheral sim.cpu sim.pad
 # -------------------------------------------
 .PHONY: sim.all sim.clean $(SIM_TARGETS)
 
-# Main simulation target
+# Main simulation target (Compile all testbenches)
 sim.all: $(SIM_TARGETS) sim.top.firmware debug-firmware sim.top
-	@echo "[SIM] All simulation components built successfully"
+	$(Q)echo "  [SIM]       All simulation components built successfully"
 
 
 # Run all simulations
 sim.run.all: $(SIM_TARGETS:%=%.run) sim.top.run
-	@echo "[SIM] All simulations completed"
+	$(Q)echo "  [SIM]       All simulations completed"
 
 # Clean all simulation files
 sim.clean:
-	@echo "Cleaning simulation files..."
-	@rm -rf $(SIM_BUILD_DIR)
-	@find $(SIM_DIR) -name "build" -delete
-	@find $(SIM_DIR) -name "*.vcd" -delete
-	@find $(SIM_DIR) -name "*.log" -delete
-	@find $(SIM_DIR) -name "*.out" -delete
-	@echo "[SIM] Clean complete"
+	$(Q)echo "  [CLEAN]     Simulation artifacts ($(SIM_BUILD_DIR))"
+	$(Q)rm -rf $(SIM_BUILD_DIR)
 
 # -------------------------------------------
 # Shortcuts
 # -------------------------------------------
-sim: 		sim.all
-sim-run: 	sim.run.all
-sim-clean: 	sim.clean
+.PHONY: sim sim-run sim-clean
+sim:        sim.all
+sim-run:    sim.run.all
+sim-clean:  sim.clean
 

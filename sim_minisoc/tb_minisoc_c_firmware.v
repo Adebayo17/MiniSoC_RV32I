@@ -537,7 +537,7 @@ module tb_minisoc_c_firmware;
             end
 
 
-            SYM_PRINT_STRING_SAFE: begin
+            SYM_APP_PRINT_STRING: begin
                 current_context = "System Print with Safety function";
                 $display("[FW_MON] ✅ Jump to print_string_safe() function - Display_system_info_safe/ at %t", $time);
             end

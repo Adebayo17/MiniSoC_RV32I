@@ -1,18 +1,38 @@
-# Central Makefile for MiniSoC-RV32I Project
+# ==============================================================================
+# MiniSoC_RV32I - Root Makefile
+# ==============================================================================
 
 .PHONY: all check_env help clean
 
 # -------------------------------------------
 # Configuration
 # -------------------------------------------
-TOP_DIR 			:= $(shell pwd)
-BUILD_DIR 			?= $(TOP_DIR)/build
-MINISOC_BUILD_DIR 	?= $(BUILD_DIR)/minisoc
-export TOP_DIR BUILD_DIR MINISOC_BUILD_DIR
+TOP_DIR 				:= $(shell pwd)
+BUILD_DIR 				?= $(TOP_DIR)/build
+
+# Defining build subfolders to isolate artifacts
+MINISOC_BUILD_DIR     	?= $(BUILD_DIR)/minisoc
+SIM_BUILD_DIR         	?= $(BUILD_DIR)/sim
+SW_BUILD_DIR          	?= $(BUILD_DIR)/sw
+SYNTH_BUILD_DIR       	?= $(BUILD_DIR)/synth
+SIM_MINISOC_BUILD_DIR 	?= $(BUILD_DIR)/sim_minisoc
+
+export TOP_DIR BUILD_DIR MINISOC_BUILD_DIR SIM_BUILD_DIR SW_BUILD_DIR SYNTH_BUILD_DIR SIM_MINISOC_BUILD_DIR
+
+# -------------------------------------------
+# Global Tools and Flags
+# -------------------------------------------
+# (Optional, to activate verbose mode: make V=1)
+ifeq ($(V),1)
+  Q :=
+else
+  Q := @
+endif
+export Q
 
 
 # -------------------------------------------
-# Include Sub-Makefiles
+# Include Sub-Makefiles (Non-Recursive)
 # -------------------------------------------
 include src/include.src.mk 
 include sim/include.sim.mk 
@@ -25,44 +45,44 @@ include sim_minisoc/include.sim_minisoc.mk
 # Default target
 # -------------------------------------------
 all: check_env
-	@echo "MiniSoC-RV32I Project Ready"
-	@echo "Use 'make sim' for simulation, 'make sw' for software, 'make synth' for synthesis"
+	$(Q)echo "MiniSoC-RV32I Project Ready"
+	$(Q)echo "Use 'make sim' for simulation, 'make sw' for software, 'make synth' for synthesis"
 
 
 # -------------------------------------------
 # Environment check
 # -------------------------------------------
 check_env:
-	@echo "[Makefile] Checking environment..."
-	@bash scripts/setup/setup.sh
-	@mkdir -p $(BUILD_DIR)
-	@mkdir -p $(MINISOC_BUILD_DIR)
-	@mkdir -p $(SIM_BUILD_DIR)
-	@mkdir -p $(SW_BUILD_DIR)
-	@mkdir -p $(SYNTH_BUILD_DIR)
-	@mkdir -p $(SIM_MINISOC_BUILD_DIR)
-	@echo "[Makefile] Environment check complete"
-	@echo ""
+	$(Q)echo "[Makefile] Checking environment..."
+	$(Q)bash scripts/setup/setup.sh
+	$(Q)mkdir -p $(BUILD_DIR)
+	$(Q)mkdir -p $(MINISOC_BUILD_DIR)
+	$(Q)mkdir -p $(SIM_BUILD_DIR)
+	$(Q)mkdir -p $(SW_BUILD_DIR)
+	$(Q)mkdir -p $(SYNTH_BUILD_DIR)
+	$(Q)mkdir -p $(SIM_MINISOC_BUILD_DIR)
+	$(Q)echo "[Makefile] Environment check complete"
+	$(Q)echo ""
 
 
 # -------------------------------------------
 # MiniSoC Build Target
 # -------------------------------------------
 minisoc: check_env src.all firmware.copy
-	@echo "[MiniSoC] Complete system built in $(MINISOC_BUILD_DIR)"
-	@echo "  Hardware: $(MINISOC_BUILD_DIR)/*.v"
-	@echo "  Firmware: $(MINISOC_BUILD_DIR)/firmware.*"
-	@echo ""
+	$(Q)echo "[MiniSoC] Complete system built in $(MINISOC_BUILD_DIR)"
+	$(Q)echo "  Hardware: $(MINISOC_BUILD_DIR)/*.v"
+	$(Q)echo "  Firmware: $(MINISOC_BUILD_DIR)/firmware.*"
+	$(Q)echo ""
 
 firmware.copy: sw.firmware
-	@echo "[MiniSoC] Copying firmware to minisoc build directory..."
-	@cp $(SW_BUILD_DIR)/firmware.bin $(MINISOC_BUILD_DIR)/
-	@cp $(SW_BUILD_DIR)/firmware.hex $(MINISOC_BUILD_DIR)/
-	@cp $(SW_BUILD_DIR)/firmware.disasm $(MINISOC_BUILD_DIR)/
-	@cp $(SW_BUILD_DIR)/firmware.mem $(MINISOC_BUILD_DIR)/
-	@cp $(SW_BUILD_DIR)/firmware.sym $(MINISOC_BUILD_DIR)/
-	@echo "[MiniSoC] Firmware ready for simulation/synthesis"
-	@echo ""
+	$(Q)echo "[MiniSoC] Copying firmware to minisoc build directory..."
+	$(Q)cp $(SW_BUILD_DIR)/firmware.bin $(MINISOC_BUILD_DIR)/ 2>/dev/null || true
+	$(Q)cp $(SW_BUILD_DIR)/firmware.hex $(MINISOC_BUILD_DIR)/ 2>/dev/null || true
+	$(Q)cp $(SW_BUILD_DIR)/firmware.disasm $(MINISOC_BUILD_DIR)/ 2>/dev/null || true
+	$(Q)cp $(SW_BUILD_DIR)/firmware.mem $(MINISOC_BUILD_DIR)/ 2>/dev/null || true
+	$(Q)cp $(SW_BUILD_DIR)/firmware.sym $(MINISOC_BUILD_DIR)/ 2>/dev/null || true
+	$(Q)echo "[MiniSoC] Firmware ready for simulation/synthesis"
+	$(Q)echo ""
 
 
 # -------------------------------------------
@@ -75,39 +95,40 @@ firmware.copy: sw.firmware
 # Cleaning
 # -------------------------------------------
 clean:
-	@echo "Cleaning entire Project..."
-	@rm -rf $(BUILD_DIR)
-	@mkdir -p $(BUILD_DIR)
-	@echo "[Makefile] Clean complete"
+	$(Q)echo "Cleaning entire Project..."
+	$(Q)rm -rf $(BUILD_DIR)
+	$(Q)mkdir -p $(BUILD_DIR)
+	$(Q)echo "[Makefile] Clean complete"
 
 distclean: clean
-	@rm -rf *.vcd *.log *.out *.hex *.bin *.o
-	@echo "[Makefile] Distclean complete"
+	$(Q)rm -f *.vcd *.log *.out *.hex *.bin *.o
+	$(Q)echo "[Makefile] Distclean complete"
 
 
 # -------------------------------------------
 # Software Targets
 # -------------------------------------------
 sw: check_env
-	$(MAKE) sw.all
+	$(Q)$(MAKE) sw.all
 
 sw-firmware: check_env
-	$(MAKE) sw.firmware
+	$(Q)$(MAKE) sw.firmware
 
 sw-test: check_env
-	$(MAKE) sw.test
+	$(Q)$(MAKE) sw.test
 
 sw-clean: check_env
-	$(MAKE) sw.clean
+	$(Q)$(MAKE) sw.clean
+
 
 # -------------------------------------------
 # Hardware Source Targets
 # -------------------------------------------
 src: check_env
-	$(MAKE) src.all
+	$(Q)$(MAKE) src.all
 
 src-clean: check_env
-	$(MAKE) src.clean
+	$(Q)$(MAKE) src.clean
 
 
 # -------------------------------------------
