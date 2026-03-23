@@ -1,32 +1,32 @@
-# Build System Guide
+# Build System
 
 ## Introduction
 This document describes the build system for the Mini RV32I SoC software. The build system uses GNU Make to automate compilation, linking, and binary generation for the bare-metal RISC-V RV32I target.
+
+Since this project does not use a standard C library (libc) or an Operating System, the build system is highly customized to carefully control memory placement and initialization.
 
 ## Build System Architecture
 
 ### Directory Structure
 ```text
 MiniSoC_RV32I/
-├── Makefile # Top-level entry point
-├── build/ # Build artifacts directory
-│ ├── sw/ # Software build outputs
-│ │ ├── firmware.elf # ELF executable
-│ │ ├── firmware.bin # Raw binary
-│ │ ├── firmware.hex # Intel HEX format
-│ │ ├── firmware.mem # Verilog memory format
-│ │ ├── firmware.disasm # Disassembly listing
-│ │ ├── firmware.map # Linker map file
-│ │ └── tests/ # Test program outputs
-│ └── sim/ # Simulation outputs
-├── scripts/ # Build utilities
-│ ├── setup/ # Setup scripts
-│ └── convert/ # File format converters
-├── sw/ # Software source
-│ ├── include.sw.mk # Software build definitions
-│ ├── linker.ld # Linker script
-│ └── ... # Source code
-└── src/ # Hardware sources
+├── Makefile                # Top-level entry point
+├── build/                  # Build artifacts directory
+│   ├── sw/                 # Software build outputs
+│   │   ├── firmware.elf    # Executable with debug symbols
+│   │   ├── firmware.bin    # Raw binary format
+│   │   ├── firmware.hex    # Intel HEX format
+│   │   ├── firmware.mem    # Verilog memory format (for simulation)
+│   │   ├── firmware.disasm # Disassembly listing
+│   │   ├── firmware.map    # Linker map file
+│   │   └── tests/          # Compiled test executables
+│   └── sim/                # Simulation outputs
+├── scripts/                # Build utilities
+│   └── convert/
+│       └── hex2mem.py      # Converts .hex to Verilog $readmemh format
+└── sw/                     # Software source
+    ├── include.sw.mk       # Software build definitions
+    └── linker.ld           # Memory layout definition
 ```
 
 
@@ -34,20 +34,18 @@ MiniSoC_RV32I/
 ```text
 ┌─────────────────────────────────────┐
 │ Top-Level Makefile 				  │
-│ • Orchestrates build process 		  │
+│ • Orchestrates the entire project	  │
 │ • Includes sub-makefiles 			  │
-│ • Defines common targets 			  │
+│ • Defines global variables		  │
 ├─────────────────────────────────────┤
-│ Software Makefile (include) 		  │
+│ Software Makefile (include.sw.mk)	  │
 │ • Compiler toolchain configuration  │
-│ • Source file discovery 			  │
-│ • Object file generation rules 	  │
+│ • C/Assembly compilation rules	  │
 │ • Linking and binary conversion 	  │
 ├─────────────────────────────────────┤
-│ Hardware Makefile (include) 		  │
-│ • RTL synthesis rules 			  │
-│ • Simulation rules 				  │
-│ • FPGA bitstream generation 		  │
+│ Hardware Makefile (include.*.mk)	  │
+│ • RTL simulation rules 			  │
+│ • Synthesis rules 				  │
 └─────────────────────────────────────┘
 ```
 
@@ -55,273 +53,50 @@ MiniSoC_RV32I/
 ## Toolchain Configuration
 
 ### Required Tools
-| Tool 							| Purpose 			| Minimum Version 	|
-|-------------------------------|-------------------|-------------------|
-| `riscv32-unknown-elf-gcc` 	| C Compiler 		| 10.2.0 			|
-| `riscv32-unknown-elf-as` 		| Assembler 		| 10.2.0 			|
-| `riscv32-unknown-elf-ld` 		| Linker 			| 10.2.0 			|
-| `riscv32-unknown-elf-objcopy` | Binary conversion | 10.2.0 			|
-| `riscv32-unknown-elf-objdump` | Disassembly 		| 10.2.0 			|
-| `riscv32-unknown-elf-size` 	| Memory usage 		| 10.2.0 			|
-| `make` 						| Build automation 	| 3.81 				|
-| `python3` (optional) 			| Script utilities 	| 3.6 				|
+| Tool 							| Purpose 			| Note 							|
+|-------------------------------|-------------------|-------------------------------|
+| `riscv32-unknown-elf-gcc` 	| C Compiler 		| Used with 32-bit flags 		|
+| `riscv32-unknown-elf-as` 		| Assembler 		| Translates `startup.S` 		|
+| `riscv32-unknown-elf-ld` 		| Linker 			| Maps code to IMEM/DMEM 		|
+| `riscv32-unknown-elf-objcopy` | Binary conversion | Generates `.bin` and `.hex`	|
+| `riscv32-unknown-elf-objdump` | Disassembly 		| Generates `.disam`			|
+| `make` 						| Build automation 	| Version 3.81+ 				|
+| `python3` 					| Script execution 	| For `hex2mem.py` 				|
 
-### Toolchain Installation
+*Note: On modern Linux distributions (like Ubuntu), the `gcc-riscv64-unknown-elf` package is used for both 64-bit and 32-bit compilation. The architecture is enforced via compiler flags.*
 
-#### Option A: Package Manager (Ubuntu/Debian)
+### Core Compiler Flags (`sw/include.sw.mk`)
 ```bash
-sudo apt-get update
-sudo apt-get install gcc-riscv64-unknown-elf
-```
-
-
-#### Option B: Build from Source
-```bash
-git clone --recursive https://github.com/riscv-collab/riscv-gnu-toolchain
-cd riscv-gnu-toolchain
-./configure --prefix=/opt/riscv --with-arch=rv32i --with-abi=ilp32
-make -j$(nproc)
-export PATH=/opt/riscv/bin:$PATH
-```
-
-### Toolchain Verification
-```bash
-# Verify installation
-riscv32-unknown-elf-gcc --version
-# Expected: riscv32-unknown-elf-gcc (GCC) 10.2.0
-
-# Check architecture support
-riscv32-unknown-elf-gcc -march=rv32i -mabi=ilp32 -dM -E - < /dev/null | grep -i riscv
-# Should show RV32I support
-```
-
-## Build Configuration Files
-
-### 1. Top-Level Makefile  (`Makefile`)
-```makefile
-# Central Makefile for MiniSoC-RV32I Project
-
-.PHONY: all check_env help clean
-
-# -------------------------------------------
-# Configuration
-# -------------------------------------------
-TOP_DIR 			:= $(shell pwd)
-BUILD_DIR 			?= $(TOP_DIR)/build
-MINISOC_BUILD_DIR 	?= $(BUILD_DIR)/minisoc
-export TOP_DIR BUILD_DIR MINISOC_BUILD_DIR
-
-
-# -------------------------------------------
-# Include Sub-Makefiles
-# -------------------------------------------
-include src/include.src.mk 
-include sim/include.sim.mk 
-include sw/include.sw.mk
-include synth/include.synth.mk
-include sim_minisoc/include.sim_minisoc.mk
-
-
-# -------------------------------------------
-# Software Targets
-# -------------------------------------------
-sw: check_env
-	$(MAKE) sw.all
-
-sw-firmware: check_env
-	$(MAKE) sw.firmware
-
-sw-test: check_env
-	$(MAKE) sw.test
-
-sw-clean: check_env
-	$(MAKE) sw.clean
-```
-
-### 2. Software Build Configuration (`sw/include.sw.mk`)
-```makefile
-# Software Build System
-SW_DIR := $(TOP_DIR)/sw
-SW_BUILD_DIR := $(BUILD_DIR)/sw
-SW_SRC_DIR := $(SW_DIR)/src
-SW_DRIVERS_DIR := $(SW_DIR)/drivers
-SW_TESTS_DIR := $(SW_DIR)/tests
-SW_INCLUDE_DIR := $(SW_DIR)/include
-
-# Toolchain
-CROSS_COMPILE ?= riscv32-unknown-elf-
-CC := $(CROSS_COMPILE)gcc
-AS := $(CROSS_COMPILE)as
-LD := $(CROSS_COMPILE)ld
-OBJCOPY := $(CROSS_COMPILE)objcopy
-OBJDUMP := $(CROSS_COMPILE)objdump
-SIZE := $(CROSS_COMPILE)size
-
-# Architecture flags
+# Force 32-bit Integer architecture (no floats, no hardware multiply/divide)
 ARCH_FLAGS := -march=rv32i -mabi=ilp32
 
-# Compiler flags
+# Bare-Metal safety flags
 CFLAGS := $(ARCH_FLAGS) -Os -Wall -Wextra -ffreestanding -nostartfiles
-CFLAGS += -I$(SW_INCLUDE_DIR)
-CFLAGS += -I$(SW_DRIVERS_DIR)/gpio/include
-CFLAGS += -I$(SW_DRIVERS_DIR)/timer/include
-CFLAGS += -I$(SW_DRIVERS_DIR)/uart/include
-
-# Assembler flags
-ASFLAGS := $(ARCH_FLAGS)
-
-# Linker flags
-LDFLAGS := -T $(SW_DIR)/linker.ld -nostdlib -static -Wl,--gc-sections
 ```
 
-
-## Source File Organization
-
-### Source File Discovery
-```makefile
-# Main application sources
-SW_MAIN_SRCS := $(SW_SRC_DIR)/startup.S
-SW_MAIN_SRCS += $(SW_SRC_DIR)/system.c
-SW_MAIN_SRCS += $(SW_SRC_DIR)/memory.c
-SW_MAIN_SRCS += $(SW_SRC_DIR)/peripheral.c
-SW_MAIN_SRCS += $(SW_SRC_DIR)/math.c
-SW_MAIN_SRCS += $(SW_SRC_DIR)/main.c
-
-# Driver sources
-SW_DRIVER_SRCS := $(SW_DRIVERS_DIR)/uart/src/uart.c
-SW_DRIVER_SRCS += $(SW_DRIVERS_DIR)/gpio/src/gpio.c
-SW_DRIVER_SRCS += $(SW_DRIVERS_DIR)/timer/src/timer.c
-
-# Test sources
-SW_TEST_SRCS := $(SW_TESTS_DIR)/gpio/gpio_usage.c
-SW_TEST_SRCS += $(SW_TESTS_DIR)/timer/timer_usage.c
-SW_TEST_SRCS += $(SW_TESTS_DIR)/uart/uart_usage.c
-SW_TEST_SRCS += $(SW_TESTS_DIR)/integration_test.c
-
-# All sources
-SW_ALL_SRCS := $(SW_MAIN_SRCS) $(SW_DRIVER_SRCS) $(SW_TEST_SRCS)
-```
-
-### Object File Generation Rules
-```makefile
-# Pattern rule for .c files
-$(SW_BUILD_DIR)/%.o: $(SW_DIR)/%.c
-	@echo "[SW] Compiling: $<"
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Pattern rule for .S files
-$(SW_BUILD_DIR)/%.o: $(SW_DIR)/%.S
-	@echo "[SW] Assembling: $<"
-	@mkdir -p $(dir $@)
-	$(CC) $(ASFLAGS) -c $< -o $@
-
-# Generate object file lists
-SW_MAIN_OBJS := $(patsubst $(SW_DIR)/%, $(SW_BUILD_DIR)/%, $(SW_MAIN_SRCS:.c=.o))
-SW_MAIN_OBJS := $(SW_MAIN_OBJS:.S=.o)
-SW_DRIVER_OBJS := $(patsubst $(SW_DIR)/%, $(SW_BUILD_DIR)/%, $(SW_DRIVER_SRCS:.c=.o))
-SW_TEST_OBJS := $(patsubst $(SW_DIR)/%, $(SW_BUILD_DIR)/%, $(SW_TEST_SRCS:.c=.o))
-```
+- `-Os`: Optimize for size (critical to fit inside the 32KB IMEM).
+- `-ffreestanding`: Instructs the compiler that the standard library may not exist, and program startup may not necessarily be at `main()`.
+- `-nostartfiles`: Prevents the compiler from linking its default startup code, as we provide our own `startup.S`.
 
 
 ## Build Targets
 
-### Firmware Targets
-```makefile
-# Firmware ELF file
-FIRMWARE_ELF := $(SW_BUILD_DIR)/firmware.elf
-$(FIRMWARE_ELF): $(SW_MAIN_OBJS) $(SW_DRIVER_OBJS) $(SW_DIR)/linker.ld
-	@echo "[SW] Linking firmware: $@"
-	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) -Wl,-Map=$(SW_BUILD_DIR)/firmware.map -o $@ \
-		$(SW_MAIN_OBJS) $(SW_DRIVER_OBJS) -lgcc
-	$(SIZE) $@
+### Command
+```bash
+# Build everything (firmware + tests)
+make sw.all
 
-# Firmware binary
-FIRMWARE_BIN := $(SW_BUILD_DIR)/firmware.bin
-$(FIRMWARE_BIN): $(FIRMWARE_ELF)
-	@echo "[SW] Creating binary: $@"
-	$(OBJCOPY) -O binary $< $@
+# Build only the main application firmware
+make sw.firmware
 
-# Firmware HEX
-FIRMWARE_HEX := $(SW_BUILD_DIR)/firmware.hex
-$(FIRMWARE_HEX): $(FIRMWARE_ELF)
-	@echo "[SW] Creating hex: $@"
-	$(OBJCOPY) -O ihex $< $@
+# Build standalone test executables
+make sw.test
 
-# Disassembly
-FIRMWARE_DISASM := $(SW_BUILD_DIR)/firmware.disasm
-$(FIRMWARE_DISASM): $(FIRMWARE_ELF)
-	@echo "[SW] Creating disassembly: $@"
-	$(OBJDUMP) -d $< > $@
+# Clean all software build artifacts
+make sw.clean
 
-# Verilog memory format
-FIRMWARE_MEM := $(SW_BUILD_DIR)/firmware.mem
-$(FIRMWARE_MEM): $(FIRMWARE_HEX)
-	@echo "[SW] Converting HEX to MEM format: $@"
-	@python3 $(TOP_DIR)/scripts/convert/hex2mem.py $< $@
-```
-
-
-### Test Program Targets
-```makefile
-# Test ELF files
-GPIO_TEST_ELF := $(SW_BUILD_DIR)/tests/gpio/gpio_test.elf
-TIMER_TEST_ELF := $(SW_BUILD_DIR)/tests/timer/timer_test.elf
-UART_TEST_ELF := $(SW_BUILD_DIR)/tests/uart/uart_test.elf
-INTEGRATION_TEST_ELF := $(SW_BUILD_DIR)/tests/integration_test.elf
-
-# Build rules for tests
-$(GPIO_TEST_ELF): $(SW_BUILD_DIR)/tests/gpio/gpio_usage.o $(SW_DRIVER_OBJS)
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ $< $(SW_DRIVER_OBJS) $(LDFLAGS)
-
-$(TIMER_TEST_ELF): $(SW_BUILD_DIR)/tests/timer/timer_usage.o $(SW_DRIVER_OBJS)
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ $< $(SW_DRIVER_OBJS) $(LDFLAGS)
-
-$(UART_TEST_ELF): $(SW_BUILD_DIR)/tests/uart/uart_usage.o $(SW_DRIVER_OBJS)
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ $< $(SW_DRIVER_OBJS) $(LDFLAGS)
-
-$(INTEGRATION_TEST_ELF): $(SW_BUILD_DIR)/tests/integration_test.o $(SW_DRIVER_OBJS)
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ $< $(SW_DRIVER_OBJS) $(LDFLAGS)
-```
-
-
-### Convenience Targets 
-```makefile
-# Main software targets
-.PHONY: sw.all sw.firmware sw.test sw.clean sw.info
-
-sw.all: sw.firmware sw.test
-	@echo "[SW] All software built successfully"
-
-sw.firmware: $(FIRMWARE_BIN) $(FIRMWARE_HEX) $(FIRMWARE_DISASM) $(FIRMWARE_MEM)
-	@echo "[SW] Firmware build complete"
-	@echo "    Binary: $(FIRMWARE_BIN)"
-	@echo "    Hex:    $(FIRMWARE_HEX)"
-	@echo "    ELF:    $(FIRMWARE_ELF)"
-	@echo "    Mem:    $(FIRMWARE_MEM)"
-
-sw.test: $(GPIO_TEST_ELF) $(TIMER_TEST_ELF) $(UART_TEST_ELF) $(INTEGRATION_TEST_ELF)
-	@echo "[SW] Test programs built"
-
-sw.clean:
-	@echo "[SW] Cleaning software build..."
-	@rm -rf $(SW_BUILD_DIR)
-	@echo "[SW] Clean complete"
-
-sw.info:
-	@echo "Software Build Configuration:"
-	@echo "  SW_DIR:          $(SW_DIR)"
-	@echo "  SW_BUILD_DIR:    $(SW_BUILD_DIR)"
-	@echo "  CROSS_COMPILE:   $(CROSS_COMPILE)"
-	@echo "  CC:              $(CC)"
-	@echo "  CFLAGS:          $(CFLAGS)"
-	@echo "  Sources:         $(words $(SW_ALL_SRCS)) files"
-	@echo "  Firmware output: $(FIRMWARE_BIN)"
+# Print the build configuration and discovered source files
+make sw.info
 ```
 
 
@@ -332,9 +107,8 @@ sw.info:
 Source files (.c, .S)
      ↓ (Compiler: riscv32-unknown-elf-gcc)
      ↓ Flags: -march=rv32i -mabi=ilp32 -Os -Wall
-Object files (.o) in build/sw/
+Object files (.o) located in build/sw/
 ```
-
 
 ### Step 2: Linking
 ```text
@@ -344,8 +118,9 @@ Object files (.o) + linker.ld
 ELF executable (firmware.elf)
 ```
 
+*Note: We pass `-Wl,--gc-sections` to allow the linker to perform "Garbage Collection" on unused functions, significantly reducing the final binary size.*
 
-### Step 3: Binary Conversion
+### Step 3: Binary Format Conversion
 ```text
 ELF executable (firmware.elf)
      ↓ (Objcopy: riscv32-unknown-elf-objcopy)
@@ -354,31 +129,32 @@ Output files (.bin, .hex, .mem)
 ```
 
 
-### Step 4: Memory Format Generation
+### Step 4: Verilog Memory Initialization Generation
 ```text
 Intel HEX file (firmware.hex)
      ↓ (Python script: hex2mem.py)
-Verilog memory format (firmware.mem)
+Verilog memory file (firmware.mem)
 ```
+
+*The `.mem` file is formatted specifically for the Verilog `$readmemh` system task, allowing the hardware simulator (e.g., Icarus Verilog) to load the software into the simulated ROM instantly.*
 
 
 ## Build Output Files
 
 ### Generated Files in `build/sw/`
 
-| File 				| Format 		| Purpose 						| Generated By 		|
-|-------------------|---------------|-------------------------------|-------------------|
-| `firmware.elf` 	| ELF 			| Executable with debug info 	| Linker 			|
-| `firmware.bin` 	| Binary 		| Raw binary for loading 		| objcopy 			|
-| `firmware.hex` 	| Intel HEX 	| Human-readable hex format 	| objcopy 			|
-| `firmware.mem` 	| Verilog MEM	| Simulation memory image 		| hex2mem.py 		|
-| `firmware.disam` 	| Text 			| Disassembly listing 			| objdump 			|
-| `firmware.map` 	| Text 			| Linker Memory Map 			| Linker (Map) 		|
-| `*.o*` 			| Object 		| Intermediate compiled objects | Compiler 			|
+| File 				| Format 		| Purpose 																								|
+|-------------------|---------------|-------------------------------------------------------------------------------------------------------|
+| `firmware.elf` 	| Executable	| Contains machine code + debug symbols. Used by `objdump` and `size`. 									|
+| `firmware.bin` 	| Raw Binary	| Pure machine code. Useful for real hardware bootloaders.												|
+| `firmware.hex` 	| Intel HEX 	| Standardized ASCII representation of the binary. 														|
+| `firmware.mem` 	| Text (Hex)	| Read by the Verilog testbench  to initialize IMEM.													|
+| `firmware.disam` 	| Text (ASM)	| Human-readable assembly code. Highly recommended for debugging hardware/software integration issues.	|
+| `firmware.map` 	| Text 			| Linker map showing exact memory addresses of every function and variable.								|
 
 
 ### Memory Usage Report
-Running `make sw.firmware` produces:
+When running `make sw.firmware`, the build system automatically calls size to report memory consumption::
 
 ```text
 [SW] Linking firmware: build/sw/firmware.elf
@@ -386,62 +162,41 @@ Running `make sw.firmware` produces:
    1856     256     128    2240     8c0 build/sw/firmware.elf
 ```
 
-- **text**: Code size in IMEM (bytes)
-- **data**: Initialized data size (bytes)
-- **bss**: Zero-initialized data size (bytes)
-- **dec/hex**: Total size in decimal/hex
+- **text**: Executable instructions and constants (Stored in IMEM).
+- **data**: Variables with initial values (Stored in IMEM, copied to DMEM at boot).
+- **bss**:  Variables initialized to zero (Allocated in DMEM).
 
 
 ## Troubleshooting
 
-### Common Issues and Solutions
-
-#### Issue: "riscv32-unknown-elf-gcc: command not found"
-**Solution**:
+### Issue: "Command not found: riscv32-unknown-elf-gcc"
+**Cause**: Your CROSS`_COMPILE variable doesn't match your installed toolchain, or it is not in your PATH.
+**Solution**: Edit `sw/include.sw.mk` or pass the variable via the command line:
 
 ```bash
-# Check if toolchain is installed
-which riscv32-unknown-elf-gcc
-
-# If not found, install or set PATH
-export PATH=/opt/riscv/bin:$PATH
-# Or specify full path
-make CROSS_COMPILE=/opt/riscv/bin/riscv32-unknown-elf-
+make sw.firmware CROSS_COMPILE=riscv64-unknown-elf-
 ```
 
-#### Issue: "Error: selected processor does not support mul"
-**Solution**: RV32I doesn't have hardware multiply. Use software math functions:
+### Issue: "Error: selected processor does not support `mul`"
+**Cause**: You used the standard `*` multiplication operator in C, but the RV32I architecture lacks the Hardware Multiplier (`M` extension).
+**Solution**: Do not use `*`, `/`, or `%` for variables. Instead, include math.h and use the software implementations:
 ```c
-// Instead of: a * b
-// Use: system_mul32(a, b)
+// Incorrect
+uint32_t result = a * b;
+
+// Correct
+uint32_t result = system_umul32(a, b);
+
 ```
 
-
-#### Issue: "undefined reference to _estack or _sdata"
-**Solution**: Check linker script and startup code alignment:
-```bash
-# Verify symbols exist
-riscv32-unknown-elf-nm build/sw/firmware.elf | grep -E "_estack|_sdata|_edata"
-
-# Check linker script includes these symbols
-# In sw/linker.ld:
-# _estack = .;  # Stack top
-# _sdata = .;   # Data start
-```
+### Issue: "undefined reference to `_estack` or `_sdata`"
+**Cause**: Your `startup.S` assembly code is referencing symbols that do not exist in your `linker.ld` file.
+**Solution**: Check `sw/linker.ld` and ensure the stack and data boundary markers exactly match the names expected by `startup.S`.
 
 
-#### Issue: "DMEM overflow" or "section .text will not fit"
-**Solution**: Reduce code/data size:
-
-1. Enable optimization: `make CFLAGS_EXTRA="-Os"`
-2. Remove unused code: Ensure `-Wl,--gc-sections` is used
-3. Increase memory in linker script (if hardware supports)
-4. Optimize data structures
-
-
-#### Issue: Build artifacts not updating
-**Solution**: Clean and rebuild:
-```bash
-make sw.clean
-make sw.firmware
-```
+### Issue: "section `.text` will not fit in region `IMEM`"
+**Cause**: Your compiled code is larger than the available 32KB Instruction Memory.
+**Solution**:
+1. Ensure `CFLAGS` includes `-Os` (Optimize for Size).
+2. Remove large lookup tables or unused global arrays.
+3. Check `firmware.map` to identify which functions are consuming the most space.

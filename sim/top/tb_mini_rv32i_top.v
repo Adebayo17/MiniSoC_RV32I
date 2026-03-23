@@ -302,14 +302,14 @@ module tb_mini_rv32i_top;
                         end
 
                         if (mem_init_done) begin
-                            print_log(log_file, "PASS", "✅ Memory Initialized.");
+                            print_log(log_file, "PASS", "Memory Initialized.");
                             verify_firmware_loaded();
                             test_pass_count = test_pass_count + 1;
                             tb_state        <= TB_CPU_RESET;
                             state_timer     <= 0;
                         end
                         else if ((global_cycle - state_timer) > 100_000) begin
-                            print_log(log_file, "FAIL", "❌ TIMEOUT: Memory Init failed.");
+                            print_log(log_file, "FAIL", "TIMEOUT: Memory Init failed.");
                             test_fail_count = test_fail_count + 1;
                             tb_state        <= TB_FAIL;
                         end
@@ -323,12 +323,12 @@ module tb_mini_rv32i_top;
 
                         if (soc_cpu_ready) begin
                             if (fetch_pc === 32'h00000000) begin
-                                print_log(log_file, "PASS", "✅ CPU Reset Vector correct (0x00000000).");
+                                print_log(log_file, "PASS", "CPU Reset Vector correct (0x00000000).");
                                 test_pass_count = test_pass_count + 1;
                                 tb_state    <= TB_FETCH;
                                 state_timer <= 0;
                             end else begin
-                                $sformat(log_buf, "❌ CPU Reset Vector incorrect: %h", fetch_pc);
+                                $sformat(log_buf, "CPU Reset Vector incorrect: %h", fetch_pc);
                                 print_log(log_file, "FAIL", log_buf);
                                 test_fail_count = test_fail_count + 1;
                                 tb_state        <= TB_FAIL;
@@ -343,13 +343,13 @@ module tb_mini_rv32i_top;
                         end
 
                         if (fetch_pc > 32'h00000000) begin
-                            print_log(log_file, "PASS", "✅ CPU is fetching instructions.");
+                            print_log(log_file, "PASS", "CPU is fetching instructions.");
                             test_pass_count = test_pass_count + 1;
                             tb_state        <= TB_PIPELINE;
                             state_timer     <= 0;
                         end
                         else if (state_timer > 100) begin
-                            print_log(log_file, "FAIL", "❌ TIMEOUT: CPU stuck at 0x00000000.");
+                            print_log(log_file, "FAIL", "TIMEOUT: CPU stuck at 0x00000000.");
                             test_fail_count = test_fail_count + 1;
                             tb_state        <= TB_FAIL;
                         end
@@ -364,12 +364,12 @@ module tb_mini_rv32i_top;
 
                         if (state_timer == 50) begin
                             if (fetch_pc !== pc_snapshot) begin
-                                print_log(log_file, "PASS", "✅ PC is advancing (Pipeline OK).");
+                                print_log(log_file, "PASS", "PC is advancing (Pipeline OK).");
                                 test_pass_count = test_pass_count + 1;
                                 tb_state        <= TB_PERIPH;
                                 state_timer     <= 0;
                             end else begin
-                                $sformat(log_buf, "❌ PC is stuck at %h (Pipeline Stall).", pc_snapshot);
+                                $sformat(log_buf, "PC is stuck at %h (Pipeline Stall).", pc_snapshot);
                                 print_log(log_file, "FAIL", log_buf);
                                 test_fail_count = test_fail_count + 1;
                                 tb_state        <= TB_FAIL;
@@ -384,9 +384,9 @@ module tb_mini_rv32i_top;
                         end
 
                         if (state_timer == 10_000) begin
-                            if (flag_uart_access > 0)  print_log(log_file, "PASS", "✅ UART Access detected.");
-                            if (flag_gpio_access > 0)  print_log(log_file, "PASS", "✅ GPIO Access detected.");
-                            if (flag_timer_access > 0) print_log(log_file, "PASS", "✅ Timer Access detected.");
+                            if (flag_uart_access > 0)  print_log(log_file, "PASS", "UART Access detected.");
+                            if (flag_gpio_access > 0)  print_log(log_file, "PASS", "GPIO Access detected.");
+                            if (flag_timer_access > 0) print_log(log_file, "PASS", "Timer Access detected.");
                             tb_state <= TB_FIRMWARE;
                             state_timer <= 0;
                         end
@@ -400,7 +400,7 @@ module tb_mini_rv32i_top;
 
                         // Success Condition
                         if (flag_firmware_pass) begin
-                            print_log(log_file, "PASS", "[TESTBENCH] ✅ FIRMWARE PASS CODE RECEIVED!");
+                            print_log(log_file, "PASS", "[TESTBENCH] FIRMWARE PASS CODE RECEIVED!");
                             test_pass_count = test_pass_count + 1;
                             tb_state <= TB_PASS;
                         end
@@ -477,10 +477,10 @@ module tb_mini_rv32i_top;
 
             // Check if instructions look valid
             if (dut.top_soc_inst.imem_inst.imem_inst.mem[0] === 32'hxxxxxxxx) begin
-                print_log(log_file, "ERROR", "[FW] ❌ IMEM[0] is uninitialized!");
+                print_log(log_file, "ERROR", "[FW] IMEM[0] is uninitialized!");
                 test_fail_count = test_fail_count + 1;
             end else begin
-                print_log(log_file, "PASS", "[FW] ✅ IMEM appears to be initialized");
+                print_log(log_file, "PASS", "[FW] IMEM appears to be initialized");
                 test_pass_count = test_pass_count + 1;
             end
         end
@@ -494,11 +494,11 @@ module tb_mini_rv32i_top;
         input [8*MAX_MSG_LEN:1] msg;                // Text message
         begin
             // Console display
-            $display("[TB_TOP_LEVEL][%s] @%0t ns: %s", tag, msg, $time);
+            $display("[TB_TOP_LEVEL][%s] @%0t ns: %0s", tag, $time, msg);
 
             // File Writting
             if (f_handle != 0) begin
-                $fdisplay(f_handle, "[TB_TOP_LEVEL][%s] @%0t ns: %s", tag, $time, msg);
+                $fdisplay(f_handle, "[TB_TOP_LEVEL][%s] @%0t ns: %s0", tag, $time, msg);
             end
         end
     endtask

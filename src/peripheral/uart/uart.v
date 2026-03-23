@@ -70,8 +70,9 @@ module uart #(
     wire read_op  = wbs_cyc && wbs_stb && !wbs_we;
     wire write_op = wbs_cyc && wbs_stb && wbs_we;
 
-    // Read Detection signals
+    // Read/Write Detection signals
     wire status_read  = read_op && sel_status;
+    wire status_write = write_op && sel_status;
     wire rx_data_read = read_op && sel_rx_data;
 
     // -------------------------------------------
@@ -147,6 +148,10 @@ module uart #(
                         if (wbs_sel[1]) baud_div_reg[15:8] <= wbs_data_write[15:8];
                     end
                     REG_UART_CTRL: if (wbs_sel[0]) ctrl_reg <= wbs_data_write[7:0];
+                    REG_UART_STATUS: begin
+                        // Handled in the dedicated Status Register block 
+                        // to resolve HW/SW multiple-driver conflicts.
+                    end
                 endcase
             end
         end
@@ -213,45 +218,36 @@ module uart #(
     );
 
     // -------------------------------------------
-    // Status Register Update (Read-to-Clear Logic)
+    // Status Register Update (Write-1-to-Clear Logic)
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            status_reg <= 8'b00000001;
+            status_reg <= 8'b00000001; // TX ready, RX not ready
         end else begin
-            // Update TX status from transmitter
-            status_reg[STATUS_TX_READY]     <= tx_ready;
-            status_reg[STATUS_TX_BUSY]      <= tx_busy;
+            // 1. Update Read-Only TX status from transmitter
+            status_reg[STATUS_TX_READY] <= tx_ready;
+            status_reg[STATUS_TX_BUSY]  <= tx_busy;
 
-            // Capture RX ready state (set when new data arrives)
+            // 2. RX Ready Logic (Set by HW, Cleared by reading RX Data)
             if (rx_ready && !status_reg[STATUS_RX_READY]) begin
                 status_reg[STATUS_RX_READY] <= 1'b1;
-            end
-
-            // Capture error pulses
-            if (rx_overrun) begin
-                status_reg[STATUS_RX_OVERRUN] <= 1'b1;
-            end
-            
-            if (rx_frame_error) begin
-                status_reg[STATUS_RX_FRAME_ERR] <= 1'b1;
-            end
-
-            // Clear RX_READY when RX data register is read
-            if (rx_data_read) begin
+            end else if (rx_data_read) begin
                 status_reg[STATUS_RX_READY] <= 1'b0;
             end
 
-            // Clear error flags when status register is read
-            if (status_read) begin
-                status_reg[STATUS_RX_OVERRUN] <= 1'b0;
-                status_reg[STATUS_RX_FRAME_ERR] <= 1'b0;
+            // 3. W1C Logic for RX Overrun
+            if (rx_overrun) begin
+                status_reg[STATUS_RX_OVERRUN] <= 1'b1; // HW sets the flag
+            end else if (status_write && wbs_data_write[STATUS_RX_OVERRUN]) begin
+                status_reg[STATUS_RX_OVERRUN] <= 1'b0; // SW writes 1 to clear
             end
-
-            // Update RX status from receiver
-            // status_reg[STATUS_RX_READY]     <= rx_ready;
-            // status_reg[STATUS_RX_OVERRUN]   <= rx_overrun;
-            // status_reg[STATUS_RX_FRAME_ERR] <= rx_frame_error;
+            
+            // 4. W1C Logic for RX Frame Error
+            if (rx_frame_error) begin
+                status_reg[STATUS_RX_FRAME_ERR] <= 1'b1; // HW sets the flag
+            end else if (status_write && wbs_data_write[STATUS_RX_FRAME_ERR]) begin
+                status_reg[STATUS_RX_FRAME_ERR] <= 1'b0; // SW writes 1 to clear
+            end
         end 
     end
     

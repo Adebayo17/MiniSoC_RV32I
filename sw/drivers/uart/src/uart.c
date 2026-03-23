@@ -59,10 +59,10 @@ system_error_t uart_init(uart_t *dev, uint32_t base_addr)
             uart_regs_t *hw = uart_get_hw_regs(dev);
             hw->CTRL    = 0U;                       /* Disable transmitter and receiver */
 
-            /* Hardware implementation use "Read to clear" (R2C) 
-               Read the status register to clear any pending errors 
-               Read the rx data register to clear any pending data */
-            (void)hw->STATUS;
+            /* Clear pending errors using Write-1-to-Clear (W1C) */
+            hw->STATUS = (UART_STATUS_RX_OVERRUN_BIT | UART_STATUS_FRAME_ERR_BIT);
+            
+            /* Read the rx data register to clear any pending data/RX_READY flag */
             (void)hw->RX_DATA;
         }
     }
@@ -606,11 +606,9 @@ system_error_t uart_clear_status(uart_t *dev)
     {
         uart_regs_t *hw = uart_get_hw_regs(dev);
         
-        /* Clean hardware errors (depends on your Verilog block).
-           Most UART IPs clear errors by writing 1 to the concerned bits,
-           or by reading the status register. 
-           Here we read the status register. */
-        (void)hw->STATUS;
+        /* Clean hardware errors using Write-1-to-Clear (W1C).
+           Writing a 1 to the error bits clears them in the hardware. */
+        hw->STATUS = (UART_STATUS_RX_OVERRUN_BIT | UART_STATUS_FRAME_ERR_BIT);
 
         dev->status.rx_overrun      = false;
         dev->status.rx_frame_error  = false;
@@ -634,8 +632,8 @@ system_error_t uart_reset(uart_t *dev)
         hw->BAUD_DIV    = 0U;
         hw->CTRL        = 0U;
 
-        /* Read status and rx data registers to clear */
-        (void)hw->STATUS;
+        /* Clear status errors (W1C) and empty RX data register */
+        hw->STATUS = (UART_STATUS_RX_OVERRUN_BIT | UART_STATUS_FRAME_ERR_BIT);
         (void)hw->RX_DATA;
 
         /* Reset software states */
