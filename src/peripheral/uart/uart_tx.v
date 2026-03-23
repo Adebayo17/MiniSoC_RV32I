@@ -32,8 +32,6 @@ module uart_tx (
     reg [1:0]   tx_state;
     reg [2:0]   tx_bit_counter;
     reg [7:0]   tx_shift_reg;
-    reg [7:0]   tx_holding_reg;
-    reg         tx_holding_valid;
 
 
     // -------------------------------------------
@@ -94,12 +92,4 @@ module uart_tx (
             endcase
         end
     end
-
-    // Add debug output in uart_tx.v
-    // always @(posedge clk) begin
-    //     if (baud_tick) begin
-    //         $display("[TX_DEBUG] Time %0t: state=%b, uart_tx=%b, bit_count=%0d", 
-    //                 $time, tx_state, uart_tx, tx_bit_counter);
-    //     end
-    // end
 endmodule

@@ -1,3 +1,7 @@
+// ============================================================================
+// UART Module Testbench
+// ============================================================================
+
 `timescale 1ns/1ps
 
 module tb_uart;
@@ -62,11 +66,9 @@ module tb_uart;
     reg  uart_rx2;
 
     // Testbench Signals
-    reg [7:0] tx_data;
-    reg [7:0] rx_data;
     integer i;
 
-    // Instantiate DUT
+    // Instantiate DUT 1
     uart_wrapper #(
         .BASE_ADDR(BASE_ADDR),
         .SIZE_KB(SIZE_KB),
@@ -88,6 +90,7 @@ module tb_uart;
         .uart_rx        (uart_rx        )
     );
 
+    // Instantiate DUT 2
     uart_wrapper #(
         .BASE_ADDR(BASE_ADDR),
         .SIZE_KB(SIZE_KB),
@@ -109,13 +112,19 @@ module tb_uart;
         .uart_rx        (uart_rx2       )
     );
 
-    // Clock Generation
+
+    // -------------------------------------------
+    // Clock Generation 
+    // -------------------------------------------
     initial begin
         clk = 0;
         forever #(CLK_PERIOD/2) clk = ~clk;
     end
 
+
+    // -------------------------------------------
     // Reset Generation 
+    // -------------------------------------------
     initial begin
         rst_n           = 0;
         
@@ -142,7 +151,10 @@ module tb_uart;
         #100 rst_n    = 1;   
     end
 
+
+    // -------------------------------------------
     // Main Test Sequence
+    // -------------------------------------------
     initial begin
         // Open log file
         log_file = $fopen("uart.log", "w");
@@ -168,6 +180,7 @@ module tb_uart;
         $fdisplay(log_file, "[TEST %0d] UART Configuration: Completed - %t\n", test_num, $time);
 
         #(CLK_PERIOD*2);
+
         // Test 2: Transmitter
         test_num = 2;
         $display("\n[TEST %0d] UART Transmitter Test: Starting", test_num);
@@ -186,8 +199,16 @@ module tb_uart;
         total_errors += task_error_count;
         $display("[TEST %0d] UART Receiver Test: Completed\n", test_num);
 
-        // Test 4: Loopback (TX -> RX)
-        test_num = 3;
+        // Test 4: Error Flags and W1C Logic
+        test_num = 4;
+        $display("\n[TEST %0d] UART W1C Errors Test: Starting", test_num);
+        task_error_count = 0;
+        test_uart_w1c_errors(task_error_count);
+        total_errors += task_error_count;
+        $display("[TEST %0d] UART W1C Errors Test: Completed\n", test_num);
+
+        // Test 5: Loopback (TX -> RX)
+        test_num = 5;
         $display("\n[TEST %0d] UART Loopback Test: Starting", test_num);
         task_error_count = 0;
         test_loopback(task_error_count);
@@ -238,10 +259,11 @@ module tb_uart;
         end
     endtask
 
+
     task test_uart_transmitter;
-        output [31:0] error_count;
-        reg [7:0] test_data;
-        reg [DATA_WIDTH-1:0] read_data;
+        output [31:0]           error_count;
+        reg [7:0]               test_data;
+        reg [DATA_WIDTH-1:0]    read_data;
         integer bit_time;
         begin
             error_count = 0;
@@ -377,6 +399,65 @@ module tb_uart;
         end
     endtask
 
+
+    task test_uart_w1c_errors;
+        output [31:0] error_count;
+        reg [DATA_WIDTH-1:0] read_data;
+        integer bit_time;
+        begin
+            error_count = 0;
+            read_data = 0;
+            bit_time = (CLK_PERIOD * BAUD_DIV);
+
+            // 1. Induce a Framing Error (Bad Stop Bit)
+            uart_rx = 1'b0; // Start bit
+            #(bit_time);
+            
+            for (i = 0; i < 8; i = i + 1) begin 
+                uart_rx = 1'b0; // Send all zeros
+                #(bit_time); 
+            end 
+            
+            // INTENTIONAL BAD STOP BIT (Keep it low instead of high)
+            uart_rx = 1'b0; 
+            #(bit_time);
+            uart_rx = 1'b1; // Return to idle
+            #(bit_time * 2);
+
+            // 2. Read Status (Expect Frame Error to be SET)
+            wb_read(32'h2000_0010, read_data);
+            if (read_data[STATUS_RX_FRAME_ERR] !== 1'b1) begin
+                $display("ERROR: Frame Error flag was not set by hardware!");
+                error_count = error_count + 1;
+            end
+
+            // 3. Read Status AGAIN (Prove Read-to-Clear is gone)
+            wb_read(32'h2000_0010, read_data);
+            if (read_data[STATUS_RX_FRAME_ERR] !== 1'b1) begin
+                $display("ERROR: Frame Error cleared on a read! W1C logic failed.");
+                error_count = error_count + 1;
+            end
+
+            // 4. Write-1-to-Clear the Error
+            // Write a '1' specifically to the Frame Error bit position
+            wb_write(32'h2000_0010, (1 << STATUS_RX_FRAME_ERR), 4'b1111);
+            #(CLK_PERIOD*2);
+
+            // 5. Read Status (Prove W1C worked)
+            wb_read(32'h2000_0010, read_data);
+            if (read_data[STATUS_RX_FRAME_ERR] !== 1'b0) begin
+                $display("ERROR: Frame Error did not clear after writing 1!");
+                error_count = error_count + 1;
+            end
+            
+            // Flush the garbage data so it doesn't break later tests
+            wb_read(32'h2000_0004, read_data);
+
+            $display("W1C Error Flags test completed with %0d errors", error_count);
+        end
+    endtask
+
+
     always @(*) begin
         uart_rx2 = uart_tx;
         uart_rx  = uart_tx2;
@@ -487,6 +568,40 @@ module tb_uart;
             end
         end
     endtask
+
+
+    // -------------------------------------------
+    // UART Monitor (Snoops uart_tx from DUT 1)
+    // -------------------------------------------
+    localparam BAUD_PERIOD_NS = CLK_PERIOD * BAUD_DIV;
+    reg [7:0] mon_rx_byte;
+    integer mon_bit_idx;
+
+    initial begin
+        // Wait for reset release
+        wait(rst_n == 1);
+        $display("\n[UART TERMINAL] Listening...");
+        if (log_file) $fdisplay(log_file, "\n[UART TERMINAL] Listening...");
+        
+        forever begin
+            // Detect Start Bit (Falling Edge)
+            @(negedge uart_tx);
+            
+            // Wait 1.5 bit periods to sample middle of bit 0
+            // Using integer math to avoid real number rounding issues in timescale
+            #( (BAUD_PERIOD_NS * 3) / 2 );
+            
+            mon_rx_byte = 0;
+            for (mon_bit_idx = 0; mon_bit_idx < 8; mon_bit_idx = mon_bit_idx + 1) begin
+                mon_rx_byte[mon_bit_idx] = uart_tx;
+                #(BAUD_PERIOD_NS);
+            end
+            
+            // Print char to console (only if it's a printable ASCII character or standard control)
+            $write("\n[UART TERMINAL] Received: 8'h%h ('%c')", mon_rx_byte, mon_rx_byte);
+            if (log_file) $fdisplay(log_file, "[UART TERMINAL] Received: 8'h%h ('%c')", mon_rx_byte, mon_rx_byte);
+        end
+    end
     
 
 

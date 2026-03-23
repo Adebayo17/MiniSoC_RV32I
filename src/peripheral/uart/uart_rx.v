@@ -70,20 +70,25 @@ module uart_rx (
             rx_frame_error <= 1'b0;
         end else begin
 
-            // CPU clear of status flags
+            // CPU clear of status flags (Only clear ready flag now)
             if (rx_clear) begin
                 rx_ready       <= 1'b0;
-                rx_overrun     <= 1'b0;
-                rx_frame_error <= 1'b0;
             end
+
+            // Default error pulsed to 0 on every clock cycle
+            rx_overrun      <= 1'b0;
+            rx_frame_error  <= 1'b0;
 
             case (rx_state)
                 RX_IDLE: begin
-                    rx_ready <= 1'b0;
-
                     if (rx_enable && rx_falling_edge) begin
                         rx_state       <= RX_START;
                         rx_bit_counter <= 3'b0;
+
+                        // Check overrun the moment a new start bit arrives
+                        if (rx_ready) begin
+                            rx_overrun <= 1'b1; // Generate 1-cycle pulse
+                        end
                     end
                 end
 
@@ -120,8 +125,8 @@ module uart_rx (
                             end else begin
                                 rx_data  <= rx_shift_reg;
                                 rx_ready <= 1'b1;
-                                rx_state <= RX_IDLE;
                             end
+                            rx_state <= RX_IDLE;
                         end else begin
                             rx_state <= RX_ERROR;
                         end 
@@ -133,11 +138,6 @@ module uart_rx (
                     rx_state       <= RX_IDLE;
                 end
             endcase
-
-            // Overrun detection: new data arrives before previous data is read 
-            if (rx_ready && rx_state == RX_START) begin
-                rx_overrun <= 1'b1;
-            end
         end
     end
 endmodule
