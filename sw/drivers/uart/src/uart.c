@@ -5,6 +5,7 @@
 
 #include "../include/uart.h"
 #include "uart_hw.h"
+#include "../../../include/math.h"
 #include <stddef.h>
 
 
@@ -176,7 +177,7 @@ system_error_t uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudr
             /* Calculate the clock divisor. Note: depends on the exact Verilog implementation.
                Often (clk_freq / baudrate) or (clk_freq / (16 * baudrate))
                Here: (clk_freq / baudrate) */
-            uint32_t divider = clk_freq / baudrate;
+            uint32_t divider = system_udiv32(clk_freq, baudrate);
             
             hw->BAUD_DIV = divider;
             dev->config.baudrate = baudrate;
@@ -206,7 +207,7 @@ system_error_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t *baud
 
             if (divider > 0U)
             {
-                *baudrate = clk_freq / divider;
+                *baudrate = system_udiv32(clk_freq, divider);
             }
             else
             {

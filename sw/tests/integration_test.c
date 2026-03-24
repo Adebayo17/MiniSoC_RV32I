@@ -72,7 +72,7 @@ system_error_t test_peripheral_integration(void)
             /* Send status over UART */
             if (is_success(status)) 
             {
-                if ((i % 2U) == 0U) 
+                if ((i & 1U) == 0U) 
                 {
                     status = uart_transmit_string(&uart_dev, "LED ON\r\n", 1000U);
                 } 

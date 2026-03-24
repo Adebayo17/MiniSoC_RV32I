@@ -5,6 +5,7 @@
  */
 
 #include "../include/system.h"
+#include "../include/math.h"
 #include "../drivers/timer/include/timer.h"
 #include "timer_hw.h"
 #include <string.h>
@@ -201,11 +202,11 @@ system_error_t system_get_time_us_safe(uint32_t *time_us)
 
         if (is_success(status))
         {
-            uint32_t ticks_per_us = g_system_timer->clock_frequency / 1000000U;
+            uint32_t ticks_per_us = system_udiv32(g_system_timer->clock_frequency, 1000000U);
 
             if (ticks_per_us > 0U)
             {
-                *time_us = ticks / ticks_per_us;
+                *time_us = system_udiv32(ticks, ticks_per_us);
             }
             else
             {
@@ -246,11 +247,11 @@ system_error_t system_get_elapsed_time_us_safe(uint32_t previous_tick, uint32_t 
                 diff_ticks = (0xFFFFFFFFU - previous_tick) + current_tick + 1U;
             }
 
-            uint32_t ticks_per_us = g_system_timer->clock_frequency / 1000000U;
+            uint32_t ticks_per_us = system_udiv32(g_system_timer->clock_frequency, 1000000U);
             
             if (ticks_per_us > 0U)
             {
-                *elapsed_us = diff_ticks / ticks_per_us;
+                *elapsed_us = system_udiv32(diff_ticks, ticks_per_us);
             }
             else
             {
@@ -296,7 +297,7 @@ system_error_t system_delay_us_safe(uint32_t us)
 
 system_error_t system_delay_ms_safe(uint32_t ms)
 {   
-    return system_delay_us_safe(ms * 1000U);
+    return system_delay_us_safe(system_umul32(ms, 1000U));
 }
 
 

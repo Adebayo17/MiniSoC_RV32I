@@ -6,6 +6,7 @@
 
 #include "../include/timer.h"
 #include "timer_hw.h"
+#include "../../../include/math.h"
 #include <stddef.h>
 
 
@@ -529,10 +530,10 @@ system_error_t timer_calculate_compare_value(timer_t *dev, uint32_t timeout_us, 
             uint32_t divisor = timer_prescale_to_divisor(dev->config.prescale);
             
             /* Actual timer frequency = clk / divisor */
-            uint32_t timer_freq = dev->clock_frequency / divisor;
+            uint32_t timer_freq = system_udiv32(dev->clock_frequency, divisor);
             
             /* Ticks per microsecond */
-            uint32_t ticks_per_us = timer_freq / 1000000U;
+            uint32_t ticks_per_us = system_udiv32(timer_freq, 1000000U);
             
             if (ticks_per_us == 0U)
             {
@@ -542,7 +543,7 @@ system_error_t timer_calculate_compare_value(timer_t *dev, uint32_t timeout_us, 
             }
             else
             {
-                *compare_value = timeout_us * ticks_per_us;
+                *compare_value = system_umul32(timeout_us, ticks_per_us);
             }
 
             /* Minimal Hardware Security */
@@ -634,7 +635,7 @@ system_error_t timer_delay_us(timer_t *dev, uint32_t delay_us)
 system_error_t timer_delay_ms(timer_t *dev, uint32_t delay_ms)
 {
     /* We directly use timer_delay_us */
-    return timer_delay_us(dev, delay_ms * 1000U);
+    return timer_delay_us(dev, system_umul32(delay_ms, 1000U));
 }
 
 

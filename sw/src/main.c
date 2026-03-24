@@ -92,8 +92,8 @@ static system_error_t app_print_integer(uint32_t value)
         while (temp_val > 0U) 
         {
             p--;
-            *p = (char)('0' + (temp_val % 10U));
-            temp_val /= 10U;
+            *p = (char)('0' + system_umod32(temp_val, 10U));
+            temp_val = system_udiv32(temp_val, 10U);
         }
     }
     
@@ -303,11 +303,11 @@ int main(void)
     while (1) 
     {
         /* Blink LED (50% duty cycle on a 20-tick period) */
-        bool led_state = (counter % 20U) < 10U;
+        bool led_state = system_umod32(counter, 20U) < 10U;
         (void)gpio_write_pin(&gpio0, GPIO_PIN_0, led_state);
         
         /* Periodic status message every 10 loops */
-        if ((counter % 10U) == 0U) 
+        if (system_umod32(counter, 10U) == 0U) 
         {
             status = app_print_string("System running... Heartbeat: ");
             if (is_success(status)) status = app_print_integer(counter);
