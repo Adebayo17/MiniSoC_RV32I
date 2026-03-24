@@ -106,6 +106,8 @@ sim.top.run: sim.top sim.top.firmware
 	$(Q)echo "  [VVP]       Running TOP Simulation..."
 	$(Q)cd $(TOP_SIM_BUILD_DIR) && $(VVP) mini_rv32i_top_tb.out -l mini_rv32i_top.log
 	$(Q)echo "  [SIM-TOP]   Test completed. Log: $(TOP_SIM_BUILD_DIR)/mini_rv32i_top.log"
+	$(Q)echo "  [UART]      Extracting Virtual Terminal output..."
+	$(Q)python3 $(TOP_DIR)/scripts/parser/parse_uart.py $(TOP_SIM_BUILD_DIR)/mini_rv32i_top.log
 	$(Q)echo "  [SIM-TOP]   Last log lines:"
 	@tail -5 $(TOP_SIM_BUILD_DIR)/mini_rv32i_top.log
 	$(Q)echo ""
