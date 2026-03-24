@@ -317,57 +317,6 @@ module wishbone_interconnect #(
         end
     end
 
-    // -------------------------------------------
-    // Stage 3: Mux Back Response (registered)
-    // -------------------------------------------
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         wbm_cpu_ack       <= 1'b0;
-    //         wbm_cpu_data_read <= {DATA_WIDTH{1'b0}};
-    //     end else begin
-    //         // Default
-    //         wbm_cpu_ack       <= 1'b0;
-    //         wbm_cpu_data_read <= {DATA_WIDTH{1'b0}};
-            
-    //         // Check if we had an active request in the previous cycle
-    //         if (request_active_reg) begin
-    //             if (address_valid_reg) begin
-    //                 // Valid address - wait for slave ACK
-    //                 case (sel_slave_reg)
-    //                     SLAVE_IMEM: begin
-    //                         wbm_cpu_ack       <= wbs_imem_ack;
-    //                         wbm_cpu_data_read <= wbs_imem_data_read;
-    //                     end
-    //                     SLAVE_DMEM: begin
-    //                         wbm_cpu_ack       <= wbs_dmem_ack;
-    //                         wbm_cpu_data_read <= wbs_dmem_data_read;
-    //                     end
-    //                     SLAVE_UART: begin
-    //                         wbm_cpu_ack       <= wbs_uart_ack;
-    //                         wbm_cpu_data_read <= wbs_uart_data_read;
-    //                     end
-    //                     SLAVE_TIMER: begin
-    //                         wbm_cpu_ack       <= wbs_timer_ack;
-    //                         wbm_cpu_data_read <= wbs_timer_data_read;
-    //                     end
-    //                     SLAVE_GPIO: begin
-    //                         wbm_cpu_ack       <= wbs_gpio_ack;
-    //                         wbm_cpu_data_read <= wbs_gpio_data_read;
-    //                     end
-    //                     default: begin
-    //                         // Should not happen if address_valid_reg is true
-    //                         wbm_cpu_ack       <= 1'b1;
-    //                         wbm_cpu_data_read <= 32'hBADADD01;
-    //                     end
-    //                 endcase
-    //             end else begin
-    //                 // Invalid address - respond immediately in next cycle
-    //                 wbm_cpu_ack       <= 1'b1;
-    //                 wbm_cpu_data_read <= 32'hDEAD_BEEF;
-    //             end
-    //         end
-    //     end
-    // end
 
     // -------------------------------------------
     // Debug and Monitoring

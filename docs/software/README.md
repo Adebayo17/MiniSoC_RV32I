@@ -18,7 +18,7 @@ It is designed to be 100% memory-safe, free of dangerous hidden macros, and high
 - **[Memory Map](03_MEMORY_MAP.md)**                        - RAM layout (IMEM/DMEM) and Memory-Mapped I/O (MMIO) addresses.
 - **[Build System](04_BUILD_SYSTEM.md)**                    - Makefile structure and hex binary generation for Verilog Simulation.
 - **[Linker Script](05_LINKER_SCRIPT.md)**                  - Memory layout and `.text`, `.data`, `.bss` sections placement.
-- **[Boot Process](06_BOOT_PROCESS.md)**                    - 
+- **[Boot Process](06_BOOT_PROCESS.md)**                    - Firmware startup execution.
 
 ### 3. Device Drivers & API
 - **[System & Memory API](07_DRIVERS/01_SYSTEM_API.md)**    - Software math functions (`math.c`) and safe memory management (`memory.c`)
@@ -29,6 +29,9 @@ It is designed to be 100% memory-safe, free of dangerous hidden macros, and high
 ### 4. Robustness & Validation
 - **[Error Handling](08_ERROR_HANDLING.md)**                - `system_error_t` propagation and safe error handling.
 - **[API Examples & Tests](09_EXAMPLES_TESTS.md)**          - Unit and integration tests usage.
+
+### 5. Guides
+- **[RISC-V Toolchain & Compiler Guide](10_TOOLCHAIN_GUIDE.md)**
 
 
 ## Building the Software
