@@ -14,6 +14,18 @@
 #include "../drivers/gpio/include/gpio.h"
 #include "../drivers/timer/include/timer.h"
 
+#define SIMULATION_MODE 1
+
+#if SIMULATION_MODE                     /* Simulation */
+    #define BLINK_DELAY_MS  (1U)        /*   1 ms */
+    #define LOOD_DELAY_US   (10U)       /*  10 µs */
+    #define FALLBACK_COUNT  (50U)
+#else                                   /* Reality */
+    #define BLINK_DELAY_MS  (500U)      /* 500 ms */
+    #define LOOD_DELAY_US   (1000U)     /*   1 ms */
+    #define FALLBACK_COUNT  (500000U)
+#endif
+
 
 /* ========================================================================== */
 /* Global Variables                                                           */
@@ -56,7 +68,7 @@ static system_error_t app_print_string(const char* str)
         uint32_t i = 0U;
         while (str[i] != '\0')
         {
-            status = uart_transmit_byte(&uart0, (uint8_t)str[i], 100U); /* 100ms timeout */
+            status = uart_transmit_byte(&uart0, (uint8_t)str[i], 100U); /* 10ms timeout */
             if (is_error(status))
             {
                 break;
@@ -109,6 +121,7 @@ static system_error_t app_print_integer(uint32_t value)
  * @brief   Error handler for critical failures.
  * @param   [in] err Error code that occurred.
  */
+__attribute__((noinline)) /* FOR TESTBENCH PURPOSE */
 static void handle_critical_error(system_error_t err)
 {
     /* Attempt to report error via UART if possible (ignore return value here) */
@@ -151,6 +164,7 @@ static void handle_critical_error(system_error_t err)
  * @brief   Initialize all peripherals with comprehensive error handling
  * @return  SYSTEM_SUCCESS on success, error code on failure
  */
+__attribute__((noinline)) /* FOR TESTBENCH PURPOSE */
 static system_error_t peripherals_init(void)
 {
     system_error_t status = SYSTEM_SUCCESS;
@@ -202,6 +216,7 @@ static system_error_t peripherals_init(void)
  * @brief   System information display
  * @return  SYSTEM_SUCCESS on success, error code on failure
  */
+__attribute__((noinline)) /* FOR TESTBENCH PURPOSE */
 static system_error_t display_system_info(void)
 {
     system_error_t status = SYSTEM_SUCCESS;
@@ -229,6 +244,7 @@ static system_error_t display_system_info(void)
  * @brief   Simple LED Blink Demo with error handling
  * @return  SYSTEM_SUCCESS on success, error code on failure
  */
+__attribute__((noinline)) /* FOR TESTBENCH PURPOSE */
 static system_error_t blink_led_demo(void)
 {
     system_error_t status = app_print_string("LED Blink Demo Started\r\n");
@@ -237,10 +253,10 @@ static system_error_t blink_led_demo(void)
     for (i = 0U; (i < 10U) && is_success(status); i++)
     {
         status = gpio_write_pin(&gpio0, GPIO_PIN_0, true);
-        if (is_success(status)) status = system_delay_ms_safe(200U);
+        if (is_success(status)) status = system_delay_ms_safe(BLINK_DELAY_MS);
 
         if (is_success(status)) status = gpio_write_pin(&gpio0, GPIO_PIN_0, false);
-        if (is_success(status)) status = system_delay_ms_safe(200U);
+        if (is_success(status)) status = system_delay_ms_safe(BLINK_DELAY_MS);
 
         /* Send Heartbeat over UART */
         if (is_success(status)) status = uart_transmit_byte(&uart0, (uint8_t)'.', 100U);
@@ -314,13 +330,13 @@ int main(void)
             if (is_success(status)) status = app_print_string("\r\n");
         }
         
-        /* 100ms hardware delay */
-        status = system_delay_ms_safe(100U);
+        /* 1ms hardware delay */
+        status = system_delay_us_safe(LOOD_DELAY_US);
         
         if (is_error(status)) 
         {
             /* Delay failed (e.g., Timer crashed), use bare-metal busy wait as fallback */
-            for (volatile uint32_t i = 0U; i < 500000U; i++) { }
+            for (volatile uint32_t i = 0U; i < FALLBACK_COUNT; i++) { }
         }
         
         counter++;

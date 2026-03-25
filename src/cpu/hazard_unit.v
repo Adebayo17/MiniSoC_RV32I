@@ -89,8 +89,9 @@ module hazard_unit #(
         // Priority 2: Load-use hazard (requires 1-cycle stall)
         else if (load_use_hazard) begin
             stall_fetch     = 1'b1;
-            stall_decode    = 1'b1;
-            flush_execute   = 1'b1;     // EX advances (bubble inserted from decode stage)
+            flush_decode    = 1'b1;
+            stall_decode    = 1'b0;
+            flush_execute   = 1'b0;     // EX advances (bubble inserted from decode stage)
         end
 
 

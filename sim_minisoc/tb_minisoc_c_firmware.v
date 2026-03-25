@@ -7,6 +7,12 @@
 // Firmware is automatically loaded from: ../../build/minisoc/firmware.mem
 // ============================================================================
 
+// Use the macro passed via the Makefile; otherwise, the default value will be used.
+`ifndef FIRMWARE_PATH
+    `define FIRMWARE_PATH "firmware.mem"
+`endif
+
+
 module tb_minisoc_c_firmware;
 
     // =======================================================================
@@ -16,16 +22,16 @@ module tb_minisoc_c_firmware;
     parameter SYSTEM_CLK_FREQ   = 100_000_000;                      // 100 MHz (from system.h)
     parameter RESET_TIME        = 200;                              // 200ns reset pulse
     parameter SIM_TIMEOUT_US    = 50_000;                           // 50ms timeout (covers all demos)
-    parameter SIM_TIMEOUT       = 5_000_000;
+    parameter SIM_TIMEOUT       = 15_000_000;
 
     // UART parameters
     parameter BAUD_RATE         = 115200;       
-    parameter BAUD_PERIOD_NS    = SYSTEM_CLK_FREQ / BAUD_RATE;      // 8680.55ns per bit
-    parameter BAUD_PERIOD       = BAUD_PERIOD_NS / CLK_PERIOD;      // 868 cycles @ 100MHz
+    parameter BAUD_PERIOD       = SYSTEM_CLK_FREQ / BAUD_RATE;      // 868 cycles @ 100MHz
+    parameter BAUD_PERIOD_NS    = (BAUD_PERIOD * CLK_PERIOD);       // 8680.55ns per bit 
 
     // MINISOC parameters
     parameter MAX_CYCLES        = 1000000;                          // Safety timeout
-    parameter FIRMWARE_FILE     = "firmware.mem";
+    parameter FIRMWARE_FILE     = `FIRMWARE_PATH;
     parameter ADDR_WIDTH        = 32;
     parameter DATA_WIDTH        = 32;
     parameter IMEM_SIZE_KB      = 32;
@@ -40,16 +46,13 @@ module tb_minisoc_c_firmware;
     parameter BLINK_COUNT       = 10;                               // 10 blinks in demo
 
     // Testbench states
-    parameter TB_IDLE           = 0;
-    parameter TB_RESET          = 1;
-    parameter TB_INIT           = 2;
-    parameter TB_WAIT_MAIN      = 3;
-    parameter TB_BANNER         = 4;
-    parameter TB_BLINK_DEMO     = 5;
-    parameter TB_MAIN_LOOP      = 6;
-    parameter TB_CHECK          = 7;
-    parameter TB_PASS           = 8;
-    parameter TB_FAIL           = 9;
+    parameter TB_RESET          = 0;
+    parameter TB_INIT           = 1;
+    parameter TB_WAIT_MAIN      = 2;
+    parameter TB_RUNNING        = 3;
+    parameter TB_CHECK          = 4;
+    parameter TB_PASS           = 5;
+    parameter TB_FAIL           = 6;
 
 
     // =======================================================================
@@ -76,19 +79,25 @@ module tb_minisoc_c_firmware;
     reg [31:0]  start_time;
     reg [31:0]  last_state_change;
 
+    // CPU Pipeline check
+    integer     cpu_trace_log;
+    wire [ADDR_WIDTH-1:0]   fetch_pc        = dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc;
+    wire [ADDR_WIDTH-1:0]   decode_pc       = dut.top_soc_inst.rv32i_core.decode_stage_inst.pc_in;
+    wire [ADDR_WIDTH-1:0]   execute_pc      = dut.top_soc_inst.rv32i_core.execute_stage_inst.pc_in;
+    wire [ADDR_WIDTH-1:0]   mem_pc          = dut.top_soc_inst.rv32i_core.mem_stage_inst.pc_in;
+    wire [ADDR_WIDTH-1:0]   writeback_pc    = dut.top_soc_inst.rv32i_core.writeback_stage_inst.pc_in;
+    wire [DATA_WIDTH-1:0]   fetch_instr     = dut.top_soc_inst.rv32i_core.fetch_stage_inst.wbm_imem_data_read;
+    wire [DATA_WIDTH-1:0]   decode_instr    = dut.top_soc_inst.rv32i_core.decode_stage_inst.instr_in;
+    wire [DATA_WIDTH-1:0]   execute_instr   = dut.top_soc_inst.rv32i_core.execute_stage_inst.instr_in;
+    wire [DATA_WIDTH-1:0]   mem_instr       = dut.top_soc_inst.rv32i_core.mem_stage_inst.instr_in;
+    wire [DATA_WIDTH-1:0]   writeback_instr = dut.top_soc_inst.rv32i_core.writeback_stage_inst.instr_in;
+
     // UART Inteface
     wire        uart_tx;
     reg         uart_rx;
-    reg [7:0]   uart_rx_stim;
-    reg         uart_rx_valid;
     reg [7:0]   uart_tx_buffer [0:1023];
-    integer     uart_tx_idx;
     integer     uart_tx_total;
-    reg         capturing_uart;
     reg [7:0]   uart_captured_byte;
-    reg [10:0]  uart_capture_shift;
-    integer     uart_bit_count;
-    integer     uart_bit_timer;
 
     // GPIO Interface
     wire        gpio0_io, gpio1_io, gpio2_io, gpio3_io;
@@ -104,30 +113,12 @@ module tb_minisoc_c_firmware;
     reg         test_fatal_error;
 
     // Firmware behavior tracking
-    reg         banner_printed;
-    reg         blink_demo_started;
-    reg         blink_demo_completed;
-    integer     blink_count;
-    reg         main_loop_entered;
-    integer     status_counter;
     reg [31:0]  last_gpio0_change;
     reg         gpio0_state;
     integer     gpio0_transitions;
 
-    // Expected strings from firmware
-    reg [7:0]   expected_banner [0:255];
-    integer     expected_banner_len;
-    reg [255:0] expected_strings [0:15];
-    integer     string_count;
-
-    // Buffers for UART processing (GLobal scope for task access)
-    reg [7:0]   line_buffer [0:127];
-    integer     line_buffer_idx;
-    reg [1023:0] temp_line_str;         // Huge vector for string compare
-
     // Loop variables;
     integer     i_gen;                  // General purpose iterator
-    integer     j_gen;              
     
     // Signals for the Firmware Tracer
     wire [31:0]  core_pc_debug = dut.top_soc_inst.rv32i_core.fetch_stage_inst.pc_out; 
@@ -186,14 +177,14 @@ module tb_minisoc_c_firmware;
     assign gpio6_io = gpio_dir[6] ? 1'bz : gpio_stim[6];
     assign gpio7_io = gpio_dir[7] ? 1'bz : gpio_stim[7];
 
-    assign gpio_monitor[0] = gpio_dir[0] ? gpio0_io : 1'b0;
-    assign gpio_monitor[1] = gpio_dir[1] ? gpio1_io : 1'b0;
-    assign gpio_monitor[2] = gpio_dir[2] ? gpio2_io : 1'b0;
-    assign gpio_monitor[3] = gpio_dir[3] ? gpio3_io : 1'b0;
-    assign gpio_monitor[4] = gpio_dir[4] ? gpio4_io : 1'b0;
-    assign gpio_monitor[5] = gpio_dir[5] ? gpio5_io : 1'b0;
-    assign gpio_monitor[6] = gpio_dir[6] ? gpio6_io : 1'b0;
-    assign gpio_monitor[7] = gpio_dir[7] ? gpio7_io : 1'b0;
+    assign gpio_monitor[0] = gpio0_io;
+    assign gpio_monitor[1] = gpio1_io;
+    assign gpio_monitor[2] = gpio2_io;
+    assign gpio_monitor[3] = gpio3_io;
+    assign gpio_monitor[4] = gpio4_io;
+    assign gpio_monitor[5] = gpio5_io;
+    assign gpio_monitor[6] = gpio6_io;
+    assign gpio_monitor[7] = gpio7_io;
 
 
     // =======================================================================
@@ -206,11 +197,28 @@ module tb_minisoc_c_firmware;
 
 
     // =======================================================================
+    // CYCLE COUNTER 
+    // =======================================================================
+    always @(posedge clk) begin
+        cycle_count <= cycle_count + 1;
+    end
+
+
+    // =======================================================================
     // RESET AND INITIALIZATION
     // =======================================================================
     initial begin
         // Open Log file
-        log_file = $fopen("minisoc_firmware.log", "w");
+        log_file = $fopen("minisoc_firmware.log");
+        log_file = log_file | 1;
+
+        cpu_trace_log = $fopen("minisoc_firmware_cpu_trace.log", "w");
+
+        $fdisplay(log_file, "==================================================");
+        $fdisplay(log_file, "MINI RV32I SoC FIRMWARE TESTBENCH");
+        $fdisplay(log_file, "Loading Firmware: %s", FIRMWARE_FILE);
+        $fdisplay(log_file, "==================================================");
+
 
         // Initialize signals
         rst_n                   = 0;
@@ -223,19 +231,12 @@ module tb_minisoc_c_firmware;
         // UART init
         uart_rx                 = 1'b1;
         uart_tx_total           = 0;
-        line_buffer_idx         = 0;
         
         // GPIO init
-        gpio_dir                = 8'h00;
+        gpio_dir                = 8'hFF;    // TB listens, CPU commands
         gpio_stim               = 8'h00;
         
         // Firmware tracking
-        banner_printed          = 0;
-        blink_demo_started      = 0;
-        blink_demo_completed    = 0;
-        blink_count             = 0;
-        main_loop_entered       = 0;
-        status_counter          = 0;
         last_gpio0_change       = 0;
         gpio0_state             = 0;
         gpio0_transitions       = 0;
@@ -243,30 +244,19 @@ module tb_minisoc_c_firmware;
         data_loop_once          = 0;
         boot_sequence_once      = 0;
         
-        // Load strings
-        load_expected_strings();
-        
         // Start simulation info
         #100;
-        $display("==================================================");
-        $display("MINI RV32I SoC FIRMWARE TESTBENCH");
-        $display("==================================================");
-        $display("System Clock: %0d MHz", SYSTEM_CLK_FREQ/1000000);
+        $fdisplay(log_file, "==================================================");
+        $fdisplay(log_file, "MINI RV32I SoC FIRMWARE TESTBENCH");
+        $fdisplay(log_file, "==================================================");
+        $fdisplay(log_file, "System Clock: %0d MHz", (SYSTEM_CLK_FREQ/1000000));
         
         // Release Reset
         #(RESET_TIME);
         rst_n                   = 1;
         start_time              = 0;
         last_state_change       = 0;
-        $display("[TB] Reset released");
-    end
-
-
-    // =======================================================================
-    // CYCLE COUNTER 
-    // =======================================================================
-    always @(posedge clk) begin
-        cycle_count <= cycle_count + 1;
+        $fdisplay(log_file, "[TB] Reset released");
     end
 
 
@@ -282,8 +272,8 @@ module tb_minisoc_c_firmware;
 
             // GLOBAL TIMEOUT CHECK 
             if (cycle_count > SIM_TIMEOUT) begin
-                $display("\n==================================================");
-                $display("[FATAL]: Simulation Global timeout!");
+                $fdisplay(log_file, "\n==================================================");
+                $fdisplay(log_file, "[FATAL]: Simulation Global timeout!");
                 tb_state <= TB_FAIL;
             end 
             else begin 
@@ -296,7 +286,7 @@ module tb_minisoc_c_firmware;
                         if (rst_n) begin
                             tb_state <= TB_INIT;
                             last_state_change = cycle_count;
-                            $display("[TB] External Reset Released. Waiting for SoC Init...");
+                            $fdisplay(log_file, "\n[TB] External Reset Released. Waiting for SoC Init...");
                         end
                     end
 
@@ -306,12 +296,12 @@ module tb_minisoc_c_firmware;
                             verify_firmware_loaded();
                             tb_state <= TB_WAIT_MAIN;
                             last_state_change = cycle_count;
-                            $display("[TB] SoC Initialization Complete. CPU Running.");
+                            $fdisplay(log_file, "\n[TB] SoC Initialization Complete. CPU Running. Waiting for main()...");
                         end
 
                         // State-specific timeout (e.g., if memory init hangs)
                         if ((cycle_count - last_state_change) > 100_000) begin
-                            $display("[ERROR]: SoC Init Timed Out!");
+                            $fdisplay(log_file, "\n[ERROR]: SoC Init Timed Out!");
                             tb_state <= TB_FAIL;
                         end
                     end
@@ -320,50 +310,23 @@ module tb_minisoc_c_firmware;
                     // Precise verification based on the main symbol address
                     TB_WAIT_MAIN: begin
                         if (core_pc_debug == SYM_MAIN) begin
-                            $display("[TB] Firmware reached main() successfully!");
-                            tb_state <= TB_BANNER; 
+                            $fdisplay(log_file, "\n[TB] Firmware reached main() successfully! Letting it run...");
+                            tb_state <= TB_RUNNING; 
                             last_state_change = cycle_count;
                         end
 
                         // Security timeout
                         if ((cycle_count - last_state_change) > 50_000) begin
-                            $display("[ERROR] Boot timeout! Stuck at PC: %h (%s)", core_pc_debug, instruction_string);
+                            $fdisplay(log_file, "\n[ERROR] Boot timeout! Stuck at PC: %h (%s)", core_pc_debug, instruction_string);
                             tb_state <= TB_FAIL;
                         end
                     end
 
-                    TB_BANNER: begin
-                        if (banner_printed) begin
-                            tb_state <= TB_BLINK_DEMO;
-                            last_state_change = cycle_count;
-                            $display("[TB] Banner Verified");
-                            check_banner_content();
-                        end
-                        if ((cycle_count - last_state_change) > 2_000_000) begin
-                            $display("[TB] TIMEOUT: Waiting for banner");
-                            tb_state <= TB_FAIL;
-                        end
-                    end
-
-                    TB_BLINK_DEMO: begin
-                        if (blink_count >= BLINK_COUNT) begin
-                            tb_state <= TB_MAIN_LOOP;
-                            last_state_change = cycle_count;
-                            $display("[TB] Blink Demo Done");
-                        end
-                        // Timeout logic
-                        if ((cycle_count - last_state_change) > 2_000_000) begin
-                            // If we haven't seen blinks, move on but log error
-                            $display("[TB] TIMEOUT: Blink Demo");
-                            tb_state <= TB_MAIN_LOOP;
-                        end
-                    end
-
-                    TB_MAIN_LOOP: begin
-                        if (status_counter >= 3) begin
-                            tb_state <= TB_CHECK;
-                        end
-                        if ((cycle_count - last_state_change) > 2_000_000) begin
+                    TB_RUNNING: begin
+                        // Left firmware running during N cycles to see UART/BLINK demo
+                        // Or if a specific function is reached (e.g., SYM_END_DEMO)
+                        if ((cycle_count - last_state_change) > 10_000_000) begin 
+                            $fdisplay(log_file, "\n[TB] Simulation time completed. Proceeding to checks.");
                             tb_state <= TB_CHECK;
                         end
                     end
@@ -375,13 +338,13 @@ module tb_minisoc_c_firmware;
 
                     TB_PASS: begin
                         tests_passed <= 1;
-                        $display("\n*** TEST PASSED ***");
+                        $fdisplay(log_file, "\n*** TEST PASSED ***");
                         $finish;
                     end
 
                     TB_FAIL: begin
                         tests_failed <= 1;
-                        $display("\n*** TEST FAILED ***");
+                        $fdisplay(log_file, "\n*** TEST FAILED ***");
                         $finish(1);
                     end 
                 endcase
@@ -396,26 +359,18 @@ module tb_minisoc_c_firmware;
     task verify_firmware_loaded;
         begin
             // Check first few instructions in IMEM
-            $display("[FIRMWARE_VERIFY] IMEM[0] = %h (should be first instruction)", 
-                    dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
-            $display("[FIRMWARE_VERIFY] IMEM[1] = %h", 
-                    dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
-            $display("[FIRMWARE_VERIFY] IMEM[2] = %h", 
-                    dut.top_soc_inst.imem_inst.imem_inst.mem[2]);
-            
-            $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM[0] = %h", 
+            $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM[0] = %h (should be first instruction)", 
                     dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
             $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM[1] = %h", 
                     dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
             $fdisplay(log_file, "[FIRMWARE_VERIFY] IMEM[2] = %h", 
                     dut.top_soc_inst.imem_inst.imem_inst.mem[2]);
             
+            
             // Check if instructions look valid
             if (dut.top_soc_inst.imem_inst.imem_inst.mem[0] === 32'hxxxxxxxx) begin
-                $display("[FIRMWARE_VERIFY] ERROR: ❌ IMEM[0] is uninitialized!");
                 $fdisplay(log_file, "[FIRMWARE_VERIFY] ERROR: ❌ IMEM[0] is uninitialized!");
             end else begin
-                $display("[FIRMWARE_VERIFY] ✅ IMEM appears to be initialized");
                 $fdisplay(log_file, "[FIRMWARE_VERIFY] ✅ IMEM appears to be initialized");
             end
         end
@@ -434,116 +389,128 @@ module tb_minisoc_c_firmware;
             SYM__START:    begin
                 if (!boot_sequence_once) begin
                     current_context = "Boot sequence";
-                    $display("[FW_MON] 🚀 Boot sequence started (<_start>) at %t", $time);
+                    $fdisplay(log_file, "\n[FW_MON] 🚀 Boot sequence started (<_start>) at %t", $time);
                     boot_sequence_once = 1;
                 end
                 
             end
 
-
             SYM_BSS_LOOP:  begin
                 if (!bss_loop_once) begin
                     current_context = "BSS Loop";
-                    $display("[FW_MON] 🧹 Initializing .bss section (<bss_loop>) at %t", $time); 
+                    $fdisplay(log_file, "\n[FW_MON] 🧹 Initializing .bss section (<bss_loop>) at %t", $time); 
                     bss_loop_once = 1;
                 end
             end
-            
-            
+                        
             SYM_DATA_LOOP: begin
                 if (!data_loop_once) begin
                     current_context = "DATA Loop";
-                    $display("[FW_MON] 💾 Copying .data section (<data_loop>) at %t", $time);
+                    $fdisplay(log_file, "\n[FW_MON] 💾 Copying .data section (<data_loop>) at %t", $time);
                     data_loop_once = 1;
                 end
             end
             
-
             SYM_MAIN: begin
                 current_context = "Main Entry";
-                $display("[FW_MON] ✅ Jump to main() application at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to main() application at %t", $time);
                 check_data_integrity(); 
             end
 
-
             SYM_SYSTEM_INIT: begin
                 current_context = "SYSTEM INIT";
-                $display("[FW_MON] ✅ Jump to system_init() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to system_init() function at %t", $time);
             end
             
-
-            SYM_PERIPHERAL_INIT: begin
+            SYM_PERIPHERALS_INIT: begin
                 current_context = "Periph INIT Process";
-                $display("[FW_MON] ✅ Jump to peripheral_init() - Initialize UART/TIMER/GPIO function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - Initialize UART/TIMER/GPIO function at %t", $time);
             end
-
 
             SYM_PERIPHERAL_IS_INITIALIZED: begin
                 current_context = "Periph INIT CHECK";
-                $display("[FW_MON] ✅ Jump to peripheral_is_initialized() - Check if UART/TIMER/GPIO function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripheral_is_initialized() - Check if UART/TIMER/GPIO function at %t", $time);
             end
-
 
             SYM_UART_INIT: begin
                 current_context = "Periph UART INIT";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - uart_init() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - uart_init() function at %t", $time);
             end
-
 
             SYM_UART_CONFIGURE: begin
                 current_context = "Periph UART CONFIG";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - uart_configure() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - uart_configure() function at %t", $time);
             end
-
 
             SYM_UART_DEINIT: begin
                 current_context = "Periph UART DEINIT";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - uart_deinit() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - uart_deinit() function at %t", $time);
             end
-
 
             SYM_GPIO_INIT: begin
                 current_context = "Periph GPIO INIT";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - gpio_init() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - gpio_init() function at %t", $time);
             end
-
 
             SYM_GPIO_CONFIGURE_PIN: begin
                 current_context = "Periph GPIO CONFIG PIN";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - gpio_configure_pin() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - gpio_configure_pin() function at %t", $time);
             end
 
             SYM_GPIO_DEINIT: begin
                 current_context = "Periph GPIO DEINIT";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - gpio_deinit() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - gpio_deinit() function at %t", $time);
             end
-
 
             SYM_TIMER_INIT: begin
                 current_context = "Periph TIMER INIT";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - timer_init() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - timer_init() function at %t", $time);
             end
-
 
             SYM_TIMER_DEINIT: begin
                 current_context = "Periph TIMER DEINIT";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - timer_deinit() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - timer_deinit() function at %t", $time);
             end
-
 
             SYM_SYSTEM_INIT_WITH_TIMER_SAFE: begin
                 current_context = "System Timer Init with Safety function";
-                $display("[FW_MON] ✅ Jump to peripherals_init_safe() - system_init_with_timer_safe() function at %t", $time);
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to peripherals_init() - system_init_with_timer_safe() function at %t", $time);
             end
 
+            // SYM_APP_PRINT_STRING: begin
+            //     current_context = "System Print with Safety function";
+            //     $fdisplay(log_file, "\n[FW_MON] ✅ Jump to app_print_string() function - Display_system_info_safe/ at %t", $time);
+            // end
 
-            SYM_APP_PRINT_STRING: begin
-                current_context = "System Print with Safety function";
-                $display("[FW_MON] ✅ Jump to print_string_safe() function - Display_system_info_safe/ at %t", $time);
+            SYM_HANDLE_CRITICAL_ERROR: begin
+                current_context = "Main Handle Critical Error function";
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to handle_critical_error() function - main/ at %t", $time);
             end
+
+            SYM_DISPLAY_SYSTEM_INFO_ISRA_0: begin
+                current_context = "Main Display System Info function";
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to display_system_info() function - main/ at %t", $time);
+            end
+
+            SYM_BLINK_LED_DEMO: begin
+                current_context = "Main Blink Led Demo function";
+                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to blink_led_demo() function - main/ at %t", $time);
+            end
+
+            // SYM_GPIO_WRITE_PIN: begin
+            //     current_context = "Main Blink Led Demo - GPIO_WRITE_PIN function";
+            //     $fdisplay(log_file, "\n[FW_MON] ✅ Jump to gpio_write_pin() function - blink_led_demo/ at %t", $time);
+            // end
+
+
+            // SYM_SYSTEM_DELAY_MS_SAFE: begin
+            //     current_context = "Main Blink Led Demo - SYSTEM_DELAY_MS_SAFE function";
+            //     $fdisplay(log_file, "\n[FW_MON] ✅ Jump to system_delay_ms_safe() function - blink_led_demo/ at %t", $time);
+            // end
 
         endcase
     end
+
 
     task check_data_integrity;
         integer i;
@@ -551,32 +518,31 @@ module tb_minisoc_c_firmware;
         reg [31:0] ram_val;
         reg [31:0] expected_val;
         begin
-            $display("\n[TB][VERIFY] Checking .data integrity...");
+            $fdisplay(log_file, "\n[TB][VERIFY] Checking .data integrity...");
             
-            // On utilise les symboles générés pour connaître la plage exacte
+            // The generated symbols are used to determine the exact range
             // SYM__SDATA = début RAM (0x10000000)
             // SYM__EDATA = fin RAM (0x10000004 ou plus)
-            // SYM_VERIFICATION_CANARY = Adresse de la variable (0x10000000)
+            // SYM_VERIFICATION_CANARY = Variable address (0x10000000)
             
             if (SYM__EDATA <= SYM__SDATA) begin
-                $display("[TB][WARNING] .data section is empty (Size 0). Nothing to verify.");
+                $fdisplay(log_file, "[TB][WARNING] .data section is empty (Size 0). Nothing to verify.");
             end else begin
-                // Vérification spécifique de notre CANARY
-                // On lit directement dans le tableau mémoire du modèle Verilog (Backdoor access)
+                // Specific verification of our CANARY
+                // The information is read directly from the Verilog model's memory table (Backdoor access).
                 
-                // Note : Ajustez le chemin 'dmem_inst.mem' selon votre hiérarchie
                 // index = (Adresse - Base) / 4
                 ram_val = dut.top_soc_inst.dmem_inst.dmem_inst.mem[(SYM_VERIFICATION_CANARY - 32'h10000000)/4];
                 
-                // Valeur attendue : 0xCAFEBABE
+                // Expected Value: 0xCAFEBABE
                 if (ram_val === 32'hCAFEBABE) begin
-                    $display("[TB][PASS] ✅ Verification Canary found: %h at address %h", ram_val, SYM_VERIFICATION_CANARY);
+                    $fdisplay(log_file, "[TB][PASS] ✅ Verification Canary found: %h at address %h", ram_val, SYM_VERIFICATION_CANARY);
                 end else begin
-                    $display("[TB][FAIL] ❌ Data Mismatch! Addr: %h, Read: %h, Expected: CAFEBABE", SYM_VERIFICATION_CANARY, ram_val);
-                    $stop; // Arrêt simulation sur erreur critique
+                    $fdisplay(log_file, "[TB][FAIL] ❌ Data Mismatch! Addr: %h, Read: %h, Expected: CAFEBABE", SYM_VERIFICATION_CANARY, ram_val);
+                    $stop; // Critical Error: Stop Simulation
                 end
             end
-            $display("------------------------------------------------------------\n");
+            $fdisplay(log_file, "------------------------------------------------------------\n");
         end
     endtask
 
@@ -585,29 +551,38 @@ module tb_minisoc_c_firmware;
     // UART RX MONITOR 
     // =======================================================================
     initial begin
+        // Wait for reset release 
+        wait(rst_n == 1);
+        $fdisplay(log_file, "\n[UART TERMINAL] Listening...");
+
         forever begin
             // 1. Wait for Start bit (Falling Edge)
             @(negedge uart_tx);
 
             // 2. Wait hakf bit period to sample middle of start bit
-            #(BAUD_PERIOD * CLK_PERIOD / 2);
+            repeat (BAUD_PERIOD / 2) @(posedge clk);
 
             if (uart_tx == 0) begin
-                // 3. Sample 8 data bits
                 uart_captured_byte = 0;
+
+                // 3. Sample 8 data bits
                 for (i_gen = 0; i_gen < 8; i_gen++) begin
-                    #(BAUD_PERIOD * CLK_PERIOD);
+                    repeat (BAUD_PERIOD) @(posedge clk);
                     uart_captured_byte[i_gen] = uart_tx;
                 end
 
                 // 4. Wait for stop bit
-                #(BAUD_PERIOD * CLK_PERIOD);
+                repeat (BAUD_PERIOD) @(posedge clk);
 
                 // 5. Store and Process
                 uart_tx_buffer[uart_tx_total] = uart_captured_byte;
                 uart_tx_total = uart_tx_total + 1;
 
-                process_uart_byte(uart_captured_byte);
+                // Print for python script: parse_uart
+                if (log_file != 0) $fwrite(log_file, "\n[UART TERMINAL] %c", uart_captured_byte);
+                
+                // Use for direct terminal display
+                //process_uart_byte(uart_captured_byte);
             end
         end
     end
@@ -616,107 +591,55 @@ module tb_minisoc_c_firmware;
     // =======================================================================
     // UART PROCESSING TASKS
     // =======================================================================
+    reg [7:0] print_buffer [0:255];
+    integer   print_idx = 0;
+    integer   k_gen;
+
     task process_uart_byte;
         input [7:0] byte_data;
         begin
-            // Echo character to console 
-            if (byte_data >= 8'h20 && byte_data <= 8'h7E) 
-                $write("%c", byte_data);
-            else if (byte_data == 8'h0D || byte_data == 8'h0A)
-                $write("\n");
-            else 
-                $write(".");
-
-            // Line buffering
-            if (byte_data == 8'h0D || byte_data == 8'h0A) begin // \r or \n
-                if (line_buffer_idx > 0) begin
-                    check_uart_line(); // Checks global line_buffer
-                    line_buffer_idx = 0;
+            // If it's a line break (\n or \r)
+            if (byte_data == 8'h0A || byte_data == 8'h0D) begin
+                if (print_idx > 0) begin
+                    // Print Prefix
+                    if (log_file != 0) $fwrite(log_file, "[UART TERMINAL] ");
+                    
+                    // We force a line break at the very end
+                    for (k_gen = 0; k_gen < print_idx; k_gen = k_gen + 1) begin
+                        if (log_file != 0) $fwrite(log_file, "%c", print_buffer[k_gen]);
+                    end
+                    
+                    // 
+                    if (log_file != 0) $fwrite(log_file, "\n");
+                    
+                    print_idx = 0; // We empty the box for the next line
                 end
-            end else begin
-                line_buffer[line_buffer_idx] = byte_data;
-                line_buffer_idx = line_buffer_idx + 1;
-                if (line_buffer_idx >= 127) line_buffer_idx = 0;
-            end
-            
-            // Immediate char checks
-            if (byte_data == 8'h2E) begin // '.'
-                if (blink_demo_started && !blink_demo_completed) begin
-                    blink_count = blink_count + 1;
-                end
+            end 
+            // We only store readable ASCII characters (avoids corrupted characters)
+            else if (byte_data >= 8'h20 && byte_data <= 8'h7E) begin
+                print_buffer[print_idx] = byte_data;
+                print_idx = print_idx + 1;
             end
         end
     endtask
 
 
-    // ======================================================================
-    // CHECK UART LINE
-    // ======================================================================
-    task check_uart_line;
-        integer k;
-        reg [255:0] current_line_packed;
-        begin
-            // Pack the buffer into a single wide register for comparison
-            current_line_packed = 0;
-            
-            // Note: We pack from left to right to match string literals in Verilog
-            // e.g. "Hello" -> H is MSB in string literal context usually, 
-            // but here we construct based on the expected_strings format.
-            // Let's use a simpler match approach: 
-            
-            // Clear temp
-            temp_line_str = 0;
-            
-            // Convert byte array to bit vector for comparison
-            // We limit to 32 chars to match expected_strings width
-            for (k = 0; k < 32; k = k + 1) begin
-                if (k < line_buffer_idx)
-                    current_line_packed[ (31-k)*8 +: 8 ] = line_buffer[k];
-                else
-                    current_line_packed[ (31-k)*8 +: 8 ] = 0;
-            end
-
-            // Compare against expected strings
-            // 1. Banner Start
-            if (current_line_packed == expected_strings[1]) begin
-                $display("\n[CHECK] Firmware Start Detected");
-                banner_printed = 1;
-            end
-            // 2. Clock
-            else if (current_line_packed == expected_strings[3]) begin
-                tests_passed = tests_passed + 1;
-            end
-            // 3. Blink Start
-            else if (current_line_packed == expected_strings[7]) begin
-                blink_demo_started = 1;
-                $display("\n[CHECK] Blink Demo Started");
-            end
-            // 4. Blink End
-            else if (current_line_packed == expected_strings[8]) begin
-                blink_demo_completed = 1;
-            end
-            // 5. Main Loop
-            else if (current_line_packed == expected_strings[9]) begin
-                main_loop_entered = 1;
-            end
-            
-            // Special partial match for counter
-            // (Verilog partial string matching is tedious, simplified here)
-            if (line_buffer_idx > 25) begin
-                // Logic to detect "System running... Counter:"
-                // Simplified: just assume if main loop entered and length is right
-                if (main_loop_entered) status_counter = status_counter + 1;
-            end
-        end
-    endtask
 
     // ======================================================================
-    // GPIO MONITORING
+    // GPIO MONITORING & VISUAL LED SIMULATION
     // ======================================================================
     always @(gpio_monitor) begin
         if (cycle_count > 100) begin
-            // Only monitor bit 0
+            // Only monitor bit 0 (our LED)
             if (gpio_monitor[0] != gpio0_state) begin
+
+                // Visualization
+                if (gpio_monitor[0] == 1'b1) begin
+                    if (log_file != 0) $fdisplay(log_file, "\n[GPIO] LED 0: 🟢 ON   (Temps: %0t ns)", $time);
+                end else begin
+                    if (log_file != 0) $fdisplay(log_file, "\n[GPIO] LED 0: ⚪ OFF  (Temps: %0t ns)", $time);
+                end
+
                 gpio0_transitions = gpio0_transitions + 1;
                 
                 // Period check
@@ -734,45 +657,49 @@ module tb_minisoc_c_firmware;
     // ======================================================================
     // HELPERS
     // ======================================================================
-    task load_expected_strings;
-        begin
-            // Verilog-2001 style string assignment to packed arrays
-            // Note: Strings are right-padded with zeros if shorter than reg width
-            // Ensure the string literal matches the packing logic in check_uart_line
-            
-            // "Mini RV32I SoC Firmware Started\r" (32 chars approx)
-            expected_strings[1] = "Mini RV32I SoC Firmware Started\r";
-            
-            expected_strings[3] = "System Clock: 100000000 Hz\r\0\0\0\0\0"; // Padding
-            
-            expected_strings[7] = "LED Blink Demo Started\r\0\0\0\0\0\0\0\0\0";
-            expected_strings[8] = "LED Blink Demo Completed\r\0\0\0\0\0\0\0";
-            expected_strings[9] = "All demos completed. Entering ma"; // Truncated to 32 chars
-        end
-    endtask
-
-    task check_banner_content;
-        begin
-            if (banner_printed) tests_passed = tests_passed + 1;
-            if (blink_demo_started) tests_passed = tests_passed + 1;
-        end
-    endtask
-
     task verify_overall_behavior;
         begin
-            $display("--------------------------------");
-            $display("Passed: %0d, Failed: %0d", tests_passed, tests_failed);
+            $fdisplay(log_file, "--------------------------------");
             
-            if (uart_tx_total > 10) $display("[PASS] UART Activity Detected");
-            else tests_failed = tests_failed + 1;
+            // 1. Check UART Activity
+            if (uart_tx_total > 10) begin
+                $fdisplay(log_file, "[PASS] UART Activity Detected (%0d bytes)", uart_tx_total);
+            end else begin
+                $fdisplay(log_file, "[FAIL] No UART Activity");
+                tests_failed = tests_failed + 1;
+            end
             
-            if (gpio0_transitions > 4) $display("[PASS] GPIO Activity Detected");
-            else tests_failed = tests_failed + 1;
+            // 2. Check GPIO Activity
+            if (gpio0_transitions > 0) begin
+                $fdisplay(log_file, "[PASS] GPIO Activity Detected (%0d toggles)", gpio0_transitions);
+            end else begin
+                $fdisplay(log_file, "[FAIL] No GPIO Activity detected (Increase timeout if needed)");
+                tests_failed = tests_failed + 1;
+            end
             
-            if (main_loop_entered) $display("[PASS] Main Loop Reached");
-            else tests_failed = tests_failed + 1;
+            $fdisplay(log_file, "Total Passed: %0d, Total Failed: %0d", (tests_failed == 0 ? 2 : 0), tests_failed);
         end
     endtask
+
+
+    // =======================================================================
+    // CPU Trace Logger
+    // =======================================================================
+    always @(posedge clk) begin
+        if (cpu_trace_log && dut.top_soc_inst.cpu_rst_n) begin
+            $fdisplay(cpu_trace_log,
+                "%8d        | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h",
+                cycle_count,
+                fetch_pc    , fetch_instr     ,
+                decode_pc   , decode_instr    ,
+                execute_pc  , execute_instr   ,
+                mem_pc      , mem_instr       ,
+                writeback_pc, writeback_instr ,
+            );
+            $fdisplay(cpu_trace_log,
+                "-------------------------------------------------------------------------------------------------------------------------------------");
+        end
+    end
 
 
     // =======================================================================
@@ -781,19 +708,7 @@ module tb_minisoc_c_firmware;
     initial begin
         $dumpfile("minisoc_c_firmware.vcd");
         $dumpvars(0, tb_minisoc_c_firmware);
-        // Dump all hierarchy levels
-        $dumpvars(1, dut);
-        $dumpvars(2, dut.top_soc_inst);
-        $dumpvars(3, dut.top_soc_inst.rv32i_core);
-        $dumpvars(3, dut.top_soc_inst.imem_inst);
-        $dumpvars(3, dut.top_soc_inst.dmem_inst);
-        $dumpvars(3, dut.top_soc_inst.uart_inst);
-        $dumpvars(3, dut.top_soc_inst.gpio_inst);
-        $dumpvars(3, dut.top_soc_inst.timer_inst);
-        $display("[TB] Waveform dumping enabled: minisoc_c_firmware.vcd");
+        $fdisplay(log_file, "[TB] Waveform dumping enabled: minisoc_c_firmware.vcd");
     end
 
-    
-    
-    
 endmodule

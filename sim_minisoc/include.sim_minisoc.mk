@@ -38,7 +38,7 @@ SIM_MINISOC_HW_SOURCES := $(sort \
     $(TRACER_OUTPUT))
 
 # Firmware 
-FIRMWARE_MEM_FILE := $(SW_BUILD_DIR)/firmware.hex
+FIRMWARE_MEM_FILE := $(SW_BUILD_DIR)/firmware.mem
 
 # ----------------------------------------------------------------------------
 # Compilation Flags
@@ -95,6 +95,8 @@ sim_minisoc.run: sim_minisoc.build
 	$(Q)echo "  [VVP]       Running MiniSoC C Firmware Simulation..."
 	$(Q)cd $(SIM_MINISOC_BUILD_DIR) && $(VVP) tb_minisoc.out $(SIM_MINISOC_VVP_FLAGS)
 	$(Q)echo "  [SIM-SOC]   Simulation Complete. Log: $(SIM_LOG_FILE)"
+	$(Q)echo "  [UART]      Extracting Virtual Terminal output..."
+	$(Q)python3 $(TOP_DIR)/scripts/parser/parse_uart.py $(SIM_LOG_FILE)
 
 # Run simulation with waveform capture
 sim_minisoc.wave: 
