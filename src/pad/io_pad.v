@@ -17,6 +17,5 @@ module io_pad (
     // Input Receiver
     // --------------------------------------------------
     assign pad_out = pad_io;
-
-
+    
 endmodule

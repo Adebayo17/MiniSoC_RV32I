@@ -1,3 +1,5 @@
+`include "debug_utils.vh"
+
 module wishbone_interconnect #(
     parameter ADDR_WIDTH        = 32,
     parameter DATA_WIDTH        = 32,
@@ -156,28 +158,28 @@ module wishbone_interconnect #(
     // -------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            sel_slave_reg      <= SLAVE_NONE;
-            address_valid_reg  <= 1'b0;
-            request_active_reg <= 1'b0;
+            sel_slave_reg           <= SLAVE_NONE;
+            address_valid_reg       <= 1'b0;
+            request_active_reg      <= 1'b0;
             
-            wbm_cpu_cyc_reg        <= 1'b0;
-            wbm_cpu_stb_reg        <= 1'b0;
-            wbm_cpu_we_reg         <= 1'b0;
-            wbm_cpu_addr_reg       <= {ADDR_WIDTH{1'b0}};
-            wbm_cpu_data_write_reg <= {DATA_WIDTH{1'b0}};
-            wbm_cpu_sel_reg        <= 4'b0;
+            wbm_cpu_cyc_reg         <= 1'b0;
+            wbm_cpu_stb_reg         <= 1'b0;
+            wbm_cpu_we_reg          <= 1'b0;
+            wbm_cpu_addr_reg        <= {ADDR_WIDTH{1'b0}};
+            wbm_cpu_data_write_reg  <= {DATA_WIDTH{1'b0}};
+            wbm_cpu_sel_reg         <= 4'b0;
         end else begin
-            sel_slave_reg      <= sel_slave_combo;
-            address_valid_reg  <= address_valid_combo;
-            request_active_reg <= wbm_cpu_cyc && wbm_cpu_stb;
+            sel_slave_reg           <= sel_slave_combo;
+            address_valid_reg       <= address_valid_combo;
+            request_active_reg      <= wbm_cpu_cyc && wbm_cpu_stb;
             
             // Register master inputs
-            wbm_cpu_cyc_reg        <= wbm_cpu_cyc;
-            wbm_cpu_stb_reg        <= wbm_cpu_stb;
-            wbm_cpu_we_reg         <= wbm_cpu_we;
-            wbm_cpu_addr_reg       <= wbm_cpu_addr;
-            wbm_cpu_data_write_reg <= wbm_cpu_data_write;
-            wbm_cpu_sel_reg        <= wbm_cpu_sel;
+            wbm_cpu_cyc_reg         <= wbm_cpu_cyc;
+            wbm_cpu_stb_reg         <= wbm_cpu_stb;
+            wbm_cpu_we_reg          <= wbm_cpu_we;
+            wbm_cpu_addr_reg        <= wbm_cpu_addr;
+            wbm_cpu_data_write_reg  <= wbm_cpu_data_write;
+            wbm_cpu_sel_reg         <= wbm_cpu_sel;
         end
     end
 
@@ -333,8 +335,8 @@ module wishbone_interconnect #(
             access_count <= access_count + 1;
             if (!address_valid_reg) begin
                 error_count <= error_count + 1;
-                $display("[INTERCONNECT] Error: Invalid address %h at time %t", 
-                         wbm_cpu_addr_reg, $time);
+                `DEBUG_INFO(("[INTERCONNECT] Error: Invalid address %h at time %t", 
+                         wbm_cpu_addr_reg, $time))
             end
         end
     end
@@ -355,8 +357,8 @@ module wishbone_interconnect #(
         if (wbm_cpu_stb && wbm_cpu_ack) begin
             loop_counter <= loop_counter + 1;
             if (loop_counter > 10) begin
-                $display("[INTERCONNECT] WARNING: Possible combinatorial loop detected!");
-                $display("  STB and ACK are asserted simultaneously %d times", loop_counter);
+                `DEBUG_INFO(("[INTERCONNECT] WARNING: Possible combinatorial loop detected!"))
+                `DEBUG_INFO(("  STB and ACK are asserted simultaneously %d times", loop_counter))
             end
         end else begin
             loop_counter <= 0;

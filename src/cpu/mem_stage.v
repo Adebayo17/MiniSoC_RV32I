@@ -171,17 +171,7 @@ module mem_stage #(
     // -------------------------------------------
     // Wishbone Bus Interface
     // -------------------------------------------
-    // reg mem_ack_reg; 
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n)
-    //         mem_ack_reg <= 1'b0;
-    //     else if (state == REQUEST && wbm_dmem_ack)
-    //         mem_ack_reg <= 1'b1;       // ack for THIS instruction
-    //     else if (state == IDLE)
-    //         mem_ack_reg <= 1'b0;       // clear once instruction retires
-    // end
-
-
+    
     // FSM State Register
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin

@@ -1,3 +1,5 @@
+`include "debug_utils.vh"
+
 module cpu #(
     parameter RESET_PC           = 32'h0000_0000,
     parameter ADDR_WIDTH         = 32,

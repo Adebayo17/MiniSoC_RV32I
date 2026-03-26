@@ -1,3 +1,5 @@
+`include "debug_utils.vh"
+
 module mem_init #(
     parameter IMEM_BASE     = 32'h0000_0000,
     parameter DMEM_BASE     = 32'h1000_0000,
@@ -47,9 +49,11 @@ module mem_init #(
     // -------------------------------------------
     // Load firmware and fill with NOPs
     // -------------------------------------------
+    integer i ;
+
     initial begin
         // Initialize all memory to NOP first
-        for (integer i = 0; i < IMEM_DEPTH; i = i + 1) begin
+        for (i = 0; i < IMEM_DEPTH; i = i + 1) begin
             firmware_mem[i] = NOP_INSTRUCTION;
         end
 
@@ -57,10 +61,18 @@ module mem_init #(
         if (INIT_FILE != "") begin
             // Try to read the file
             loaded_instructions = 0;
-            $readmemh(INIT_FILE, firmware_mem);
+            //$readmemh(INIT_FILE, firmware_mem);
+
+            // For Synthesis Yosys
+            `ifdef FIRMWARE_PATH
+                $readmemh(`FIRMWARE_PATH, firmware_mem);
+            // For Simulation: Icarus
+            `else
+                $readmemh(INIT_FILE, firmware_mem);
+            `endif
 
             // Count actual loaded instructions
-            for (integer i = 0; i < IMEM_DEPTH; i = i + 1) begin
+            for (i = 0; i < IMEM_DEPTH; i = i + 1) begin
                 if (firmware_mem[i] !== 32'hxxxxxxxx) begin
                     loaded_instructions = loaded_instructions + 1;
                 end else begin
@@ -70,11 +82,11 @@ module mem_init #(
             end
 
 
-            $display("[MEM_INIT] Loaded firmware from %s", INIT_FILE);
-            $display("[MEM_INIT] Loaded %0d instructions, remaining %0d words filled with NOPs", 
-                    loaded_instructions, IMEM_DEPTH - loaded_instructions);
+            `DEBUG_INFO(("[MEM_INIT] Loaded firmware from %s", INIT_FILE))
+            `DEBUG_INFO(("[MEM_INIT] Loaded %0d instructions, remaining %0d words filled with NOPs", 
+                    loaded_instructions, IMEM_DEPTH - loaded_instructions))
         end else begin
-            $display("[MEM_INIT] No firmware file specified");
+            `DEBUG_INFO(("[MEM_INIT] No firmware file specified"))
             loaded_instructions = 0;
         end
     end
@@ -145,9 +157,7 @@ module mem_init #(
                 DONE: begin
                     init_done   <= 1;
                     state       <= IDLE;
-                    `ifdef DEBUG
-                    $display("[MEM_INIT]: IMEM and DMEM initialization done");
-                    `endif
+                    `DEBUG_INFO(("[MEM_INIT]: IMEM and DMEM initialization done"))
                 end
             endcase
         end

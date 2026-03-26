@@ -30,7 +30,7 @@ The MiniSoC-RV32I is a minimalist System-on-Chip (SoC) built around a custom RIS
 
 ## 2. System Block Diagram
 
-![Mini Soc Block Diagram](diagrams/soc_architecture.png)
+![Mini Soc Block Diagram](../diagrams/soc_architecture.png)
 
 ---
 

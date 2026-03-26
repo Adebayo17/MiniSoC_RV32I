@@ -1,0 +1,22 @@
+# ==============================================================================
+# Generic Yosys Synthesis Script for MiniSoC-RV32I
+# ==============================================================================
+# This script converts RTL (Verilog) code into a netlist of generic gates.
+# It is ideal for verifying that the design is "synthesizable" without initially targeting
+# a specific FPGA (such as Xilinx or ICE40).
+
+# 1. Hierarchy check and top-level module definition
+hierarchy -check -top mini_rv32i_top
+
+# 2. Full generic synthesis
+# This command automatically executes the following passes: proc, fsm, memory, techmap
+synth -top mini_rv32i_top
+
+# 3. Maximum logic optimization (dead gates, etc.)
+opt -full
+
+# 4. Hierarchy cleanup for a flat and clean netlist
+clean
+
+# 5. Statistics display (Number of registers, gates, multiplexers)
+stat

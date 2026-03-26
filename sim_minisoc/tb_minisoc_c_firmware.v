@@ -213,6 +213,13 @@ module tb_minisoc_c_firmware;
         log_file = log_file | 1;
 
         cpu_trace_log = $fopen("minisoc_firmware_cpu_trace.log", "w");
+        $fdisplay(cpu_trace_log, "Mini RV32I Top CPU instruction trace Log - %t", $time);
+        $fdisplay(cpu_trace_log,
+            "=====================================================================================================================================");
+        $fdisplay(cpu_trace_log,
+            "   CYCLE        |  IF_PC   |  ID_PC   |  EX_PC   |  MEM_PC  |  WB_PC   ");
+        $fdisplay(cpu_trace_log,
+            "=====================================================================================================================================");
 
         $fdisplay(log_file, "==================================================");
         $fdisplay(log_file, "MINI RV32I SoC FIRMWARE TESTBENCH");
@@ -492,10 +499,10 @@ module tb_minisoc_c_firmware;
                 $fdisplay(log_file, "\n[FW_MON] ✅ Jump to display_system_info() function - main/ at %t", $time);
             end
 
-            SYM_BLINK_LED_DEMO: begin
-                current_context = "Main Blink Led Demo function";
-                $fdisplay(log_file, "\n[FW_MON] ✅ Jump to blink_led_demo() function - main/ at %t", $time);
-            end
+            // SYM_BLINK_LED_DEMO: begin
+            //     current_context = "Main Blink Led Demo function";
+            //     $fdisplay(log_file, "\n[FW_MON] ✅ Jump to blink_led_demo() function - main/ at %t", $time);
+            // end
 
             // SYM_GPIO_WRITE_PIN: begin
             //     current_context = "Main Blink Led Demo - GPIO_WRITE_PIN function";
@@ -579,10 +586,7 @@ module tb_minisoc_c_firmware;
                 uart_tx_total = uart_tx_total + 1;
 
                 // Print for python script: parse_uart
-                if (log_file != 0) $fwrite(log_file, "\n[UART TERMINAL] %c", uart_captured_byte);
-                
-                // Use for direct terminal display
-                //process_uart_byte(uart_captured_byte);
+                process_uart_byte(uart_captured_byte);
             end
         end
     end
@@ -635,9 +639,9 @@ module tb_minisoc_c_firmware;
 
                 // Visualization
                 if (gpio_monitor[0] == 1'b1) begin
-                    if (log_file != 0) $fdisplay(log_file, "\n[GPIO] LED 0: 🟢 ON   (Temps: %0t ns)", $time);
+                    if (log_file != 0) $fdisplay(log_file, "[GPIO] LED 0: 🟢 ON   (Temps: %0t ns)", $time);
                 end else begin
-                    if (log_file != 0) $fdisplay(log_file, "\n[GPIO] LED 0: ⚪ OFF  (Temps: %0t ns)", $time);
+                    if (log_file != 0) $fdisplay(log_file, "[GPIO] LED 0: ⚪ OFF  (Temps: %0t ns)", $time);
                 end
 
                 gpio0_transitions = gpio0_transitions + 1;
@@ -688,13 +692,13 @@ module tb_minisoc_c_firmware;
     always @(posedge clk) begin
         if (cpu_trace_log && dut.top_soc_inst.cpu_rst_n) begin
             $fdisplay(cpu_trace_log,
-                "%8d        | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h",
+                "%8d        | %08h | %08h | %08h | %08h | %08h ",
                 cycle_count,
-                fetch_pc    , fetch_instr     ,
-                decode_pc   , decode_instr    ,
-                execute_pc  , execute_instr   ,
-                mem_pc      , mem_instr       ,
-                writeback_pc, writeback_instr ,
+                fetch_pc    ,
+                decode_pc   ,
+                execute_pc  ,
+                mem_pc      ,
+                writeback_pc
             );
             $fdisplay(cpu_trace_log,
                 "-------------------------------------------------------------------------------------------------------------------------------------");

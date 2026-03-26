@@ -18,7 +18,7 @@ While the architecture internally resembles a Harvard design (separate Instructi
 
 ### 1.2 Pipeline Block Diagram
 
-![RISC-V CPU Architecture](diagrams/cpu_architecture.png)
+![RISC-V CPU Architecture](../diagrams/cpu_architecture.png)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐

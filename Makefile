@@ -37,8 +37,8 @@ export Q
 include src/include.src.mk 
 include sim/include.sim.mk 
 include sw/include.sw.mk
-include synth/include.synth.mk
 include sim_minisoc/include.sim_minisoc.mk
+include synth/include.synth.mk
 
 
 # -------------------------------------------
@@ -174,7 +174,7 @@ help:
 	@echo "  make sim-minisoc-clean - Clean simulation files"
 	@echo ""
 	@echo "Synthesis:"
-	@echo "  make synth              - Run synthesis"
+	@echo "  make synth.all         - Run synthesis"
 	@echo ""
 	@echo "Cleaning:"
 	@echo "  make clean              - Clean all build files"

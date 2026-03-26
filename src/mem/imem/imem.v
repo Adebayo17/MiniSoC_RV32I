@@ -1,3 +1,5 @@
+`include "debug_utils.vh"
+
 module imem #(
     parameter SIZE_KB    = 8,           // 4KB memory (1024 * 32-bit words)
     parameter ADDR_WIDTH = 32,
@@ -75,39 +77,21 @@ module imem #(
     always @(posedge clk) begin
         if (init_en) begin
             mem[init_word_addr] <= init_data;
-            `ifdef DEBUG
-            $display("[DEBUG]: IMEM init mem at @ %h with %h", init_word_addr, init_data);
-            `endif
+            `DEBUG_INFO(("[DEBUG]: IMEM init mem at @ %h with %h", init_word_addr, init_data))
         end 
         // Hardware write protection (IMEM is read-only during operation)
         else if((wbs_if_cyc && wbs_if_stb && wbs_if_we)) begin
-            $display("[WARNING]: Attempted IMEM IF write at %h", wbs_if_addr);
+            `DEBUG_INFO(("[WARNING]: Attempted IMEM IF write at %h", wbs_if_addr))
         end
         // Hardware write protection (IMEM is read-only during operation)
         else if((wbs_ro_cyc && wbs_ro_stb && wbs_ro_we)) begin
-            $display("[WARNING]: Attempted IMEM RO write at %h", wbs_if_addr);
+            `DEBUG_INFO(("[WARNING]: Attempted IMEM RO write at %h", wbs_if_addr))
         end
     end
 
     // -------------------------------------------
     // Acknowledge Generation (1-cycle pulse)
     // -------------------------------------------
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         wbs_if_ack <= 0;
-    //     end else begin
-    //         wbs_if_ack <= wbs_if_cyc && wbs_if_stb;
-    //     end
-    // end  
-
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         wbs_ro_ack <= 0;
-    //     end else begin
-    //         wbs_ro_ack <= wbs_ro_cyc && wbs_ro_stb;
-    //     end
-    // end  
-
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             wbs_if_ack <= 1'b0;

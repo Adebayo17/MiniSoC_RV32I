@@ -43,7 +43,7 @@ sim.mem: sim.dmem sim.imem sim.mem_init
 $(DMEM_BUILD_DIR)/dmem_tb.out: $(DMEM_SOURCES) $(DMEM_TB)
 	@mkdir -p $(dir $@)
 	$(Q)echo "  [IVERILOG]  Compiling DMEM Testbench"
-	$(Q)$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
+	$(Q)$(IVERILOG) -o $@ -I$(INC_DIR) -I$(MEM_SRC_DIR) $^
 
 sim.dmem: $(DMEM_BUILD_DIR)/dmem_tb.out
 
@@ -51,7 +51,7 @@ sim.dmem: $(DMEM_BUILD_DIR)/dmem_tb.out
 $(IMEM_BUILD_DIR)/imem_tb.out: $(IMEM_SOURCES) $(IMEM_TB)
 	@mkdir -p $(dir $@)
 	$(Q)echo "  [IVERILOG]  Compiling IMEM Testbench"
-	$(Q)$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
+	$(Q)$(IVERILOG) -o $@ -I$(INC_DIR) -I$(MEM_SRC_DIR) $^
 
 sim.imem: $(IMEM_BUILD_DIR)/imem_tb.out
 
@@ -60,7 +60,7 @@ $(MEM_INIT_BUILD_DIR)/mem_init_tb.out: $(MEM_INIT_SOURCES) $(MEM_INIT_TB)
 	@mkdir -p $(dir $@)
 	$(Q)touch $(dir $@)/firmware.hex
 	$(Q)echo "  [IVERILOG]  Compiling MEM_INIT Testbench"
-	$(Q)$(IVERILOG) -o $@ -I$(MEM_SRC_DIR) $^
+	$(Q)$(IVERILOG) -o $@ -I$(INC_DIR) -I$(MEM_SRC_DIR) $^
 
 sim.mem_init: $(MEM_INIT_BUILD_DIR)/mem_init_tb.out
 

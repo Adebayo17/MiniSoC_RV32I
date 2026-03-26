@@ -12,7 +12,7 @@ It is designed to be 100% memory-safe, free of dangerous hidden macros, and high
 ### 1. Getting Started & Architecture
 - **[Getting Started](01_GETTING_STARTED.md)**              - Prerequisites, toolchain setup, and step-by-step guides.
 - **[Architecture Overview](02_ARCHITECTURE_OVERVIEW.md)**  -  OOP model (`peripheral_t` inheritance), Hardware/Software separation, and coding conventions.
-- **[Diagrams](diagrams/)**                                 - Visual documentation of the software stack.
+- **[Diagrams](../diagrams/)**                              - Visual documentation of the software stack.
 
 ### 2. Memory & Build System
 - **[Memory Map](03_MEMORY_MAP.md)**                        - RAM layout (IMEM/DMEM) and Memory-Mapped I/O (MMIO) addresses.

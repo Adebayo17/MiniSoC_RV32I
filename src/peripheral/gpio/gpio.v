@@ -42,21 +42,6 @@ module gpio #(
     // -------------------------------------------
     // Input Synchronizers (to avoid metastability)
     // -------------------------------------------
-    // wire [N_GPIO-1:0] gpio_in_sync;
-    // genvar i;
-    // generate
-    //     for (i = 0; i < N_GPIO; i = i + 1) begin : gpio_sync
-    //         reg [1:0] sync_reg;
-    //         always @(posedge clk or negedge rst_n) begin
-    //             if (!rst_n)
-    //                 sync_reg <= 2'b00;
-    //             else
-    //                 sync_reg <= {sync_reg[0], gpio_in[i]};
-    //         end
-    //         assign gpio_in_sync[i] = sync_reg[1];
-    //     end
-    // endgenerate
-
     reg [N_GPIO-1:0] gpio_in_sync;
     reg [N_GPIO-1:0] gpio_in_sync1;
     
@@ -146,21 +131,29 @@ module gpio #(
     // -------------------------------------------
     // ACK generation
     // -------------------------------------------
+    reg ack_done; // To Block multiples ACKs
+
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            wbs_ack <= 1'b0;
-        else begin
-            // Generate ACK only if a valid request is present 
-            // AND we haven't already ack'd it
-            if (wbs_cyc && wbs_stb && !wbs_ack) begin
-                wbs_ack <= 1'b1;
-            end else begin
-                wbs_ack <= 1'b0;
+        if (!rst_n) begin
+            wbs_ack  <= 1'b0;
+            ack_done <= 1'b0;
+        end else begin
+            // If a transaction is ongoing
+            if (wbs_cyc && wbs_stb) begin
+                if (!ack_done) begin
+                    wbs_ack  <= 1'b1; // Assert l'ACK
+                    ack_done <= 1'b1; // Lock
+                end else begin
+                    wbs_ack  <= 1'b0; // Deassert ACK in the next cycle
+                end
+            end 
+            // If no transaction
+            else begin 
+                wbs_ack  <= 1'b0;
+                ack_done <= 1'b0;
             end
-            // wbs_ack <= (wbs_cyc && wbs_stb);
         end
     end
-
 
     // -------------------------------------------
     // GPIO Outputs

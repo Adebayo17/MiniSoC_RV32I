@@ -28,7 +28,7 @@ sim.cpu: $(CPU_SIM_BUILD_DIR)/cpu_tb.out
 $(CPU_SIM_BUILD_DIR)/cpu_tb.out: $(IMEM_SOURCES) $(DMEM_SOURCES) $(MEM_INIT_SOURCES) $(CPU_SOURCES) $(CPU_TB)
 	@mkdir -p $(dir $@)
 	$(Q)echo "  [IVERILOG]  Compiling CPU Testbench"
-	$(Q)$(IVERILOG) -o $@ -I$(CPU_SRC_DIR) $^
+	$(Q)$(IVERILOG) -o $@ -I$(INC_DIR) -I$(CPU_SRC_DIR) $^
 
 # Run
 sim.cpu.run: sim.cpu

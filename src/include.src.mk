@@ -30,12 +30,19 @@ PERIPH_SRCS := $(wildcard $(SRC_DIR)/peripheral/*/*.v $(SRC_DIR)/peripheral/*/*.
 # Top Level
 TOP_SRCS    := $(wildcard $(SRC_DIR)/top/*.v $(SRC_DIR)/top/*.vh)
 
-# Common & Pads
-COMMON_SRCS := $(wildcard $(SRC_DIR)/common/*.v $(SRC_DIR)/common/*.vh) \
-               $(wildcard $(SRC_DIR)/pad/*.v $(SRC_DIR)/pad/*.vh)
+# Common 
+COMMON_SRCS := $(wildcard $(SRC_DIR)/common/*.v $(SRC_DIR)/common/*.vh)
+
+# Pads
+PAD_SRCS 	:= $(wildcard $(SRC_DIR)/pad/*.v $(SRC_DIR)/pad/*.vh)
+
+# Inc Dir
+INC_DIR		:= $(SRC_DIR)/common
 
 # Merge all files
-ALL_SRCS    := $(CPU_SRCS) $(MEM_SRCS) $(BUS_SRCS) $(PERIPH_SRCS) $(TOP_SRCS) $(COMMON_SRCS)
+ALL_SRCS    := $(CPU_SRCS) $(MEM_SRCS) $(BUS_SRCS) $(PERIPH_SRCS) $(TOP_SRCS) $(COMMON_SRCS) $(PAD_SRCS)
+
+export INC_DIR
 
 
 # -------------------------------------------

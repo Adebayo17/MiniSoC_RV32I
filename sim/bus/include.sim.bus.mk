@@ -23,10 +23,10 @@ BUS_TB      := $(wildcard $(BUS_SIM_DIR)/*.v)
 .PHONY: sim.bus sim.bus.run sim.bus.wave 
 
 # Compiling the test bench with Icarus Verilog
-$(BUS_SIM_BUILD_DIR)/wishbone_interconnect_tb.out: $(BUS_SOURCES) $(BUS_TB)
+$(BUS_SIM_BUILD_DIR)/wishbone_interconnect_tb.out: $(COMMON_SRCS) $(BUS_SOURCES) $(BUS_TB)
 	@mkdir -p $(dir $@)
 	$(Q)echo "  [IVERILOG]  Compiling Bus Testbench"
-	$(Q)$(IVERILOG) -o $@ -I$(BUS_SRC_DIR) $^
+	$(Q)$(IVERILOG) -o $@ -I$(INC_DIR) -I$(BUS_SOURCES) $^
 
 # Main dependency
 sim.bus: $(BUS_SIM_BUILD_DIR)/wishbone_interconnect_tb.out

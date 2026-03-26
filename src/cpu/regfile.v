@@ -32,10 +32,12 @@ module regfile #(
     // -------------------------------------------
     // Write Logic (synchronous)
     // -------------------------------------------
+    integer i;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Initialize all registers to 0 except x0
-            for (integer i = 1; i < (1<<ADDR_WIDTH); i = i + 1) begin
+            for (i = 1; i < (1<<ADDR_WIDTH); i = i + 1) begin
                 registers[i] <= 0;
             end
         end else if (wr_en && wr_addr != 0) begin
@@ -43,15 +45,16 @@ module regfile #(
         end
     end
 
+
+    // synthesis translate_off
+
     // -------------------------------------------
     // Debug Access
     // -------------------------------------------
-    // synthesis translate_off
     function [DATA_WIDTH-1:0] get_register;
         input [ADDR_WIDTH-1:0] addr;
         get_register = registers[addr];
     endfunction
-    // synthesis translate_on
 
     // -------------------------------------------
     // Debug assignments
@@ -104,6 +107,7 @@ module regfile #(
     wire [DATA_WIDTH-1:0] debug_t4   = registers[29]; // x29 = t4
     wire [DATA_WIDTH-1:0] debug_t5   = registers[30]; // x30 = t5
     wire [DATA_WIDTH-1:0] debug_t6   = registers[31]; // x31 = t6
-
+    
+    // synthesis translate_on
 
 endmodule
