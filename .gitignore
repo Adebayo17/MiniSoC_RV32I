@@ -28,6 +28,8 @@ tools/
 *.json
 
 # Editor and OS files
+docs/ganttproject/
+*.drawio
 *.swp
 *.swo
 .DS_Store

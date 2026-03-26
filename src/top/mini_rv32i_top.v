@@ -1,5 +1,5 @@
 module mini_rv32i_top #(
-    parameter FIRMWARE_FILE = "firmware.hex",
+    parameter FIRMWARE_FILE = "firmware.mem",
     parameter ADDR_WIDTH    = 32,
     parameter DATA_WIDTH    = 32,
     parameter IMEM_SIZE_KB  = 8,

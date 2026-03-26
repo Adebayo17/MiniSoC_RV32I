@@ -15,7 +15,10 @@ The project is focused on **learning and experimentation** in VLSI/ASIC/FPGA des
 ---
 
 ## SoC Architecture
-![SoC Architecture](./docs/diagrams/soc_architecture.png)
+![SoC Architecture](./docs/diagrams/minisoc_diagram.png)
+
+
+![SoC Pinout](./docs/diagrams/minisoc_inout.png)
 
 ### RISC-V CPU Architecture
 ![RISC-V CPU Architecture](./docs/diagrams/cpu_architecture.png)
