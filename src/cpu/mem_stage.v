@@ -283,20 +283,8 @@ module mem_stage #(
                 rd_out          <= rd_reg;
                 mem_to_reg_out  <= mem_to_reg_reg;
 
-                // ROute the loaded data or the calcuclated address
-                if (mem_read_reg) begin
-                    alu_result_out  <= load_data;
-                end else begin
-                    alu_result_out  <= mem_addr_reg;
-                end
-
-                // Formulate the final memory result
-                case (mem_to_reg_reg)
-                    2'b00:   mem_result_out <= mem_addr_reg;
-                    2'b01:   mem_result_out <= load_data;
-                    2'b10:   mem_result_out <= pc_plus_4_reg;
-                    default: mem_result_out <= mem_addr_reg;
-                endcase
+                alu_result_out  <= mem_addr_reg;
+                mem_result_out  <= load_data;
 
                 // Signal to the writeback stage that this data is ready
                 valid_out       <= 1'b1;
@@ -311,13 +299,7 @@ module mem_stage #(
                 rd_out          <= rd_in;
                 mem_to_reg_out  <= mem_to_reg_in;
                 alu_result_out  <= alu_result_in;
-
-                case (mem_to_reg_reg)
-                    2'b00:   mem_result_out <= alu_result_in;
-                    2'b01:   mem_result_out <= 32'b0;
-                    2'b10:   mem_result_out <= pc_plus_4_in;
-                    default: mem_result_out <= alu_result_in;
-                endcase
+                mem_result_out  <= 32'b0;
 
                 // Only assert valid if it's NOT a new memory operation
                 // (New memory ops will assert valid later when they complete via Path 1)

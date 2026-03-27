@@ -15,13 +15,18 @@ The project is focused on **learning and experimentation** in VLSI/ASIC/FPGA des
 ---
 
 ## SoC Architecture
-![SoC Architecture](./docs/diagrams/minisoc_diagram.png)
 
-
+### Pins Interface
 ![SoC Pinout](./docs/diagrams/minisoc_inout.png)
 
+### Block Diagram
+![SoC Architecture](./docs/diagrams/minisoc_diagram.png)
+
+### Demo Firmware Software Stack
+![SoC Software Stack](./docs/diagrams/software_stack.png)
+
 ### RISC-V CPU Architecture
-![RISC-V CPU Architecture](./docs/diagrams/cpu_architecture.png)
+![RISC-V CPU Architecture](./docs/diagrams/cpu_pipeline_architecture.png)
 
 **Pipeline Details**
 
@@ -117,17 +122,7 @@ make sim-minisoc-run
 
 The testbench will automatically track the Program Counter, monitor the Wishbone bus, and display UART/GPIO activity directly in your terminal:
 
-```text
-[UART TERMINAL] Mini RV32I SoC Firmware Started
-[UART TERMINAL] ================================
-[UART TERMINAL] System Clock: 100000000 Hz
-[UART TERMINAL] UART Baud:    115200 bps
-[UART TERMINAL] Memory:       32KB IMEM + 16KB DMEM
-[UART TERMINAL] ================================
-[UART TERMINAL] LED Blink Demo Started
-[GPIO] LED 0: 🟢 ON   (Time: 22573945000 ns)
-[GPIO] LED 0: ⚪ OFF  (Time: 23619175000 ns)
-```
+![Firmware Log Demo](./docs/diagrams/firrmware_demo.png)
 
 ---
 

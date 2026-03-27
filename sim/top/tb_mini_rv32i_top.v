@@ -252,8 +252,7 @@ module tb_mini_rv32i_top;
         if (rst_n) begin
             // An instruction is considered "Retired" if it reaches the Writeback stage 
             // with the VALID signal asserted, and the writeback stage is NOT stalled.
-            if (dut.top_soc_inst.rv32i_core.MEM_to_WB_valid && 
-               !dut.top_soc_inst.rv32i_core.hazard_unit_stall_writeback) begin
+            if (dut.top_soc_inst.rv32i_core.MEM_to_WB_valid) begin
                 instr_retired_count <= instr_retired_count + 1;
             end
         end

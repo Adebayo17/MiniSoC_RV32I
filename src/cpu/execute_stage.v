@@ -141,6 +141,12 @@ module execute_stage #(
         .alu_ltu    (alu_ltu        )
     );
 
+    wire [DATA_WIDTH-1:0] ex_result_to_save;
+    wire [ADDR_WIDTH-1:0] pc_plus_4 = pc_in + 4;
+    // If JAL/JALR, we save PC+4 (return address), otherwise we save ALU result
+    assign ex_result_to_save = (jump_in) ? pc_plus_4 : alu_result;
+
+
     // -------------------------------------------
     // Branch/Jump Logic
     // -------------------------------------------
@@ -217,9 +223,10 @@ module execute_stage #(
                 valid_out           <= 1'b1;
                 instr_out           <= instr_in;
                 pc_out              <= pc_in;
-                pc_plus_4_out       <= pc_in + 4;
+                pc_plus_4_out       <= pc_plus_4;
 
-                alu_result_out      <= alu_result;
+                //alu_result_out      <= alu_result;
+                alu_result_out      <= ex_result_to_save; 
                 mem_data_out        <= rs2_data_forwarded;  // Use forwarded data for stores
                 rd_out              <= rd_in;
 

@@ -85,6 +85,7 @@ $(TOP_SIM_BUILD_DIR)/mini_rv32i_top_tb.out: $(BUS_SOURCES) $(IMEM_SOURCES) $(DME
 	@mkdir -p $(dir $@)
 	$(Q)echo "  [IVERILOG]  Compiling TOP Testbench"
 	$(Q)$(IVERILOG) -o $@ \
+		-I$(INC_DIR) \
 		-I$(TOP_DIR)/src/bus \
 		-I$(TOP_DIR)/src/cpu \
 		-I$(TOP_DIR)/src/mem \

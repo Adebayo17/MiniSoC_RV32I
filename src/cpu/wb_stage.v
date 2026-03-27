@@ -7,9 +7,6 @@ module writeback_stage #(
     input wire                                  clk,
     input wire                                  rst_n,
 
-    // Pipeline control
-    input wire                                  stall,
-
     // Pipeline inputs from memory stage
     input wire [DATA_WIDTH-1:0]                 instr_in,
     input wire [ADDR_WIDTH-1:0]                 pc_in,
