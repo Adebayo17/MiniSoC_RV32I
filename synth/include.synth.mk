@@ -35,7 +35,7 @@ FIRMWARE_MEM_FILE := $(SW_BUILD_DIR)/firmware.mem
 # -------------------------------------------
 # Top-level Synthesis Targets
 # -------------------------------------------
-.PHONY: synth.all synth.copy synth.clean
+.PHONY: synth.all synth.clean
 
 # Alias standard
 synth.all: $(SYNTH_NETLIST)
@@ -49,7 +49,7 @@ $(SYNTH_NETLIST): $(SYNTH_SOURCES) $(FIRMWARE_MEM_FILE) $(SYNTH_SCRIPT)
 		script $(SYNTH_SCRIPT); \
 		write_verilog $@"
 	
-	# --- STATISTICS EXTRACTION ---
+# --- STATISTICS EXTRACTION ---
 	$(Q)echo "  [STATS]     Extracting hardware statistics to $(SYNTH_STATS)..."
 	$(Q)awk '/Printing statistics\./, /End of script\./' $(SYNTH_LOG) > $(SYNTH_STATS)
 
@@ -58,10 +58,6 @@ $(SYNTH_NETLIST): $(SYNTH_SOURCES) $(FIRMWARE_MEM_FILE) $(SYNTH_SCRIPT)
 	$(Q)echo "  [YOSYS]     Hardware Statistics:"
 	$(Q)grep -A 20 "Printing statistics" $(SYNTH_LOG)
 
-
-synth.copy: $(SYNTH_NETLIST)
-	$(Q)echo "  [YOSYS]     Copying Netlist : $(SYNTH_NETLIST)"
-	$(Q)cp $(SYNTH_NETLIST) $(SYNTH_DIR)/netlist/
 
 synth.clean:
 	$(Q)echo "  [CLEAN]     Cleaning Synthesis build files..."
