@@ -25,7 +25,7 @@ system_error_t test_uart_init(void)
     system_error_t test_err;
     
     /* Test 1: Invalid parameters (NULL pointer) */
-    test_err = uart_init(NULL, UART_BASE_ADDRESS);
+    test_err = uart_init(NULL, UART_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     if (test_err != SYSTEM_ERROR_INVALID_PARAM) 
     {
         status = SYSTEM_ERROR_HARDWARE;
@@ -34,7 +34,7 @@ system_error_t test_uart_init(void)
     /* Test 2: Invalid hardware address */
     if (is_success(status))
     {
-        test_err = uart_init(&uart_dev, 0xDEADBEEFUL); 
+        test_err = uart_init(&uart_dev, 0xDEADBEEFUL, SYSTEM_CLOCK_FREQ); 
         if (test_err != SYSTEM_ERROR_INVALID_ADDRESS) 
         {
             status = SYSTEM_ERROR_HARDWARE;
@@ -44,7 +44,7 @@ system_error_t test_uart_init(void)
     /* Test 3: Normal initialization */
     if (is_success(status))
     {
-        status = uart_init(&uart_dev, UART_BASE_ADDRESS);
+        status = uart_init(&uart_dev, UART_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     }
     
     /* Test 4: Configuration */
@@ -90,7 +90,7 @@ system_error_t test_uart_transmit(void)
     uart_t uart_dev;
     system_error_t status = SYSTEM_SUCCESS;
     
-    status = uart_init(&uart_dev, UART_BASE_ADDRESS);
+    status = uart_init(&uart_dev, UART_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     
     if (is_success(status)) 
     {
@@ -135,7 +135,7 @@ system_error_t test_uart_status(void)
     bool is_ready = false;
     uart_status_t uart_stat;
     
-    status = uart_init(&uart_dev, UART_BASE_ADDRESS);
+    status = uart_init(&uart_dev, UART_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     
     if (is_success(status)) 
     {

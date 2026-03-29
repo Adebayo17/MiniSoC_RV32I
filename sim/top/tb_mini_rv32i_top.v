@@ -14,6 +14,7 @@ module tb_mini_rv32i_top;
     // PARAMETERS
     // =======================================================================
     // DUT parameters
+    parameter SYSTEM_CLK_FREQ       = 100_000_000;
     parameter CLK_PERIOD            = 10;                           // 100 MHz
     parameter FIRMWARE_FILE         = "firmware.mem";
     parameter ADDR_WIDTH            = 32;
@@ -24,11 +25,16 @@ module tb_mini_rv32i_top;
     parameter BAUD_DIV_RST          = 16'd104;                      // 115200 baud @ 12MHz
     parameter N_GPIO                = 8;
 
+    // UART parameters
+    parameter BAUD_RATE             = 115200;       
+    parameter BAUD_PERIOD           = SYSTEM_CLK_FREQ / BAUD_RATE;      // 868 cycles @ 100MHz
+    parameter BAUD_PERIOD_NS        = (BAUD_PERIOD * CLK_PERIOD);       // 8680.55ns per bit 
+
     // Simulation Control
     localparam RESET_TIME           = 200;
     localparam SIM_CTRL_BASE        = 32'h50000000;
     localparam TEST_PASS_CODE       = 32'h1234ABCD;
-    localparam MAX_SIM_CYCLES       = 2000000; // 2M cycles (was 1M)
+    localparam MAX_SIM_CYCLES       = 5_000_000; // 5M cycles (was 1M)
 
     // Log 
     parameter  MAX_MSG_LEN          = 128;
@@ -185,15 +191,17 @@ module tb_mini_rv32i_top;
     // =======================================================================
     initial begin
         // Log files
-        log_file            = $fopen("mini_rv32i_top.log", "w");
+        log_file            = $fopen("mini_rv32i_top.log");
+        log_file            = log_file | 1;
+
         cpu_trace_log       = $fopen("mini_rv32i_top_cpu_trace.log", "w");
-        print_log(log_file, "INFO", "=== MINI RISC-V SOC TESTBENCH STARTED ===");
+        $fdisplay(log_file, "=== MINI RISC-V SOC TESTBENCH STARTED ===");
 
         $fdisplay(cpu_trace_log, "Mini RV32I Top CPU instruction trace Log - %t", $time);
         $fdisplay(cpu_trace_log,
             "===============================================================================================================================================");
         $fdisplay(cpu_trace_log,
-            "  CYCLE        |   IF_PC    IF_INSTR   |   ID_PC    ID_INSTR   |   EX_PC    EX_INSTR   |   MEM_PC   MEM_INSTR      |   WB_PC    WB_INSTR");
+            "  CYCLE        |  IF_PC   |  ID_PC   |  EX_PC   |  MEM_PC  |  WB_PC   ");
         $fdisplay(cpu_trace_log,
             "===============================================================================================================================================");
 
@@ -219,7 +227,7 @@ module tb_mini_rv32i_top;
         // Release Reset
         #(RESET_TIME);
         rst_n               = 1;
-        print_log(log_file, "INFO", "Reset Released");
+        $fdisplay(log_file, "[INFO]Reset Released");
     end
 
 
@@ -279,8 +287,7 @@ module tb_mini_rv32i_top;
             
             // Global Timeout Check
             if (global_cycle > MAX_SIM_CYCLES) begin
-                $sformat(log_buf, "Simulation Global Timeout (%0d cycles)", MAX_SIM_CYCLES);
-                print_log(log_file, "FATAL", log_buf);
+                $fdisplay(log_file, "[FATAL] Ending simulation due to timeout (%0d cycles)...", MAX_SIM_CYCLES);
                 tb_state <= TB_FAIL;
             end 
             // MAIN STATE MACHINE
@@ -290,25 +297,25 @@ module tb_mini_rv32i_top;
                         if (rst_n) begin
                             tb_state    <= TB_MEM_INIT;
                             state_timer <= 0;
-                            print_log(log_file, "INFO", "External Reset Released. Waiting for SoC Init...");
+                            $fdisplay(log_file, "[INFO ] External Reset Released. Waiting for SoC Init...");
                         end
                     end
 
                     // ----------------------------------------------------
                     TB_MEM_INIT: begin
                         if (state_timer == 0) begin
-                            print_log(log_file, "INFO", "[TEST 1] Waiting for Memory Initialization");
+                            $fdisplay(log_file, "[INFO ][TEST 1] Waiting for Memory Initialization");
                         end
 
                         if (mem_init_done) begin
-                            print_log(log_file, "PASS", "Memory Initialized.");
+                            $fdisplay(log_file, "[PASS ][TEST 1] Memory Initialized.");
                             verify_firmware_loaded();
                             test_pass_count = test_pass_count + 1;
                             tb_state        <= TB_CPU_RESET;
                             state_timer     <= 0;
                         end
                         else if ((global_cycle - state_timer) > 100_000) begin
-                            print_log(log_file, "FAIL", "TIMEOUT: Memory Init failed.");
+                            $fdisplay(log_file, "[FAIL ][TEST 1] TIMEOUT: Memory Init failed.");
                             test_fail_count = test_fail_count + 1;
                             tb_state        <= TB_FAIL;
                         end
@@ -317,18 +324,17 @@ module tb_mini_rv32i_top;
                     // ----------------------------------------------------
                     TB_CPU_RESET: begin
                         if (state_timer == 0) begin
-                            print_log(log_file, "INFO", "[TEST 2] Checking CPU Reset Vector...");
+                            $fdisplay(log_file, "[INFO ][TEST 2] Checking CPU Reset Vector...");
                         end
 
                         if (soc_cpu_ready) begin
                             if (fetch_pc === 32'h00000000) begin
-                                print_log(log_file, "PASS", "CPU Reset Vector correct (0x00000000).");
+                                $fdisplay(log_file, "[PASS ][TEST 2] CPU Reset Vector correct (0x00000000).");
                                 test_pass_count = test_pass_count + 1;
                                 tb_state    <= TB_FETCH;
                                 state_timer <= 0;
                             end else begin
-                                $sformat(log_buf, "CPU Reset Vector incorrect: %h", fetch_pc);
-                                print_log(log_file, "FAIL", log_buf);
+                                $fdisplay(log_file, "[FAIL ][TEST 2] CPU Reset Vector incorrect: %h", fetch_pc);
                                 test_fail_count = test_fail_count + 1;
                                 tb_state        <= TB_FAIL;
                             end
@@ -338,17 +344,17 @@ module tb_mini_rv32i_top;
                     // ----------------------------------------------------
                     TB_FETCH: begin
                         if (state_timer == 0) begin
-                            print_log(log_file, "INFO", "[TEST 3] Checking Instruction Fetch...");
+                            $fdisplay(log_file, "[INFO ][TEST 3] Checking Instruction Fetch...");
                         end
 
                         if (fetch_pc > 32'h00000000) begin
-                            print_log(log_file, "PASS", "CPU is fetching instructions.");
+                            $fdisplay(log_file, "[PASS ][TEST 3] CPU is fetching instructions.");
                             test_pass_count = test_pass_count + 1;
                             tb_state        <= TB_PIPELINE;
                             state_timer     <= 0;
                         end
                         else if (state_timer > 100) begin
-                            print_log(log_file, "FAIL", "TIMEOUT: CPU stuck at 0x00000000.");
+                            $fdisplay(log_file, "[FAIL ][TEST 3] TIMEOUT: CPU stuck at 0x00000000.");
                             test_fail_count = test_fail_count + 1;
                             tb_state        <= TB_FAIL;
                         end
@@ -357,19 +363,18 @@ module tb_mini_rv32i_top;
                     // ----------------------------------------------------
                     TB_PIPELINE: begin
                         if (state_timer == 0) begin 
-                            print_log(log_file, "INFO", "[TEST 4] Checking Pipeline Progression...");
+                            $fdisplay(log_file, "[INFO ][TEST 4] Checking Pipeline Progression...");
                             pc_snapshot <= fetch_pc;
                         end
 
                         if (state_timer == 50) begin
                             if (fetch_pc !== pc_snapshot) begin
-                                print_log(log_file, "PASS", "PC is advancing (Pipeline OK).");
+                                $fdisplay(log_file, "[PASS ][TEST 4] PC is advancing (Pipeline OK).");
                                 test_pass_count = test_pass_count + 1;
                                 tb_state        <= TB_PERIPH;
                                 state_timer     <= 0;
                             end else begin
-                                $sformat(log_buf, "PC is stuck at %h (Pipeline Stall).", pc_snapshot);
-                                print_log(log_file, "FAIL", log_buf);
+                                $fdisplay(log_file, "[FAIL ][TEST 4] PC is stuck at %h (Pipeline Stall).", pc_snapshot);
                                 test_fail_count = test_fail_count + 1;
                                 tb_state        <= TB_FAIL;
                             end
@@ -379,13 +384,13 @@ module tb_mini_rv32i_top;
                     // ----------------------------------------------------
                     TB_PERIPH: begin
                         if (state_timer == 0) begin 
-                            print_log(log_file, "INFO", "[TEST 5] Checking Peripheral Access");
+                            $fdisplay(log_file, "[INFO ][TEST 5] Checking Peripheral Access");
                         end
 
                         if (state_timer == 10_000) begin
-                            if (flag_uart_access > 0)  print_log(log_file, "PASS", "UART Access detected.");
-                            if (flag_gpio_access > 0)  print_log(log_file, "PASS", "GPIO Access detected.");
-                            if (flag_timer_access > 0) print_log(log_file, "PASS", "Timer Access detected.");
+                            if (flag_uart_access > 0)  $fdisplay(log_file, "[PASS ][TEST 5] UART Access detected.");
+                            if (flag_gpio_access > 0)  $fdisplay(log_file, "[PASS ][TEST 5] GPIO Access detected.");
+                            if (flag_timer_access > 0) $fdisplay(log_file, "[PASS ][TEST 5] Timer Access detected.");
                             tb_state <= TB_FIRMWARE;
                             state_timer <= 0;
                         end
@@ -394,12 +399,12 @@ module tb_mini_rv32i_top;
                     // ----------------------------------------------------
                     TB_FIRMWARE: begin
                         if (state_timer == 0) begin 
-                            print_log(log_file, "INFO", "[TEST 6] Running Firmware (Waiting for PASS Code)...");
+                            $fdisplay(log_file, "[INFO ][TEST 6] Running Firmware (Waiting for PASS Code)...");
                         end
 
                         // Success Condition
                         if (flag_firmware_pass) begin
-                            print_log(log_file, "PASS", "[TESTBENCH] FIRMWARE PASS CODE RECEIVED!");
+                            $fdisplay(log_file, "[PASS ][TEST 6] FIRMWARE PASS CODE RECEIVED!");
                             test_pass_count = test_pass_count + 1;
                             tb_state <= TB_PASS;
                         end
@@ -407,17 +412,17 @@ module tb_mini_rv32i_top;
 
                     // ----------------------------------------------------
                     TB_PASS: begin
-                        print_log(log_file, "PASS", "============================================");
-                        print_log(log_file, "PASS", "           SIMULATION SUCCESSFUL            ");
-                        print_log(log_file, "PASS", "============================================");
+                        $fdisplay(log_file, "============================================");
+                        $fdisplay(log_file, "           SIMULATION SUCCESSFUL            ");
+                        $fdisplay(log_file, "============================================");
                         tb_state <= TB_DONE;
                     end
 
                     // ----------------------------------------------------
                     TB_FAIL: begin
-                        print_log(log_file, "FAIL", "============================================");
-                        print_log(log_file, "FAIL", "             SIMULATION FAILED              ");
-                        print_log(log_file, "FAIL", "============================================");
+                        $fdisplay(log_file, "============================================");
+                        $fdisplay(log_file, "             SIMULATION FAILED              ");
+                        $fdisplay(log_file, "============================================");
                         tb_state <= TB_DONE;
                     end
 
@@ -430,20 +435,11 @@ module tb_mini_rv32i_top;
                             cpi_measure = 0.0;
                         end
 
-                        $sformat(log_buf, "Tests Passed: %0d", test_pass_count);
-                        print_log(log_file, "INFO", log_buf);
-
-                        $sformat(log_buf, "Tests Failed: %0d", test_fail_count);
-                        print_log(log_file, "INFO", log_buf);
-
-                        $sformat(log_buf, "Total Cycles: %0d", global_cycle);
-                        print_log(log_file, "INFO", log_buf);
-
-                        $sformat(log_buf, "Instr Retired: %0d", instr_retired_count);
-                        print_log(log_file, "INFO", log_buf);
-
-                        $sformat(log_buf, "CPI Average: %0.4f", cpi_measure);
-                        print_log(log_file, "INFO", log_buf);
+                        $fdisplay(log_file, "[INFO ][TEST 6] Tests Passed: %0d", test_pass_count);
+                        $fdisplay(log_file, "[INFO ][TEST 6] Tests Failed: %0d", test_fail_count);
+                        $fdisplay(log_file, "[INFO ][TEST 6] Total Cycles: %0d", global_cycle);
+                        $fdisplay(log_file, "[INFO ][TEST 6] Instr Retired: %0d", instr_retired_count);
+                        $fdisplay(log_file, "[INFO ][TEST 6] CPI Average: %0.4f", cpi_measure);
                         
                         $fclose(log_file);
                         $fclose(cpu_trace_log);
@@ -461,43 +457,20 @@ module tb_mini_rv32i_top;
     // Check if firmware is loaded after MEM_INIT
     task verify_firmware_loaded;
         begin
-            print_log(log_file, "INFO", "[FW] Verifying firmware loaded correctly...");
-            
             // Check first few instructions in IMEM
-            $sformat(log_buf, "[FW] IMEM[0] = %h (should be first instruction)", dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
-            print_log(log_file, "INFO", log_buf);
+            $fdisplay(log_file, "[INFO ][FW] IMEM[0] = %h (should be first instruction)", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[0]);
+            $fdisplay(log_file, "[INFO ][FW] IMEM[1] = %h", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
+            $fdisplay(log_file, "[INFO ][FW] IMEM[2] = %h", 
+                    dut.top_soc_inst.imem_inst.imem_inst.mem[2]);
             
-            $sformat(log_buf, "[FW] IMEM[1] = %h", dut.top_soc_inst.imem_inst.imem_inst.mem[1]);
-            print_log(log_file, "INFO", log_buf);
-
-            $sformat(log_buf, "[FW] IMEM[2] = %h", dut.top_soc_inst.imem_inst.imem_inst.mem[2]);
-            print_log(log_file, "INFO", log_buf);
             
-
             // Check if instructions look valid
             if (dut.top_soc_inst.imem_inst.imem_inst.mem[0] === 32'hxxxxxxxx) begin
-                print_log(log_file, "ERROR", "[FW] IMEM[0] is uninitialized!");
-                test_fail_count = test_fail_count + 1;
+                $fdisplay(log_file, "[ERROR][FW] IMEM[0] is uninitialized!");
             end else begin
-                print_log(log_file, "PASS", "[FW] IMEM appears to be initialized");
-                test_pass_count = test_pass_count + 1;
-            end
-        end
-    endtask
-
-
-    // Print lop 
-    task print_log;
-        input [31:0]            f_handle;           // File descriptor (log_file)
-        input [8*5:1]           tag;                // Type: "INFO", "PASS", "FAIL", "WARN" (5 chars max)
-        input [8*MAX_MSG_LEN:1] msg;                // Text message
-        begin
-            // Console display
-            $display("[TB_TOP_LEVEL][%s] @%0t ns: %0s", tag, $time, msg);
-
-            // File Writting
-            if (f_handle != 0) begin
-                $fdisplay(f_handle, "[TB_TOP_LEVEL][%s] @%0t ns: %s0", tag, $time, msg);
+                $fdisplay(log_file, "[PASS ][FW] IMEM appears to be initialized");
             end
         end
     endtask
@@ -506,35 +479,74 @@ module tb_mini_rv32i_top;
     // =======================================================================
     // UART Monitor
     // =======================================================================
-    localparam BAUD_PERIOD_NS = CLK_PERIOD * BAUD_DIV_RST;
     reg [7:0] rx_byte;
     integer bit_idx;
 
     initial begin
         // Wait for reset release
         wait(rst_n == 1);
-        print_log(log_file, "INFO", "\n[UART TERMINAL] Listening...");
+        $fdisplay(log_file, "[INFO]\n[UART TERMINAL] Listening...");
         
         forever begin
-            // Detect Start Bit (Falling Edge)
+            // 1. Wait for Start bit (Falling Edge)
             @(negedge uart_tx);
             
-            // Wait 1.5 bit periods to sample middle of bit 0
-            #(BAUD_PERIOD_NS * 1.5);
-            
-            rx_byte = 0;
-            for (bit_idx = 0; bit_idx < 8; bit_idx = bit_idx + 1) begin
-                rx_byte[bit_idx] = uart_tx;
-                #(BAUD_PERIOD_NS);
+            // 2. Wait half bit period to sample middle of start bit
+            repeat (BAUD_PERIOD / 2) @(posedge clk);
+
+            if (uart_tx == 0) begin
+                rx_byte = 0;
+
+                // 3. Sample 8 data bits
+                for (bit_idx = 0; bit_idx < 8; bit_idx = bit_idx + 1) begin
+                    repeat (BAUD_PERIOD) @(posedge clk);
+                    rx_byte[bit_idx] = uart_tx;
+                end
+
+                // 4. Wait for stop bit
+                repeat (BAUD_PERIOD) @(posedge clk);
+
+                // Print char to console
+                process_uart_byte(rx_byte);
             end
-            
-            // Stop bit check (optional, skipping for simulation speed)
-            
-            // Print char to console
-            $write("\n[UART TERMINAL] %c", rx_byte);
-            if (log_file) $fwrite(log_file, "\n[UART TERMINAL] %c", rx_byte);
         end
     end
+
+
+    // =======================================================================
+    // UART PROCESSING TASKS
+    // =======================================================================
+    reg [7:0] print_buffer [0:255];
+    integer   print_idx = 0;
+    integer   k_gen;
+
+    task process_uart_byte;
+        input [7:0] byte_data;
+        begin
+            // If it's a line break (\n or \r)
+            if (byte_data == 8'h0A || byte_data == 8'h0D) begin
+                if (print_idx > 0) begin
+                    // Print Prefix
+                    if (log_file != 0) $fwrite(log_file, "[UART TERMINAL] ");
+                    
+                    // We force a line break at the very end
+                    for (k_gen = 0; k_gen < print_idx; k_gen = k_gen + 1) begin
+                        if (log_file != 0) $fwrite(log_file, "%c", print_buffer[k_gen]);
+                    end
+                    
+                    // 
+                    if (log_file != 0) $fwrite(log_file, "\n");
+                    
+                    print_idx = 0; // We empty the box for the next line
+                end
+            end 
+            // We only store readable ASCII characters (avoids corrupted characters)
+            else if (byte_data >= 8'h20 && byte_data <= 8'h7E) begin
+                print_buffer[print_idx] = byte_data;
+                print_idx = print_idx + 1;
+            end
+        end
+    endtask
 
 
     // =======================================================================
@@ -543,13 +555,13 @@ module tb_mini_rv32i_top;
     always @(posedge clk) begin
         if (cpu_trace_log && dut.top_soc_inst.cpu_rst_n) begin
             $fdisplay(cpu_trace_log,
-                "%8d        | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h | %08h  %08h",
+                "%8d        | %08h  | %08h  | %08h  | %08h  | %08h  ",
                 global_cycle,
-                fetch_pc    , fetch_instr     ,
-                decode_pc   , decode_instr    ,
-                execute_pc  , execute_instr   ,
-                mem_pc      , mem_instr       ,
-                writeback_pc, writeback_instr ,
+                fetch_pc    ,
+                decode_pc   ,
+                execute_pc  ,
+                mem_pc      ,
+                writeback_pc
             );
             $fdisplay(cpu_trace_log,
                 "-------------------------------------------------------------------------------------------------------------------------------------");

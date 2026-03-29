@@ -87,8 +87,12 @@ main_entry:
     li      t1, 0xFF
     sw      t1, GPIO_DIR_OFF(t0)
 
-    # Initialize UART - enable TX
+    # Initialize UART - set baud rate
     li      t0, UART_BASE
+    li      t1, 868          # Divisor for 115200 @ 100MHz
+    sw      t1, UART_BAUD_OFF(t0)
+
+    # Enable UART TX
     li      t1, 0x1
     sw      t1, UART_CTRL_OFF(t0)
 

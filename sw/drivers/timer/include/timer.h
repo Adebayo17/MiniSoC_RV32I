@@ -154,11 +154,11 @@ static inline timer_prescale_t timer_divisor_to_prescale(uint32_t divisor) {
 
 
 /**
- * @brief   Initialize timer driver
- * @param   [in] dev Pointer to timer structure
- * @param   [in] base_addr Base address of the timer peripheral
- * @param   [in] clock_freq Timer clock frequency in Hz
- * @return  SYSTEM_SUCCESS on success, error code on failure
+ * @brief   Initialize timer driver.
+ * @param   [in] dev Pointer to timer structure.
+ * @param   [in] base_addr Base address of the timer peripheral.
+ * @param   [in] clock_freq Timer clock frequency in Hz.
+ * @return  SYSTEM_SUCCESS on success, error code on failure.
  */
 system_error_t timer_init(timer_t *dev, uint32_t base_addr, uint32_t clock_freq);
 

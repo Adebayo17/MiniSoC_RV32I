@@ -172,7 +172,7 @@ static system_error_t peripherals_init(void)
     gpio_pin_config_t led_cfg;
     
     /* 1. Initialize and configure UART */
-    status = uart_init(&uart0, UART_BASE_ADDRESS);
+    status = uart_init(&uart0, UART_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     if (is_success(status)) 
     {
         uart_cfg.baudrate  = UART_BAUD_RATE;

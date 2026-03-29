@@ -30,11 +30,11 @@ static inline uart_regs_t* uart_get_hw_regs(const uart_t *dev)
 /* ========================================================================== */
 
 
-system_error_t uart_init(uart_t *dev, uint32_t base_addr)
+system_error_t uart_init(uart_t *dev, uint32_t base_addr, uint32_t clock_freq)
 {
     system_error_t status = SYSTEM_SUCCESS;
 
-    if (dev == NULL)
+    if (dev == NULL || clock_freq == 0U)
     {
         status = SYSTEM_ERROR_INVALID_PARAM;
     }
@@ -45,6 +45,8 @@ system_error_t uart_init(uart_t *dev, uint32_t base_addr)
 
         if (is_success(status))
         {
+            dev->clock_frequency        = clock_freq;
+
             /* Re-initialize the UART to known software state */
             dev->config.baudrate        = UART_BAUD_115200;
             dev->config.enable_tx       = false;
@@ -107,7 +109,7 @@ system_error_t uart_configure(uart_t *dev, const uart_config_t *config)
         if (is_success(status))
         {
             /* Update hardware with system frequency (standard assumption) */
-            status = uart_set_baud_rate(dev, SYSTEM_CLOCK_FREQ, config->baudrate);
+            status = uart_set_baud_rate(dev, config->baudrate);
 
             if (is_success(status))
             {
@@ -158,11 +160,11 @@ system_error_t uart_get_config(uart_t *dev, uart_config_t *config)
 }
 
 
-system_error_t uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudrate)
+system_error_t uart_set_baud_rate(uart_t *dev, uint32_t baudrate)
 {
     system_error_t status = SYSTEM_SUCCESS;
 
-    if ((clk_freq == 0U) || (baudrate == 0U))
+    if ((baudrate == 0U))
     {
         status = SYSTEM_ERROR_INVALID_PARAM;
     }
@@ -175,9 +177,9 @@ system_error_t uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudr
             uart_regs_t *hw = uart_get_hw_regs(dev);
             
             /* Calculate the clock divisor. Note: depends on the exact Verilog implementation.
-               Often (clk_freq / baudrate) or (clk_freq / (16 * baudrate))
-               Here: (clk_freq / baudrate) */
-            uint32_t divider = system_udiv32(clk_freq, baudrate);
+               Often (clock_frequency / baudrate) or (clock_frequency / (16 * baudrate))
+               Here: (clock_frequency / baudrate) */
+            uint32_t divider = system_udiv32(dev->clock_frequency, baudrate);
             
             hw->BAUD_DIV = divider;
             dev->config.baudrate = baudrate;
@@ -188,11 +190,11 @@ system_error_t uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudr
 }
 
 
-system_error_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t *baudrate)
+system_error_t uart_get_baud_rate(uart_t *dev, uint32_t *baudrate)
 {
     system_error_t status = SYSTEM_SUCCESS;
 
-    if ((clk_freq == 0U) || (baudrate == NULL))
+    if ((baudrate == NULL))
     {
         status = SYSTEM_ERROR_INVALID_PARAM;
     }
@@ -207,7 +209,7 @@ system_error_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t *baud
 
             if (divider > 0U)
             {
-                *baudrate = system_udiv32(clk_freq, divider);
+                *baudrate = system_udiv32(dev->clock_frequency, divider);
             }
             else
             {

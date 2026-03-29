@@ -566,7 +566,7 @@ module tb_minisoc_c_firmware;
             // 1. Wait for Start bit (Falling Edge)
             @(negedge uart_tx);
 
-            // 2. Wait hakf bit period to sample middle of start bit
+            // 2. Wait half bit period to sample middle of start bit
             repeat (BAUD_PERIOD / 2) @(posedge clk);
 
             if (uart_tx == 0) begin
@@ -585,7 +585,7 @@ module tb_minisoc_c_firmware;
                 uart_tx_buffer[uart_tx_total] = uart_captured_byte;
                 uart_tx_total = uart_tx_total + 1;
 
-                // Print for python script: parse_uart
+                // Print the captured byte.
                 process_uart_byte(uart_captured_byte);
             end
         end

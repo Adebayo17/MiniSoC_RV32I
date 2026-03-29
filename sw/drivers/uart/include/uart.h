@@ -62,9 +62,10 @@ typedef struct
  */
 typedef struct 
 {
-    peripheral_t    base;       /*!< Base peripheral structure */
-    uart_config_t   config;     /*!< Current software configuration */
-    uart_status_t   status;     /*!< Current software status */
+    peripheral_t    base;                   /*!< Base peripheral structure */
+    uint32_t        clock_frequency;        /*!< SoC clock frequency in Hz (100MHz = 100000000) */
+    uart_config_t   config;                 /*!< Current software configuration */
+    uart_status_t   status;                 /*!< Current software status */
 } uart_t;
 
 
@@ -103,12 +104,13 @@ static inline uart_t *peripheral_to_uart(peripheral_t *periph)
 /* With error checking */
 
 /**
- * @brief   Initialize UART driver
- * @param   [in] dev Pointer to UART structure
- * @param   [in] base_addr Base address of the UART peripheral
- * @return  SYSTEM_SUCCESS on success, error code on failure
+ * @brief   Initialize UART driver.
+ * @param   [in] dev Pointer to UART structure.
+ * @param   [in] base_addr Base address of the UART peripheral.
+ * @param   [in] clock_freq Timer clock frequency in Hz.
+ * @return  SYSTEM_SUCCESS on success, error code on failure.
  */
-system_error_t uart_init(uart_t *dev, uint32_t base_addr);
+system_error_t uart_init(uart_t *dev, uint32_t base_addr, uint32_t clock_freq);
 
 /**
  * @brief   Deinitialize UART driver
@@ -136,32 +138,30 @@ system_error_t uart_get_config(uart_t *dev, uart_config_t *config);
 /**
  * @brief   Set baud rate.
  * @param   [in] dev Pointer to UART structure.
- * @param   [in] clk_freq UART clock frequency.
  * @param   [in] baudrate Baud rate value.
  * @return  SYSTEM_SUCCESS on success, error code on failure.
  */
-system_error_t uart_set_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t baudrate);
+system_error_t uart_set_baud_rate(uart_t *dev, uint32_t baudrate);
 
 /**
- * @brief   Get current baud rate
- * @param   [in] dev Pointer to UART structure
- * @param   [in] clk_freq UART clock frequency
- * @param   [out] baudrate Pointer to store baud rate
- * @return  SYSTEM_SUCCESS on success, error code on failure
+ * @brief   Get current baud rate.
+ * @param   [in] dev Pointer to UART structure.
+ * @param   [out] baudrate Pointer to store baud rate.
+ * @return  SYSTEM_SUCCESS on success, error code on failure.
  */
-system_error_t uart_get_baud_rate(uart_t *dev, uint32_t clk_freq, uint32_t *baudrate);
+system_error_t uart_get_baud_rate(uart_t *dev, uint32_t *baudrate);
 
 /**
- * @brief   Enable transmitter
- * @param   [in] dev Pointer to UART structure
- * @return  SYSTEM_SUCCESS on success, error code on failure
+ * @brief   Enable transmitter.
+ * @param   [in] dev Pointer to UART structure.
+ * @return  SYSTEM_SUCCESS on success, error code on failure.
  */
 system_error_t uart_enable_tx(uart_t *dev);
 
 /**
- * @brief   Disable transmitter
- * @param   [in] dev Pointer to UART structure
- * @return  SYSTEM_SUCCESS on success, error code on failure
+ * @brief   Disable transmitter.
+ * @param   [in] dev Pointer to UART structure.
+ * @return  SYSTEM_SUCCESS on success, error code on failure.
  */
 system_error_t uart_disable_tx(uart_t *dev);
 

@@ -28,7 +28,7 @@ system_error_t test_peripheral_integration(void)
     system_error_t status = SYSTEM_SUCCESS;
     
     /* Initialize all peripherals */
-    status = uart_init(&uart_dev, UART_BASE_ADDRESS);
+    status = uart_init(&uart_dev, UART_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     if (is_success(status)) status = gpio_init(&gpio_dev, GPIO_BASE_ADDRESS);
     if (is_success(status)) status = timer_init(&timer_dev, TIMER_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     
@@ -114,7 +114,7 @@ system_error_t test_memory_integration(void)
     uart_t uart_dev;
     system_error_t status = SYSTEM_SUCCESS;
     
-    status = uart_init(&uart_dev, UART_BASE_ADDRESS);
+    status = uart_init(&uart_dev, UART_BASE_ADDRESS, SYSTEM_CLOCK_FREQ);
     
     /* Configure UART */
     if (is_success(status)) 
