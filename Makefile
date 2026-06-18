@@ -38,6 +38,7 @@ include src/include.src.mk
 include sim/include.sim.mk 
 include sw/include.sw.mk
 include sim_minisoc/include.sim_minisoc.mk
+include fpga/include.fpga.mk
 include synth/include.synth.mk
 
 
